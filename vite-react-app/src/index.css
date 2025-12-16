@@ -16,3 +16,15 @@ body {
 main {
   padding: 1rem;
 }
+
+/* Builder styles */
+.ModularUIBuilder input,
+.ModularUIBuilder textarea,
+.ModularUIBuilder select {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+}
+.ModularUIBuilder button {
+  margin-right: 6px;
+}
