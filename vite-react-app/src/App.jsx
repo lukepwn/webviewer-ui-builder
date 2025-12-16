@@ -20,12 +20,10 @@ function App() {
       },
       viewer.current
     ).then((instance) => {
-      // Mark as mounted so we don't mount twice in dev environments
       viewer.current.dataset.webviewerMounted = "true";
+
       // Expose instance for the builder and debugging
       window.viewerInstance = instance;
-      // You can access the WebViewer instance here if needed
-      // const { docViewer, annotManager } = instance
     });
   }, []);
 
@@ -40,6 +38,7 @@ function App() {
         <div className="webviewer" ref={viewer}></div>
       </div>
       {showBuilder && (
+        // The aside tag is good for semantic HTML5, indicating a sidebar
         <aside
           style={{
             width: 420,

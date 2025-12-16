@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 
+/**
+ * @param download - downloads ui config json
+ */
 function download(filename, content) {
   const blob = new Blob([content], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -10,8 +13,15 @@ function download(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-// ALL_TOOLS is built dynamically from the viewer at runtime
-const ALL_TOOLS = [];
+/**
+ *
+ * Steps:
+ * 1. Webviewer instantiated in App.jsx and exposed as window.viewerInstance
+ * 2. On mount, try to load existing modularComponents from viewer
+ * 3. Discover runtime toolbar groups and tools
+ * 4.
+ * 5.
+ */
 
 export default function ModularUIBuilder() {
   const [config, setConfig] = useState({
@@ -26,7 +36,7 @@ export default function ModularUIBuilder() {
   const [viewerTools, setViewerTools] = useState([]);
 
   useEffect(() => {
-    // try to load current UI from viewer and discover tools
+    // 1. Webviewer instantiated in App.jsx and exposed as window.viewerInstance
     if (window.viewerInstance && window.viewerInstance.UI) {
       try {
         const exported = window.viewerInstance.UI.exportModularComponents();
@@ -36,7 +46,7 @@ export default function ModularUIBuilder() {
         setStatus("No existing UI configuration available");
       }
 
-      // discover runtime ribbon groups and tools
+      // 2. On mount, try to load existing modularComponents from viewer
       discoverRuntimeToolData();
     }
   }, []);
@@ -45,25 +55,16 @@ export default function ModularUIBuilder() {
     if (!window.viewerInstance || !window.viewerInstance.UI) return;
 
     try {
-      const ui = window.viewerInstance.UI;
-      const core = window.viewerInstance.Core || {};
-
-      // Use exported config if possible (more reliable), otherwise fallback
-      let cfg = null;
-      try {
-        cfg = ui.exportModularComponents ? ui.exportModularComponents() : null;
-      } catch (e) {
-        cfg = null;
-      }
-      if (!cfg) cfg = config || { modularComponents: {}, modularHeaders: {} };
+      const UI = window.viewerInstance.UI;
+      const Core = window.viewerInstance.Core || {};
+      const cfg = config;
 
       // Primary discovery: use the runtime ribbon group to find toolbar groups and their items
       const categories = {};
       const toolsMap = new Map();
 
       try {
-        const ribbonGroup =
-          ui.getRibbonGroup && ui.getRibbonGroup("default-ribbon-group");
+        const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
         if (ribbonGroup && Array.isArray(ribbonGroup.items)) {
           ribbonGroup.items.forEach((rItem) => {
             const catKey =
@@ -76,7 +77,7 @@ export default function ModularUIBuilder() {
             const groupedNames = rItem.groupedItems || [];
             groupedNames.forEach((gname) => {
               try {
-                const grouped = ui.getGroupedItems && ui.getGroupedItems(gname);
+                const grouped = UI.getGroupedItems && UI.getGroupedItems(gname);
                 const groups = Array.isArray(grouped)
                   ? grouped
                   : grouped
@@ -153,7 +154,7 @@ export default function ModularUIBuilder() {
       if (Object.keys(categories).length === 0) {
         try {
           const exported =
-            ui.exportModularComponents && ui.exportModularComponents();
+            UI.exportModularComponents && UI.exportModularComponents();
           if (exported) {
             const { categories: cfgCats, tools: cfgTools } =
               buildCategoriesFromConfig(exported);
@@ -169,7 +170,7 @@ export default function ModularUIBuilder() {
 
       // Add SDK tool names
       try {
-        const Tools = core.Tools && core.Tools.ToolNames;
+        const Tools = Core.Tools && Core.Tools.ToolNames;
         if (Tools)
           Object.values(Tools).forEach(
             (tn) =>
