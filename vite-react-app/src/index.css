@@ -1,0 +1,18 @@
+body {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial;
+}
+
+.webviewer {
+  height: 80vh;
+  width: 80vw;
+}
+
+/* small helper for demo */
+main {
+  padding: 1rem;
+}
