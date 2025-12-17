@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import ToolButtonForm from "./components/ToolButtonForm";
+import ToolButtonsCategorized from "./components/ToolButtonsCategorized";
+import ConfigPreview from "./components/ConfigPreview";
 
 /**
  * @param download - downloads ui config json
@@ -35,6 +38,21 @@ export default function ModularUIBuilder() {
   const [runtimeCategories, setRuntimeCategories] = useState({});
   const [viewerTools, setViewerTools] = useState([]);
 
+  // helper: resolve a tool-like item's canonical value (used for lookup/dedupe)
+  function getValue(it) {
+    if (!it) return "";
+    return it.toolName || it.dataElement || it.value || "";
+  }
+
+  // helper: add a value string to a category, deduplicating by value
+  function addCategoryItem(categories, key, value) {
+    if (!value) return;
+    categories[key] = categories[key] || [];
+    if (!categories[key].includes(value)) {
+      categories[key].push(value);
+    }
+  }
+
   useEffect(() => {
     // 1. Webviewer instantiated in App.jsx and exposed as window.viewerInstance
     if (window.viewerInstance && window.viewerInstance.UI) {
@@ -56,90 +74,62 @@ export default function ModularUIBuilder() {
 
     try {
       const UI = window.viewerInstance.UI;
-      const Core = window.viewerInstance.Core || {};
-      const cfg = config;
+      const Core =
+        window.viewerInstance.Core || window.viewerInstance.core || {};
 
       // Primary discovery: use the runtime ribbon group to find toolbar groups and their items
       const categories = {};
-      const toolsMap = new Map();
 
       try {
         const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
-        if (ribbonGroup && Array.isArray(ribbonGroup.items)) {
-          ribbonGroup.items.forEach((rItem) => {
+
+        // proceed to examine toolbar groups if present
+        if (ribbonGroup) {
+          ribbonGroup.items.forEach((toolbarGroupRaw) => {
+            const toolbarGroup =
+              typeof toolbarGroupRaw === "string"
+                ? { dataElement: toolbarGroupRaw }
+                : toolbarGroupRaw || {};
+
             const catKey =
-              rItem.toolbarGroup ||
-              rItem.dataElement ||
-              rItem.name ||
+              toolbarGroup.toolbarGroup ||
+              toolbarGroup.dataElement ||
+              toolbarGroup.name ||
               "tools-header";
             categories[catKey] = categories[catKey] || [];
 
-            const groupedNames = rItem.groupedItems || [];
-            groupedNames.forEach((gname) => {
+            // include direct items on toolbar group if present
+            if (Array.isArray(toolbarGroup.items)) {
+              toolbarGroup.items.forEach((it) => {
+                try {
+                  const value = getValue(it);
+                  addCategoryItem(categories, catKey, value);
+                } catch (e) {
+                  // ignore
+                }
+              });
+            }
+
+            const toolbarGroupedItems = Array.isArray(toolbarGroup.groupedItems)
+              ? toolbarGroup.groupedItems
+              : [];
+            toolbarGroupedItems.forEach((item) => {
               try {
-                const grouped = UI.getGroupedItems && UI.getGroupedItems(gname);
-                const groups = Array.isArray(grouped)
-                  ? grouped
-                  : grouped
-                  ? [grouped]
-                  : [];
-                groups.forEach((g) => {
-                  const items = g.items || (g.getItems && g.getItems()) || [];
-                  items.forEach((it) => {
-                    let value = null;
-                    let label = null;
-
-                    if (typeof it === "string") {
-                      value = it;
-                      const comp =
-                        (cfg &&
-                          cfg.modularComponents &&
-                          cfg.modularComponents[value]) ||
-                        (config &&
-                          config.modularComponents &&
-                          config.modularComponents[value]);
-                      label =
-                        (comp &&
-                          (comp.label || comp.toolName || comp.dataElement)) ||
-                        value;
-                    } else if (it && typeof it === "object") {
-                      value = it.toolName || it.dataElement || it.value;
-                      label =
-                        it.label || it.toolName || it.dataElement || value;
-                      if (it.dataElement) {
-                        const comp =
-                          (cfg &&
-                            cfg.modularComponents &&
-                            cfg.modularComponents[it.dataElement]) ||
-                          (config &&
-                            config.modularComponents &&
-                            config.modularComponents[it.dataElement]);
-                        if (comp)
-                          label =
-                            comp.label ||
-                            comp.toolName ||
-                            comp.dataElement ||
-                            label;
-                      }
-                    }
-
-                    if (
-                      value &&
-                      !categories[catKey].some((t) => t.value === value)
-                    ) {
-                      categories[catKey].push({ value, label });
-                    }
-
-                    // Only add non-divider/non-empty entries to selectable tools
-                    if (
-                      value &&
-                      !value.startsWith("divider-") &&
-                      !toolsMap.has(value)
-                    ) {
-                      toolsMap.set(value, { value, label });
+                const grouped = UI.getGroupedItems(item);
+                if (grouped) {
+                  const groupedItems =
+                    grouped.items ||
+                    (grouped.getItems && grouped.getItems()) ||
+                    [];
+                  groupedItems.forEach((it) => {
+                    try {
+                      const value = getValue(it);
+                      addCategoryItem(categories, catKey, value);
+                    } catch (e) {
+                      // ignore
                     }
                   });
-                });
+                }
               } catch (e) {
                 // ignore grouped items lookup failures
               }
@@ -150,149 +140,55 @@ export default function ModularUIBuilder() {
         // ignore
       }
 
-      // Fallback: if no categories found, try exported config traversal
-      if (Object.keys(categories).length === 0) {
-        try {
-          const exported =
-            UI.exportModularComponents && UI.exportModularComponents();
-          if (exported) {
-            const { categories: cfgCats, tools: cfgTools } =
-              buildCategoriesFromConfig(exported);
-            Object.assign(categories, cfgCats);
-            cfgTools.forEach(
-              (t) => !toolsMap.has(t.value) && toolsMap.set(t.value, t)
-            );
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      // Add SDK tool names
+      // Also include items from the default top header (default-top-header)
       try {
-        const Tools = Core.Tools && Core.Tools.ToolNames;
-        if (Tools)
-          Object.values(Tools).forEach(
-            (tn) =>
-              !toolsMap.has(tn) && toolsMap.set(tn, { value: tn, label: tn })
-          );
+        const topHeader =
+          UI.getModularHeader && UI.getModularHeader("default-top-header");
+        if (topHeader) {
+          categories["default-top-header"] =
+            categories["default-top-header"] || [];
+
+          // get grouped items from the header
+          let headerGrouped = [];
+          try {
+            headerGrouped = topHeader.getGroupedItems
+              ? topHeader.getGroupedItems() || []
+              : [];
+          } catch (e) {
+            headerGrouped = [];
+          }
+
+          headerGrouped.forEach((g) => {
+            try {
+              const items = g.items || (g.getItems && g.getItems()) || [];
+              items.forEach((it) => {
+                try {
+                  const value = getValue(it);
+                  addCategoryItem(categories, "default-top-header", value);
+                } catch (e) {
+                  // ignore
+                }
+              });
+            } catch (e) {
+              // ignore
+            }
+          });
+        }
       } catch (e) {
         // ignore
       }
 
-      const tools = Array.from(toolsMap.values());
+      // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
+      const Tools = Core && Core.Tools && Core.Tools.ToolNames;
+      const viewerToolList = Tools
+        ? Object.values(Tools).map((tn) => ({ value: tn }))
+        : [];
 
       setRuntimeCategories(categories);
-      setViewerTools(tools);
+      setViewerTools(viewerToolList);
     } catch (err) {
       // no-op
     }
-  }
-
-  function buildCategoriesFromConfig(cfg) {
-    const categories = {};
-    const collectedTools = [];
-    const components = cfg.modularComponents || {};
-    const headers = cfg.modularHeaders || {};
-
-    function addTool(cat, tool) {
-      if (!cat) cat = "tools-header";
-      categories[cat] = categories[cat] || [];
-      if (!categories[cat].some((t) => t.value === tool.value))
-        categories[cat].push(tool);
-      if (!collectedTools.some((t) => t.value === tool.value))
-        collectedTools.push(tool);
-    }
-
-    function processItem(itemId, inheritedCategory) {
-      if (!itemId) return;
-      const comp = components[itemId];
-      if (comp) {
-        const type = comp.type;
-        if (type === "ribbonGroup") {
-          const items = comp.items || [];
-          items.forEach((ri) => {
-            let rEntry = ri;
-            if (typeof ri === "string")
-              rEntry = components[ri] || { dataElement: ri };
-            const catKey = rEntry.toolbarGroup || rEntry.dataElement;
-            const grouped = rEntry.groupedItems || [];
-            grouped.forEach((gname) => processItem(gname, catKey));
-          });
-        } else if (type === "ribbonItem") {
-          const catKey = comp.toolbarGroup || comp.dataElement;
-          const grouped = comp.groupedItems || [];
-          grouped.forEach((gname) => processItem(gname, catKey));
-        } else if (type === "groupedItems") {
-          const items = comp.items || [];
-          items.forEach((child) => {
-            if (typeof child === "string") {
-              processItem(child, inheritedCategory);
-            } else if (child && child.dataElement) {
-              processItem(child.dataElement, inheritedCategory);
-            }
-          });
-        } else if (type === "toolButton") {
-          const value = comp.toolName || comp.dataElement;
-          const label = comp.label || comp.toolName || comp.dataElement;
-          addTool(inheritedCategory, { value, label });
-        } else if (
-          type === "ribbonItem" ||
-          type === "ribbonGroup" ||
-          type === "groupedItems"
-        ) {
-          const items = comp.items || [];
-          if (Array.isArray(items))
-            items.forEach((it) => processItem(it, inheritedCategory));
-        } else {
-          // Treat other leaf component types (CustomButton, ToggleElementButton, PresetButton, etc.) as selectable items
-          if (comp.dataElement) {
-            const value = comp.dataElement;
-            const label = comp.label || comp.toolName || comp.dataElement;
-            addTool(inheritedCategory, { value, label });
-          } else {
-            const items = comp.items || [];
-            if (Array.isArray(items))
-              items.forEach((it) => processItem(it, inheritedCategory));
-          }
-        }
-      } else {
-        const headerEntry = headers[itemId];
-        if (headerEntry && headerEntry.items) {
-          headerEntry.items.forEach((it) => processItem(it, inheritedCategory));
-        }
-      }
-    }
-
-    // Walk headers
-    for (const hdrKey of Object.keys(headers)) {
-      const hdr = headers[hdrKey];
-      const items = hdr.items || [];
-      items.forEach((it) => {
-        if (typeof it === "string") processItem(it, null);
-        else if (it && it.dataElement) {
-          if (it.toolbarGroup) {
-            const catKey = it.toolbarGroup;
-            const grouped = it.groupedItems || [];
-            grouped.forEach((gname) => processItem(gname, catKey));
-          } else if (it.groupedItems) {
-            it.groupedItems.forEach((gname) => processItem(gname, null));
-          }
-        }
-      });
-    }
-
-    // Also ensure any toolButtons not found are included as uncategorized
-    for (const [k, comp] of Object.entries(components)) {
-      if (comp && comp.type === "toolButton") {
-        const value = comp.toolName || comp.dataElement;
-        const label = comp.label || comp.toolName || comp.dataElement;
-        const already = collectedTools.some((t) => t.value === value);
-        if (!already) addTool(null, { value, label });
-      }
-    }
-
-    return { categories, tools: collectedTools };
   }
 
   function addToolButton({ dataElement, toolName, label, header }) {
@@ -305,6 +201,32 @@ export default function ModularUIBuilder() {
       };
 
       const headers = { ...c.modularHeaders };
+
+      // Special-case: if the selected header is the runtime top header, create or update it in the config
+      if (header === "default-top-header") {
+        const tgt = headers["default-top-header"]
+          ? { ...headers["default-top-header"] }
+          : { dataElement: "default-top-header", placement: "top", items: [] };
+        tgt.items = Array.isArray(tgt.items) ? tgt.items.slice() : [];
+        if (!tgt.items.includes(dataElement)) tgt.items.push(dataElement);
+        headers["default-top-header"] = tgt;
+        setStatus(`Added ${dataElement} to header default-top-header`);
+
+        // Update runtimeCategories so UI reflects change immediately
+        const value = toolName || dataElement;
+        const labelValue = label || toolName || dataElement;
+        setRuntimeCategories((rc) => {
+          const prev = rc || {};
+          const arr = prev["default-top-header"] || [];
+          if (arr.some((t) => t === value)) return prev;
+          return {
+            ...prev,
+            "default-top-header": [...arr, value],
+          };
+        });
+
+        return { ...c, modularComponents, modularHeaders: headers };
+      }
 
       // If the chosen header matches an actual modularHeader, add to that header directly
       if (header && headers[header]) {
@@ -402,6 +324,11 @@ export default function ModularUIBuilder() {
   }
 
   function deleteToolButton(dataElement) {
+    const compToDelete = (config.modularComponents || {})[dataElement];
+    const needle = compToDelete
+      ? compToDelete.toolName || compToDelete.dataElement || compToDelete.label
+      : dataElement;
+
     // Remove component and clean up any references to it in headers and other components
     setConfig((c) => {
       const modularComponents = { ...c.modularComponents };
@@ -447,20 +374,17 @@ export default function ModularUIBuilder() {
       return { ...c, modularComponents, modularHeaders: headers };
     });
 
-    setStatus(`Deleted ${dataElement} and cleaned up references`);
-  }
-
-  function removeToolButtonFromGroup(dataElement, header) {
-    if (!header) return;
-    setConfig((c) => {
-      const headers = { ...c.modularHeaders };
-      if (!headers[header]) return c;
-      headers[header] = {
-        ...headers[header],
-        items: (headers[header].items || []).filter((i) => i !== dataElement),
-      };
-      return { ...c, modularHeaders: headers };
+    // Remove references from runtime categories so UI updates immediately
+    setRuntimeCategories((rc) => {
+      if (!rc) return rc;
+      const next = {};
+      for (const [cat, items] of Object.entries(rc)) {
+        next[cat] = (items || []).filter((t) => t !== needle);
+      }
+      return next;
     });
+
+    setStatus(`Deleted ${dataElement} and cleaned up references`);
   }
 
   async function applyToViewer() {
@@ -586,224 +510,11 @@ export default function ModularUIBuilder() {
           onAdd={(values) => addToolButton(values)}
         />
 
-        <div style={{ marginTop: 8 }}>
-          <h5>Tool Buttons by Toolbar Group</h5>
-          {Object.keys(config.modularHeaders || {}).length === 0 ? (
-            <em>No toolbar groups defined</em>
-          ) : (
-            Object.entries(config.modularHeaders || {}).map(([hdrKey, hdr]) => (
-              <div key={hdrKey} style={{ marginBottom: 12 }}>
-                <strong>{hdrKey}</strong>
-                <div
-                  style={{
-                    maxHeight: 140,
-                    overflow: "auto",
-                    border: "1px solid #eee",
-                    padding: 8,
-                  }}
-                >
-                  {(hdr.items || []).filter((item) => {
-                    const comp = (config.modularComponents || {})[item];
-                    return comp && comp.type === "toolButton";
-                  }).length === 0 ? (
-                    <em>No tool buttons in this group</em>
-                  ) : (
-                    (hdr.items || []).map((item) => {
-                      const comp = (config.modularComponents || {})[item];
-                      if (!comp || comp.type !== "toolButton") return null;
-                      return (
-                        <div
-                          key={item}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "4px 0",
-                          }}
-                        >
-                          <div>
-                            {item} —{" "}
-                            {comp.toolName || comp.label || "toolButton"}
-                          </div>
-                          <div>
-                            <button
-                              onClick={() =>
-                                removeToolButtonFromGroup(item, hdrKey)
-                              }
-                            >
-                              Remove
-                            </button>
-                            <button
-                              style={{ marginLeft: 8 }}
-                              onClick={() => deleteToolButton(item)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-
-          {(() => {
-            // Compute orphan tool buttons (not present in any header) and group them by discovered runtime categories
-            const orphanList = Object.entries(
-              config.modularComponents || {}
-            ).filter(
-              ([k, v]) =>
-                v.type === "toolButton" &&
-                !Object.values(config.modularHeaders || {}).some((h) =>
-                  (h.items || []).includes(k)
-                )
-            );
-
-            if (orphanList.length === 0) return null;
-
-            const categorized = {};
-            const uncategorized = [];
-
-            for (const [k, v] of orphanList) {
-              let assigned = false;
-              const ui = window.viewerInstance && window.viewerInstance.UI;
-              const needle = v.toolName || v.dataElement || v.label;
-
-              for (const [cat, tools] of Object.entries(
-                runtimeCategories || {}
-              )) {
-                if ((tools || []).some((t) => t.value === needle)) {
-                  categorized[cat] = categorized[cat] || [];
-                  categorized[cat].push([k, v]);
-                  assigned = true;
-                  break;
-                }
-
-                // If the runtime category entry references a groupedItems dataElement, resolve it only when it is a groupedItems component in the config
-                for (const t of tools || []) {
-                  try {
-                    const isGroupedItems =
-                      config &&
-                      config.modularComponents &&
-                      config.modularComponents[t.value] &&
-                      config.modularComponents[t.value].type === "groupedItems";
-                    if (!isGroupedItems) continue;
-                    if (!ui || !ui.getGroupedItems) continue;
-                    const grouped = ui.getGroupedItems(t.value);
-                    const groups = Array.isArray(grouped)
-                      ? grouped
-                      : grouped
-                      ? [grouped]
-                      : [];
-                    let found = false;
-                    for (const g of groups) {
-                      const items =
-                        g.items || (g.getItems && g.getItems()) || [];
-                      for (const it of items) {
-                        const itValue =
-                          it.toolName || it.dataElement || it.value;
-                        if (itValue === needle) {
-                          categorized[cat] = categorized[cat] || [];
-                          categorized[cat].push([k, v]);
-                          assigned = true;
-                          found = true;
-                          break;
-                        }
-                      }
-                      if (found) break;
-                    }
-                    if (found) break;
-                  } catch (e) {
-                    // ignore resolution errors
-                  }
-                }
-
-                if (assigned) break;
-              }
-
-              if (!assigned) uncategorized.push([k, v]);
-            }
-
-            return (
-              <div style={{ marginTop: 12 }}>
-                <h5>Orphan Tool Buttons (categorized)</h5>
-                {Object.keys(categorized).length === 0
-                  ? null
-                  : Object.entries(categorized).map(([cat, list]) => (
-                      <div key={cat} style={{ marginBottom: 8 }}>
-                        <strong>{cat}</strong>
-                        <div
-                          style={{
-                            maxHeight: 120,
-                            overflow: "auto",
-                            border: "1px solid #eee",
-                            padding: 8,
-                          }}
-                        >
-                          {list.map(([k, v]) => (
-                            <div
-                              key={k}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "4px 0",
-                              }}
-                            >
-                              <div>
-                                {k} — {v.toolName || v.label || "toolButton"}
-                              </div>
-                              <div>
-                                <button onClick={() => deleteToolButton(k)}>
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-
-                {uncategorized.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <strong>Uncategorized</strong>
-                    <div
-                      style={{
-                        maxHeight: 120,
-                        overflow: "auto",
-                        border: "1px solid #eee",
-                        padding: 8,
-                      }}
-                    >
-                      {uncategorized.map(([k, v]) => (
-                        <div
-                          key={k}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "4px 0",
-                          }}
-                        >
-                          <div>
-                            {k} — {v.toolName || v.label || "toolButton"}
-                          </div>
-                          <div>
-                            <button onClick={() => deleteToolButton(k)}>
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
+        <ToolButtonsCategorized
+          config={config}
+          runtimeCategories={runtimeCategories}
+          deleteToolButton={deleteToolButton}
+        />
       </section>
 
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -831,115 +542,10 @@ export default function ModularUIBuilder() {
 
       <section style={{ marginTop: 12 }}>
         <h4>Current Config Preview</h4>
-        <pre
-          style={{
-            maxHeight: 220,
-            overflow: "auto",
-            background: "#fff",
-            border: "1px solid #eee",
-            padding: 8,
-          }}
-        >
-          {JSON.stringify(config, null, 2)}
-        </pre>
+        <ConfigPreview config={config} />
       </section>
     </div>
   );
 }
 
-function ToolButtonForm({ onAdd, headerOptions = [], toolOptions = [] }) {
-  const [dataElement, setDataElement] = useState("panButton");
-  const [toolName, setToolName] = useState(
-    (toolOptions && toolOptions.length && toolOptions[0].value) || ""
-  );
-  const [customToolName, setCustomToolName] = useState("");
-  const [header, setHeader] = useState(
-    headerOptions && headerOptions.length ? headerOptions[0] : "tools-header"
-  );
-  const [customHeader, setCustomHeader] = useState("");
-  const [label, setLabel] = useState("");
 
-  const headerOptionsFinal =
-    headerOptions && headerOptions.length
-      ? headerOptions
-      : ["tools-header", "default-top-header"];
-
-  const effectiveToolName =
-    toolName === "__other__" ? customToolName || "" : toolName;
-  const effectiveHeader = header === "__other__" ? customHeader || "" : header;
-
-  return (
-    <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
-      <input
-        value={dataElement}
-        onChange={(e) => setDataElement(e.target.value)}
-        placeholder="dataElement"
-      />
-
-      <select value={header} onChange={(e) => setHeader(e.target.value)}>
-        {headerOptionsFinal.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-        <option value="__other__">Other (enter custom below)</option>
-      </select>
-
-      {header === "__other__" && (
-        <input
-          value={customHeader}
-          onChange={(e) => setCustomHeader(e.target.value)}
-          placeholder="custom header name"
-        />
-      )}
-
-      <label style={{ fontSize: 12, color: "#666" }}>Tool</label>
-      <select value={toolName} onChange={(e) => setToolName(e.target.value)}>
-        {toolOptions && toolOptions.length ? (
-          toolOptions.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label || t.value}
-            </option>
-          ))
-        ) : (
-          <option value="">(no tools available)</option>
-        )}
-        <option value="__other__">Other (enter custom below)</option>
-      </select>
-
-      {toolName === "__other__" && (
-        <input
-          value={customToolName}
-          onChange={(e) => setCustomToolName(e.target.value)}
-          placeholder="custom toolName"
-        />
-      )}
-
-      <input
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder="label (optional)"
-      />
-      <div>
-        <button
-          onClick={() => {
-            if (!dataElement || !effectiveToolName || !effectiveHeader) {
-              alert("dataElement, toolName and header are required");
-              return;
-            }
-            onAdd({
-              dataElement,
-              toolName: effectiveToolName,
-              label,
-              header: effectiveHeader,
-            });
-            setDataElement("");
-            setLabel("");
-          }}
-        >
-          Add Tool Button
-        </button>
-      </div>
-    </div>
-  );
-}
