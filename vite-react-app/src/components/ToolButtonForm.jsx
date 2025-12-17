@@ -1,15 +1,27 @@
 import React, { useState } from "react";
 
-export default function ToolButtonForm({ onAdd, headerOptions = [], toolOptions = [] }) {
+export default function ToolButtonForm({
+  onAdd,
+  headerOptions = [],
+  toolOptions = [],
+}) {
   const [dataElement, setDataElement] = useState("panButton");
-  const [toolName, setToolName] = useState((toolOptions && toolOptions.length && toolOptions[0].value) || "");
+  const [toolName, setToolName] = useState(
+    (toolOptions && toolOptions.length && toolOptions[0].value) || ""
+  );
   const [customToolName, setCustomToolName] = useState("");
-  const [header, setHeader] = useState(headerOptions && headerOptions.length ? headerOptions[0] : "tools-header");
+  const [header, setHeader] = useState(
+    headerOptions && headerOptions.length ? headerOptions[0] : "tools-header"
+  );
   const [customHeader, setCustomHeader] = useState("");
   const [label, setLabel] = useState("");
 
-  const headerOptionsFinal = headerOptions && headerOptions.length ? headerOptions : ["tools-header", "default-top-header"];
-  const effectiveToolName = toolName === "__other__" ? customToolName || "" : toolName;
+  const headerOptionsFinal =
+    headerOptions && headerOptions.length
+      ? headerOptions
+      : ["tools-header", "default-top-header"];
+  const effectiveToolName =
+    toolName === "__other__" ? customToolName || "" : toolName;
   const effectiveHeader = header === "__other__" ? customHeader || "" : header;
 
   return (
@@ -59,7 +71,11 @@ export default function ToolButtonForm({ onAdd, headerOptions = [], toolOptions 
         />
       )}
 
-      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="label (optional)" />
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="label (optional)"
+      />
       <div>
         <button
           onClick={() => {
@@ -67,7 +83,12 @@ export default function ToolButtonForm({ onAdd, headerOptions = [], toolOptions 
               alert("dataElement, toolName and header are required");
               return;
             }
-            onAdd({ dataElement, toolName: effectiveToolName, label, header: effectiveHeader });
+            onAdd({
+              dataElement,
+              toolName: effectiveToolName,
+              label,
+              header: effectiveHeader,
+            });
             setDataElement("");
             setLabel("");
           }}

@@ -1,6 +1,10 @@
 import React from "react";
 
-export default function ToolButtonsCategorized({ config = {}, runtimeCategories = {}, deleteToolButton }) {
+export default function ToolButtonsCategorized({
+  config = {},
+  runtimeCategories = {},
+  deleteToolButton,
+}) {
   // Compute all tool buttons and their header memberships; show categorized view
   const toolList = Object.entries(config.modularComponents || {})
     .filter(([k, v]) => v && v.type === "toolButton")
@@ -51,7 +55,11 @@ export default function ToolButtonsCategorized({ config = {}, runtimeCategories 
             if (!isGroupedItems) continue;
             if (!ui || !ui.getGroupedItems) continue;
             const grouped = ui.getGroupedItems(t);
-            const groups = Array.isArray(grouped) ? grouped : grouped ? [grouped] : [];
+            const groups = Array.isArray(grouped)
+              ? grouped
+              : grouped
+              ? [grouped]
+              : [];
             let found = false;
             for (const g of groups) {
               const items = g.items || (g.getItems && g.getItems()) || [];
@@ -117,7 +125,10 @@ export default function ToolButtonsCategorized({ config = {}, runtimeCategories 
                       ) : null}
                     </div>
                     <div>
-                      <button style={{ marginLeft: 8 }} onClick={() => deleteToolButton(k)}>
+                      <button
+                        style={{ marginLeft: 8 }}
+                        onClick={() => deleteToolButton(k)}
+                      >
                         Delete
                       </button>
                     </div>
@@ -157,7 +168,10 @@ export default function ToolButtonsCategorized({ config = {}, runtimeCategories 
                   ) : null}
                 </div>
                 <div>
-                  <button style={{ marginLeft: 8 }} onClick={() => deleteToolButton(k)}>
+                  <button
+                    style={{ marginLeft: 8 }}
+                    onClick={() => deleteToolButton(k)}
+                  >
                     Delete
                   </button>
                 </div>
