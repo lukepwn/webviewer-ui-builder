@@ -65,61 +65,48 @@ export default function ModularUIBuilder() {
 
       try {
         const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
-        if (ribbonGroup && Array.isArray(ribbonGroup.items)) {
-          ribbonGroup.items.forEach((rItem) => {
+        console.log("ribbonGroup", ribbonGroup);
+        if (ribbonGroup) {
+          ribbonGroup.items.forEach((toolbarGroup) => {
             const catKey =
-              rItem.toolbarGroup ||
-              rItem.dataElement ||
-              rItem.name ||
+              toolbarGroup.toolbarGroup ||
+              toolbarGroup.dataElement ||
+              toolbarGroup.name ||
               "tools-header";
             categories[catKey] = categories[catKey] || [];
+            // console.log(categories[catKey]);
 
-            const groupedNames = rItem.groupedItems || [];
-            groupedNames.forEach((gname) => {
+            const toolbarGroupedItems = toolbarGroup.groupedItems || [];
+            toolbarGroupedItems.forEach((item) => {
               try {
-                const grouped = UI.getGroupedItems && UI.getGroupedItems(gname);
-                const groups = Array.isArray(grouped)
-                  ? grouped
-                  : grouped
-                  ? [grouped]
-                  : [];
-                groups.forEach((g) => {
-                  const items = g.items || (g.getItems && g.getItems()) || [];
-                  items.forEach((it) => {
+                const grouped = UI.getGroupedItems(item);
+                if (grouped) {
+                  //   console.log(grouped);
+                  const groupedItems = grouped.items;
+                  groupedItems.forEach((item) => {
+                    console.log("item", item);
                     let value = null;
                     let label = null;
 
-                    if (typeof it === "string") {
-                      value = it;
-                      const comp =
-                        (cfg &&
-                          cfg.modularComponents &&
-                          cfg.modularComponents[value]) ||
-                        (config &&
-                          config.modularComponents &&
-                          config.modularComponents[value]);
+                    if (item && typeof item === "object") {
+                      value = item.toolName || item.dataElement || item.value;
                       label =
-                        (comp &&
-                          (comp.label || comp.toolName || comp.dataElement)) ||
+                        item.label ||
+                        item.toolName ||
+                        item.dataElement ||
                         value;
-                    } else if (it && typeof it === "object") {
-                      value = it.toolName || it.dataElement || it.value;
-                      label =
-                        it.label || it.toolName || it.dataElement || value;
-                      if (it.dataElement) {
+                      console.log("value/label", value, label);
+                      // TODO: refactor duplicate logic
+                      if (item.dataElement) {
+                        console.log("looking up comp for", item.dataElement);
                         const comp =
                           (cfg &&
                             cfg.modularComponents &&
-                            cfg.modularComponents[it.dataElement]) ||
+                            cfg.modularComponents[item.dataElement]) ||
                           (config &&
                             config.modularComponents &&
-                            config.modularComponents[it.dataElement]);
-                        if (comp)
-                          label =
-                            comp.label ||
-                            comp.toolName ||
-                            comp.dataElement ||
-                            label;
+                            config.modularComponents[item.dataElement]);
+                        console.log("comp label", label, comp);
                       }
                     }
 
@@ -139,7 +126,7 @@ export default function ModularUIBuilder() {
                       toolsMap.set(value, { value, label });
                     }
                   });
-                });
+                }
               } catch (e) {
                 // ignore grouped items lookup failures
               }
