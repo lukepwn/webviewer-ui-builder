@@ -44,13 +44,10 @@ export default function ModularUIBuilder() {
     return it.toolName || it.dataElement || it.value || "";
   }
 
-  // helper: add a value string to a category, deduplicating by value
+  // helper: add a value string to a category, deduplicating by value (Set-based)
   function addCategoryItem(categories, key, value) {
     if (!value) return;
-    categories[key] = categories[key] || [];
-    if (!categories[key].includes(value)) {
-      categories[key].push(value);
-    }
+    categories[key] = Array.from(new Set([...categories[key], value]));
   }
 
   useEffect(() => {
@@ -80,64 +77,58 @@ export default function ModularUIBuilder() {
       // Primary discovery: use the runtime ribbon group to find toolbar groups and their items
       const categories = {};
 
-      try {
-        const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
+      // helpers: assume APIs return the expected shapes and iterate directly
+      const addItemsArrayToCategory = (items, catKey) => {
+        items.forEach((it) => {
+          const value = getValue(it);
+          addCategoryItem(categories, catKey, value);
+        });
+      };
 
-        // proceed to examine toolbar groups if present
-        if (ribbonGroup) {
-          ribbonGroup.items.forEach((toolbarGroupRaw) => {
-            const toolbarGroup =
-              typeof toolbarGroupRaw === "string"
-                ? { dataElement: toolbarGroupRaw }
-                : toolbarGroupRaw || {};
-
-            const catKey =
-              toolbarGroup.toolbarGroup ||
-              toolbarGroup.dataElement ||
-              toolbarGroup.name ||
-              "tools-header";
-            categories[catKey] = categories[catKey] || [];
-
-            // include direct items on toolbar group if present
-            if (Array.isArray(toolbarGroup.items)) {
-              toolbarGroup.items.forEach((it) => {
-                try {
-                  const value = getValue(it);
-                  addCategoryItem(categories, catKey, value);
-                } catch (e) {
-                  // ignore
-                }
-              });
-            }
-
-            const toolbarGroupedItems = Array.isArray(toolbarGroup.groupedItems)
-              ? toolbarGroup.groupedItems
-              : [];
-            toolbarGroupedItems.forEach((item) => {
-              try {
-                const grouped = UI.getGroupedItems(item);
-                if (grouped) {
-                  const groupedItems =
-                    grouped.items ||
-                    (grouped.getItems && grouped.getItems()) ||
-                    [];
-                  groupedItems.forEach((it) => {
-                    try {
-                      const value = getValue(it);
-                      addCategoryItem(categories, catKey, value);
-                    } catch (e) {
-                      // ignore
-                    }
-                  });
-                }
-              } catch (e) {
-                // ignore grouped items lookup failures
-              }
-            });
-          });
+      const addGroupedRefToCategory = (ref, catKey) => {
+        const grouped = UI.getGroupedItems(ref);
+        const groups = Array.isArray(grouped) ? grouped : [grouped];
+        for (const g of groups) {
+          const items = g.items || g.getItems();
+          addItemsArrayToCategory(items, catKey);
         }
-      } catch (e) {
-        // ignore
+      };
+
+      // generic helper to iterate grouped items array (from getGroupedItems() or similar)
+      const addGroupedItemsToCategory = (groupedArray, catKey) => {
+        groupedArray.forEach((g) => {
+          const items = g.items || g.getItems();
+          addItemsArrayToCategory(items, catKey);
+        });
+      };
+
+      const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
+
+      // proceed to examine toolbar groups if present
+      if (ribbonGroup) {
+        ribbonGroup.items.forEach((toolbarGroupRaw) => {
+          const toolbarGroup =
+            typeof toolbarGroupRaw === "string"
+              ? { dataElement: toolbarGroupRaw }
+              : toolbarGroupRaw || {};
+
+          const catKey =
+            toolbarGroup.toolbarGroup ||
+            toolbarGroup.dataElement ||
+            toolbarGroup.name ||
+            "tools-header";
+          categories[catKey] = categories[catKey] || [];
+
+          // include direct items on toolbar group if present
+          if (Array.isArray(toolbarGroup.items)) {
+            addItemsArrayToCategory(toolbarGroup.items, catKey);
+          }
+
+          const toolbarGroupedItems = toolbarGroup.groupedItems;
+          toolbarGroupedItems.forEach((item) => {
+            addGroupedRefToCategory(item, catKey);
+          });
+        });
       }
 
       // Also include items from the default top header (default-top-header)
@@ -149,30 +140,8 @@ export default function ModularUIBuilder() {
             categories["default-top-header"] || [];
 
           // get grouped items from the header
-          let headerGrouped = [];
-          try {
-            headerGrouped = topHeader.getGroupedItems
-              ? topHeader.getGroupedItems() || []
-              : [];
-          } catch (e) {
-            headerGrouped = [];
-          }
-
-          headerGrouped.forEach((g) => {
-            try {
-              const items = g.items || (g.getItems && g.getItems()) || [];
-              items.forEach((it) => {
-                try {
-                  const value = getValue(it);
-                  addCategoryItem(categories, "default-top-header", value);
-                } catch (e) {
-                  // ignore
-                }
-              });
-            } catch (e) {
-              // ignore
-            }
-          });
+          const headerGrouped = topHeader.getGroupedItems();
+          addGroupedItemsToCategory(headerGrouped, "default-top-header");
         }
       } catch (e) {
         // ignore
@@ -217,11 +186,10 @@ export default function ModularUIBuilder() {
         const labelValue = label || toolName || dataElement;
         setRuntimeCategories((rc) => {
           const prev = rc || {};
-          const arr = prev["default-top-header"] || [];
-          if (arr.some((t) => t === value)) return prev;
+          const arr = prev["default-top-header"];
           return {
             ...prev,
-            "default-top-header": [...arr, value],
+            "default-top-header": Array.from(new Set([...arr, value])),
           };
         });
 
@@ -379,7 +347,7 @@ export default function ModularUIBuilder() {
       if (!rc) return rc;
       const next = {};
       for (const [cat, items] of Object.entries(rc)) {
-        next[cat] = (items || []).filter((t) => t !== needle);
+        next[cat] = items.filter((t) => t !== needle);
       }
       return next;
     });
