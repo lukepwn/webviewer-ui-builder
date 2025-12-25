@@ -34,7 +34,6 @@ export default function ModularUIBuilder() {
     panels: {},
   });
 
-  const [status, setStatus] = useState("");
   const [runtimeCategories, setRuntimeCategories] = useState({});
   const [viewerTools, setViewerTools] = useState([]);
 
@@ -59,9 +58,8 @@ export default function ModularUIBuilder() {
       try {
         const exported = window.viewerInstance.UI.exportModularComponents();
         setConfig(exported);
-        setStatus("Loaded current UI configuration from viewer");
       } catch (e) {
-        setStatus("No existing UI configuration available");
+        // no-op
       }
 
       // 2. On mount, try to load existing modularComponents from viewer
@@ -210,7 +208,6 @@ export default function ModularUIBuilder() {
         tgt.items = Array.isArray(tgt.items) ? tgt.items.slice() : [];
         if (!tgt.items.includes(dataElement)) tgt.items.push(dataElement);
         headers["default-top-header"] = tgt;
-        setStatus(`Added ${dataElement} to header default-top-header`);
 
         // Update runtimeCategories so UI reflects change immediately
         const value = toolName || dataElement;
@@ -232,9 +229,8 @@ export default function ModularUIBuilder() {
       if (header && headers[header]) {
         const tgt = { ...headers[header] };
         tgt.items = Array.isArray(tgt.items) ? tgt.items.slice() : [];
-        if (!tgt.items.includes(dataElement)) tgt.items.push(dataElement);
+
         headers[header] = tgt;
-        setStatus(`Added ${dataElement} to header ${header}`);
         return { ...c, modularComponents, modularHeaders: headers };
       }
 
@@ -255,6 +251,7 @@ export default function ModularUIBuilder() {
               ribbonItemKey = k;
               break;
             }
+            // record a ribbonGroup if no ribbonItem found yet
             if (!ribbonItemKey) ribbonItemKey = k;
           }
         }
@@ -273,7 +270,6 @@ export default function ModularUIBuilder() {
             if (!gComp.items.includes(dataElement))
               gComp.items.push(dataElement);
             modularComponents[gName] = gComp;
-            setStatus(`Added ${dataElement} to ${gName}`);
             return { ...c, modularComponents, modularHeaders: headers };
           }
 
@@ -294,9 +290,6 @@ export default function ModularUIBuilder() {
             ? [...comp.groupedItems, newName]
             : [newName];
           modularComponents[ribbonItemKey] = comp;
-          setStatus(
-            `Created ${newName} and added ${dataElement} to ribbon ${ribbonItemKey}`
-          );
           return { ...c, modularComponents, modularHeaders: headers };
         }
       }
@@ -314,11 +307,9 @@ export default function ModularUIBuilder() {
       targetHeader.items = Array.isArray(targetHeader.items)
         ? targetHeader.items.slice()
         : [];
-      if (!targetHeader.items.includes(dataElement))
-        targetHeader.items.push(dataElement);
+      targetHeader.items.push(dataElement);
       headers[targetHeaderName] = targetHeader;
 
-      setStatus(`Added ${dataElement} to ${targetHeaderName}`);
       return { ...c, modularComponents, modularHeaders: headers };
     });
   }
@@ -335,7 +326,6 @@ export default function ModularUIBuilder() {
       // delete the component
       delete modularComponents[dataElement];
 
-      // remove any references in headers
       const headers = { ...c.modularHeaders };
       for (const key of Object.keys(headers)) {
         if (Array.isArray(headers[key].items)) {
@@ -384,20 +374,26 @@ export default function ModularUIBuilder() {
       return next;
     });
 
-    setStatus(`Deleted ${dataElement} and cleaned up references`);
+    // deleted component and cleaned up references
   }
 
   async function applyToViewer() {
     if (!window.viewerInstance || !window.viewerInstance.UI) {
-      setStatus("WebViewer instance not available");
+      console.warn("WebViewer instance not available");
       return;
     }
     try {
       window.viewerInstance.UI.importModularComponents(config, {});
-      setStatus("Imported modular UI into viewer");
+      // Refresh runtime-derived categories immediately so the builder UI reflects the imported config
+      try {
+        discoverRuntimeToolData();
+        // imported and refreshed
+      } catch (err) {
+        // imported (refresh failed)
+      }
     } catch (e) {
       console.error(e);
-      setStatus("Import failed: " + e.message);
+      console.error("Import failed: ", e.message);
     }
   }
 
@@ -462,15 +458,13 @@ export default function ModularUIBuilder() {
         } catch (err) {
           // ignore if not available
         }
-        setStatus("Example modular UI applied to viewer");
+        // example applied to viewer
       } catch (err) {
         console.error(err);
-        setStatus("Failed to apply example: " + err.message);
+        console.error("Failed to apply example: ", err.message);
       }
     } else {
-      setStatus(
-        "Example loaded into builder state; start the viewer and click Apply to Viewer"
-      );
+      // Example loaded into builder state; start the viewer and click Apply to Viewer
     }
   }
 
@@ -482,9 +476,8 @@ export default function ModularUIBuilder() {
       try {
         const parsed = JSON.parse(ev.target.result);
         setConfig(parsed);
-        setStatus("Config loaded from file");
       } catch (err) {
-        setStatus("Invalid JSON file");
+        console.error("Invalid JSON file");
       }
     };
     reader.readAsText(file);
@@ -493,7 +486,6 @@ export default function ModularUIBuilder() {
   return (
     <div className="ModularUIBuilder">
       <h3>Modular UI Builder</h3>
-      <p style={{ color: "#666" }}>{status}</p>
 
       <section style={{ marginBottom: 12 }}>
         <h4>Add / Remove Tool Button</h4>
@@ -521,14 +513,7 @@ export default function ModularUIBuilder() {
         <button onClick={loadExampleAndApply}>Load Example and Apply</button>
         <button onClick={applyToViewer}>Apply to Viewer</button>
         <button onClick={exportConfig}>Export JSON</button>
-        <button
-          onClick={() => {
-            discoverRuntimeToolData();
-            setStatus("Refreshed categories");
-          }}
-        >
-          Refresh Categories
-        </button>
+        {/* Refresh Categories removed — Apply to Viewer now refreshes categories automatically */}
         <label style={{ display: "inline-block" }}>
           <input
             type="file"
