@@ -1,0 +1,16 @@
+TODO:
+
+1. Instead of listing all tools on the UI, have a button that mocks the ribbon group and on click, shows the tools listed under
+2. Draggable list of tool output to change ordering and will update config respectively
+
+EXTRA TODO:
+
+1. CSS (Tailwind?)
+2. Customer-facing oriented UI
+
+Best practices code:
+
+1. Defining variables using logical OR as a safe fallback
+   const core = window.viewerInstance.Core || {};
+
+2.
