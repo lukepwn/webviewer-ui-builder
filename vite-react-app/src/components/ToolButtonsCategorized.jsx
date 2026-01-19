@@ -6,35 +6,41 @@ export default function ToolButtonsCategorized({
   deleteToolButton,
 }) {
   // Compute all tool buttons and their header memberships; show categorized view
-  const toolList = Object.entries(config.modularComponents || {})
-    .filter(([k, v]) => v && v.type === "toolButton")
-    .map(([k, v]) => {
-      const headersFor = Object.entries(config.modularHeaders || {})
-        .filter(([hdrKey, hdr]) => (hdr.items || []).includes(k))
-        .map(([hdrKey]) => hdrKey);
-      return [k, v, headersFor];
+  const toolList = Object.entries(config.modularComponents)
+    .filter(
+      ([toolKey, toolComponent]) =>
+        toolComponent && toolComponent.type === "toolButton"
+    )
+    .map(([toolKey, toolComponent]) => {
+      const headerKeys = Object.entries(config.modularHeaders)
+        .filter(([headerKey, headerConfig]) =>
+          (headerConfig.items || []).includes(toolKey)
+        )
+        .map(([headerKey]) => headerKey);
+      return [toolKey, toolComponent, headerKeys];
     });
 
   if (toolList.length === 0) return null;
 
   // Compute extended runtimeCategories with config additions for toolbarGroups
   const extendedRuntime = { ...runtimeCategories };
-  for (const cat of Object.keys(extendedRuntime)) {
-    if (cat.startsWith("toolbarGroup-")) {
+  for (const categoryName of Object.keys(extendedRuntime)) {
+    if (categoryName.startsWith("toolbarGroup-")) {
       const configTools = [];
-      for (const [k, comp] of Object.entries(config.modularComponents || {})) {
-        if (comp.type === "ribbonItem" && comp.toolbarGroup === cat) {
-          for (const g of comp.groupedItems || []) {
-            const gComp = config.modularComponents[g];
-            if (gComp && gComp.type === "groupedItems") {
-              for (const item of gComp.items || []) {
-                const itemComp = config.modularComponents[item];
-                if (itemComp) {
-                  const toolName =
-                    itemComp.toolName ||
-                    itemComp.dataElement ||
-                    itemComp.label ||
-                    item;
+      for (const [componentKey, componentConfig] of Object.entries(
+        config.modularComponents
+      )) {
+        if (
+          componentConfig.type === "ribbonItem" &&
+          componentConfig.toolbarGroup === categoryName
+        ) {
+          for (const groupKey of componentConfig.groupedItems || []) {
+            const groupComponent = config.modularComponents[groupKey];
+            if (groupComponent && groupComponent.type === "groupedItems") {
+              for (const itemKey of groupComponent.items || []) {
+                const itemComponent = config.modularComponents[itemKey];
+                if (itemComponent) {
+                  const toolName = itemComponent.toolName;
                   configTools.push(toolName);
                 }
               }
@@ -42,41 +48,42 @@ export default function ToolButtonsCategorized({
           }
         }
       }
-      extendedRuntime[cat] = [
-        ...new Set([...(extendedRuntime[cat] || []), ...configTools]),
+      extendedRuntime[categoryName] = [
+        ...new Set([...(extendedRuntime[categoryName] || []), ...configTools]),
       ];
     }
   }
 
   const categorized = {};
-  const uncategorized = [];
 
-  for (const [k, v, headersFor] of toolList) {
+  for (const [toolKey, toolComponent, headerKeys] of toolList) {
     let assigned = false;
     const ui = window.viewerInstance && window.viewerInstance.UI;
-    const needle = v.toolName || v.dataElement || v.label;
+    const toolName = toolComponent.toolName;
 
     // Prefer header membership when available (e.g., default-top-header)
-    if (headersFor && headersFor.length > 0) {
-      for (const hdr of headersFor) {
-        categorized[hdr] = categorized[hdr] || [];
-        categorized[hdr].push([k, v, headersFor]);
+    if (headerKeys && headerKeys.length > 0) {
+      for (const headerKey of headerKeys) {
+        categorized[headerKey] = categorized[headerKey] || [];
+        categorized[headerKey].push([toolKey, toolComponent, headerKeys]);
       }
       assigned = true;
     }
 
     // Otherwise fall back to runtime-derived categories
     if (!assigned) {
-      for (const [cat, tools] of Object.entries(extendedRuntime || {})) {
-        if ((tools || []).includes(needle)) {
-          categorized[cat] = categorized[cat] || [];
-          categorized[cat].push([k, v, headersFor]);
+      for (const [categoryName, categoryToolNames] of Object.entries(
+        extendedRuntime || {}
+      )) {
+        if ((categoryToolNames || []).includes(toolName)) {
+          categorized[categoryName] = categorized[categoryName] || [];
+          categorized[categoryName].push([toolKey, toolComponent, headerKeys]);
           assigned = true;
           break;
         }
 
         // If the runtime category entry references a groupedItems dataElement, resolve it only when it is a groupedItems component in the config
-        for (const t of tools || []) {
+        for (const t of categoryToolNames || []) {
           try {
             const isGroupedItems =
               config &&
@@ -95,10 +102,14 @@ export default function ToolButtonsCategorized({
             for (const g of groups) {
               const items = g.items || (g.getItems && g.getItems()) || [];
               for (const it of items) {
-                const itValue = it.toolName || it.dataElement || it.value;
-                if (itValue === needle) {
-                  categorized[cat] = categorized[cat] || [];
-                  categorized[cat].push([k, v, headersFor]);
+                const itValue = it.toolName;
+                if (itValue === toolName) {
+                  categorized[categoryName] = categorized[categoryName] || [];
+                  categorized[categoryName].push([
+                    toolKey,
+                    toolComponent,
+                    headerKeys,
+                  ]);
                   assigned = true;
                   found = true;
                   break;
@@ -111,12 +122,10 @@ export default function ToolButtonsCategorized({
             // ignore resolution errors
           }
         }
-
-        // if (assigned) break;  // Removed to allow assignment to multiple categories
       }
     }
 
-    if (!assigned) uncategorized.push([k, v, headersFor]);
+    // Removed fallback
   }
 
   const [expanded, setExpanded] = useState({});
@@ -126,16 +135,19 @@ export default function ToolButtonsCategorized({
       <h5>Tool Buttons (categorized)</h5>
       {Object.keys(categorized).length === 0
         ? null
-        : Object.entries(categorized).map(([cat, list]) => (
-            <div key={cat} style={{ marginBottom: 8 }}>
+        : Object.entries(categorized).map(([categoryName, toolsList]) => (
+            <div key={categoryName} style={{ marginBottom: 8 }}>
               <button
                 onClick={() =>
-                  setExpanded((prev) => ({ ...prev, [cat]: !prev[cat] }))
+                  setExpanded((prev) => ({
+                    ...prev,
+                    [categoryName]: !prev[categoryName],
+                  }))
                 }
               >
-                {expanded[cat] ? "▼" : "▶"} {cat}
+                {expanded[categoryName] ? "▼" : "▶"} {categoryName}
               </button>
-              {expanded[cat] && (
+              {expanded[categoryName] && (
                 <div
                   style={{
                     maxHeight: 120,
@@ -144,9 +156,9 @@ export default function ToolButtonsCategorized({
                     padding: 8,
                   }}
                 >
-                  {list.map(([k, v, headersFor]) => (
+                  {toolsList.map(([toolKey, toolComponent, headerKeys]) => (
                     <div
-                      key={k}
+                      key={toolKey}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -155,19 +167,19 @@ export default function ToolButtonsCategorized({
                       }}
                     >
                       <div>
-                        {k} — {v.toolName || v.label || "toolButton"}
-                        {headersFor &&
-                        headersFor.length > 0 &&
-                        !(headersFor || []).includes(cat) ? (
+                        {toolKey} — {toolComponent.toolName || "toolButton"}
+                        {headerKeys &&
+                        headerKeys.length > 0 &&
+                        !headerKeys.includes(categoryName) ? (
                           <span style={{ color: "#666", marginLeft: 8 }}>
-                            (in: {headersFor.join(", ")})
+                            (in: {headerKeys.join(", ")})
                           </span>
                         ) : null}
                       </div>
                       <div>
                         <button
                           style={{ marginLeft: 8 }}
-                          onClick={() => deleteToolButton(k)}
+                          onClick={() => deleteToolButton(toolKey)}
                         >
                           Delete
                         </button>
@@ -178,49 +190,6 @@ export default function ToolButtonsCategorized({
               )}
             </div>
           ))}
-
-      {uncategorized.length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <strong>Uncategorized</strong>
-          <div
-            style={{
-              maxHeight: 120,
-              overflow: "auto",
-              border: "1px solid #eee",
-              padding: 8,
-            }}
-          >
-            {uncategorized.map(([k, v, headersFor]) => (
-              <div
-                key={k}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "4px 0",
-                }}
-              >
-                <div>
-                  {k} — {v.toolName || v.label || "toolButton"}
-                  {headersFor && headersFor.length > 0 ? (
-                    <span style={{ color: "#666", marginLeft: 8 }}>
-                      (in: {headersFor.join(", ")})
-                    </span>
-                  ) : null}
-                </div>
-                <div>
-                  <button
-                    style={{ marginLeft: 8 }}
-                    onClick={() => deleteToolButton(k)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
