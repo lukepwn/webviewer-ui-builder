@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function ToolButtonsCategorized({
   config = {},
@@ -16,6 +16,37 @@ export default function ToolButtonsCategorized({
     });
 
   if (toolList.length === 0) return null;
+
+  // Compute extended runtimeCategories with config additions for toolbarGroups
+  const extendedRuntime = { ...runtimeCategories };
+  for (const cat of Object.keys(extendedRuntime)) {
+    if (cat.startsWith("toolbarGroup-")) {
+      const configTools = [];
+      for (const [k, comp] of Object.entries(config.modularComponents || {})) {
+        if (comp.type === "ribbonItem" && comp.toolbarGroup === cat) {
+          for (const g of comp.groupedItems || []) {
+            const gComp = config.modularComponents[g];
+            if (gComp && gComp.type === "groupedItems") {
+              for (const item of gComp.items || []) {
+                const itemComp = config.modularComponents[item];
+                if (itemComp) {
+                  const toolName =
+                    itemComp.toolName ||
+                    itemComp.dataElement ||
+                    itemComp.label ||
+                    item;
+                  configTools.push(toolName);
+                }
+              }
+            }
+          }
+        }
+      }
+      extendedRuntime[cat] = [
+        ...new Set([...(extendedRuntime[cat] || []), ...configTools]),
+      ];
+    }
+  }
 
   const categorized = {};
   const uncategorized = [];
@@ -36,7 +67,7 @@ export default function ToolButtonsCategorized({
 
     // Otherwise fall back to runtime-derived categories
     if (!assigned) {
-      for (const [cat, tools] of Object.entries(runtimeCategories || {})) {
+      for (const [cat, tools] of Object.entries(extendedRuntime || {})) {
         if ((tools || []).includes(needle)) {
           categorized[cat] = categorized[cat] || [];
           categorized[cat].push([k, v, headersFor]);
@@ -81,12 +112,14 @@ export default function ToolButtonsCategorized({
           }
         }
 
-        if (assigned) break;
+        // if (assigned) break;  // Removed to allow assignment to multiple categories
       }
     }
 
     if (!assigned) uncategorized.push([k, v, headersFor]);
   }
+
+  const [expanded, setExpanded] = useState({});
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -95,46 +128,54 @@ export default function ToolButtonsCategorized({
         ? null
         : Object.entries(categorized).map(([cat, list]) => (
             <div key={cat} style={{ marginBottom: 8 }}>
-              <strong>{cat}</strong>
-              <div
-                style={{
-                  maxHeight: 120,
-                  overflow: "auto",
-                  border: "1px solid #eee",
-                  padding: 8,
-                }}
+              <button
+                onClick={() =>
+                  setExpanded((prev) => ({ ...prev, [cat]: !prev[cat] }))
+                }
               >
-                {list.map(([k, v, headersFor]) => (
-                  <div
-                    key={k}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "4px 0",
-                    }}
-                  >
-                    <div>
-                      {k} — {v.toolName || v.label || "toolButton"}
-                      {headersFor &&
-                      headersFor.length > 0 &&
-                      !(headersFor || []).includes(cat) ? (
-                        <span style={{ color: "#666", marginLeft: 8 }}>
-                          (in: {headersFor.join(", ")})
-                        </span>
-                      ) : null}
+                {expanded[cat] ? "▼" : "▶"} {cat}
+              </button>
+              {expanded[cat] && (
+                <div
+                  style={{
+                    maxHeight: 120,
+                    overflow: "auto",
+                    border: "1px solid #eee",
+                    padding: 8,
+                  }}
+                >
+                  {list.map(([k, v, headersFor]) => (
+                    <div
+                      key={k}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "4px 0",
+                      }}
+                    >
+                      <div>
+                        {k} — {v.toolName || v.label || "toolButton"}
+                        {headersFor &&
+                        headersFor.length > 0 &&
+                        !(headersFor || []).includes(cat) ? (
+                          <span style={{ color: "#666", marginLeft: 8 }}>
+                            (in: {headersFor.join(", ")})
+                          </span>
+                        ) : null}
+                      </div>
+                      <div>
+                        <button
+                          style={{ marginLeft: 8 }}
+                          onClick={() => deleteToolButton(k)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <button
-                        style={{ marginLeft: 8 }}
-                        onClick={() => deleteToolButton(k)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
