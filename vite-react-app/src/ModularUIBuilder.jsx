@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ToolButtonForm from "./components/ToolButtonForm";
 import ToolButtonsCategorized from "./components/ToolButtonsCategorized";
 import ConfigPreview from "./components/ConfigPreview";
@@ -36,6 +36,7 @@ export default function ModularUIBuilder() {
 
   const [runtimeCategories, setRuntimeCategories] = useState({});
   const [viewerTools, setViewerTools] = useState([]);
+  const fileInputRef = useRef(null);
 
   // helper: resolve a tool-like item's canonical value (used for lookup/dedupe)
   function getValue(it) {
@@ -147,9 +148,7 @@ export default function ModularUIBuilder() {
 
       // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
       const Tools = Core && Core.Tools && Core.Tools.ToolNames;
-      const viewerToolList = Tools
-        ? Object.values(Tools).map((tn) => ({ value: tn }))
-        : [];
+      const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
 
       setRuntimeCategories(categories);
       setViewerTools(viewerToolList);
@@ -159,124 +158,39 @@ export default function ModularUIBuilder() {
   }
 
   function addToolButton({ dataElement, toolName, label, header }) {
-    if (!dataElement) return;
+    if (!dataElement || !header) return;
 
+    // react calls function and returns the latest new state
+    // config to avoid stale state, then we modify and return new state
     setConfig((c) => {
       const modularComponents = {
         ...c.modularComponents,
         [dataElement]: { type: "toolButton", dataElement, toolName, label },
       };
-
       const headers = { ...c.modularHeaders };
 
-      // Special-case: if the selected header is the runtime top header, create or update it in the config
-      if (header === "default-top-header") {
-        const tgt = headers["default-top-header"]
-          ? { ...headers["default-top-header"] }
-          : { dataElement: "default-top-header", placement: "top", items: [] };
-        tgt.items = Array.isArray(tgt.items) ? tgt.items.slice() : [];
-        if (!tgt.items.includes(dataElement)) tgt.items.push(dataElement);
-        headers["default-top-header"] = tgt;
-
-        // Update runtimeCategories so UI reflects change immediately
-        const value = toolName || dataElement;
-        const labelValue = label || toolName || dataElement;
-        setRuntimeCategories((rc) => {
-          const prev = rc || {};
-          const arr = prev["default-top-header"];
-          return {
-            ...prev,
-            "default-top-header": Array.from(new Set([...arr, value])),
-          };
-        });
-
-        return { ...c, modularComponents, modularHeaders: headers };
-      }
-
-      // If the chosen header matches an actual modularHeader, add to that header directly
-      if (header && headers[header]) {
-        const tgt = { ...headers[header] };
-        tgt.items = Array.isArray(tgt.items) ? tgt.items.slice() : [];
-
-        headers[header] = tgt;
-        return { ...c, modularComponents, modularHeaders: headers };
-      }
-
-      // If the chosen header looks like a runtime toolbarGroup, attempt to attach the tool to that group's ribbonItem/groupedItems
-      if (header && header.startsWith("toolbarGroup-")) {
-        // Try to find a ribbonItem (or ribbonGroup) that maps to this toolbarGroup
-        let ribbonItemKey = null;
-        for (const [k, comp] of Object.entries(modularComponents)) {
-          if (!comp) continue;
-          if (
-            (comp.type === "ribbonItem" || comp.type === "ribbonGroup") &&
-            (comp.toolbarGroup === header ||
-              comp.dataElement === header ||
-              k === header)
-          ) {
-            // prefer ribbonItem over ribbonGroup, but accept either
-            if (comp.type === "ribbonItem") {
-              ribbonItemKey = k;
-              break;
-            }
-            // record a ribbonGroup if no ribbonItem found yet
-            if (!ribbonItemKey) ribbonItemKey = k;
-          }
-        }
-
-        if (ribbonItemKey) {
-          const comp = { ...modularComponents[ribbonItemKey] };
-
-          // If it already has groupedItems, add into the first groupedItems component's items
-          if (
-            Array.isArray(comp.groupedItems) &&
-            comp.groupedItems.length > 0
-          ) {
-            const gName = comp.groupedItems[0];
-            const gComp = { ...(modularComponents[gName] || {}) };
-            gComp.items = Array.isArray(gComp.items) ? gComp.items.slice() : [];
-            if (!gComp.items.includes(dataElement))
-              gComp.items.push(dataElement);
-            modularComponents[gName] = gComp;
-            return { ...c, modularComponents, modularHeaders: headers };
-          }
-
-          // Otherwise create a new groupedItems component and attach it
-          let newNameBase = `${dataElement}-groupedItems`;
-          let newName = newNameBase;
-          let idx = 0;
-          while (modularComponents[newName]) {
-            idx += 1;
-            newName = `${newNameBase}-${idx}`;
-          }
-          modularComponents[newName] = {
-            type: "groupedItems",
-            dataElement: newName,
-            items: [dataElement],
-          };
-          comp.groupedItems = Array.isArray(comp.groupedItems)
-            ? [...comp.groupedItems, newName]
-            : [newName];
-          modularComponents[ribbonItemKey] = comp;
-          return { ...c, modularComponents, modularHeaders: headers };
-        }
-      }
-
-      // Fallback: add to 'tools-header' if it exists, otherwise create it
-      let targetHeaderName = "tools-header";
-      let targetHeader = headers[targetHeaderName];
-      if (!targetHeader) {
-        targetHeader = {
-          dataElement: targetHeaderName,
-          placement: "top",
+      const headerComp = modularComponents[header];
+      if (headerComp?.groupedItems?.length) {
+        // Add to the first groupedItems component
+        const groupedItemsKey = headerComp.groupedItems[0];
+        const groupedItemsComp = modularComponents[groupedItemsKey] || {
+          type: "groupedItems",
+          dataElement: groupedItemsKey,
           items: [],
         };
+        if (!groupedItemsComp.items.includes(dataElement)) {
+          groupedItemsComp.items = [...groupedItemsComp.items, dataElement];
+        }
+        modularComponents[groupedItemsKey] = groupedItemsComp;
+
+        return { ...c, modularComponents, modularHeaders: headers };
       }
-      targetHeader.items = Array.isArray(targetHeader.items)
-        ? targetHeader.items.slice()
-        : [];
-      targetHeader.items.push(dataElement);
-      headers[targetHeaderName] = targetHeader;
+
+      // Otherwise, add to the header directly (i.e. default-top-header)
+
+      if (!headers[header].items.includes(dataElement)) {
+        headers[header].items = [...headers[header].items, dataElement];
+      }
 
       return { ...c, modularComponents, modularHeaders: headers };
     });
@@ -444,6 +358,21 @@ export default function ModularUIBuilder() {
       try {
         const parsed = JSON.parse(ev.target.result);
         setConfig(parsed);
+
+        // Apply the imported config to the viewer
+        if (window.viewerInstance && window.viewerInstance.UI) {
+          try {
+            window.viewerInstance.UI.importModularComponents(parsed, {});
+            // Refresh runtime-derived categories so the builder UI reflects the imported config
+            try {
+              discoverRuntimeToolData();
+            } catch (err) {
+              // ignore if refresh fails
+            }
+          } catch (err) {
+            console.error("Failed to apply config to viewer: ", err.message);
+          }
+        }
       } catch (err) {
         console.error("Invalid JSON file");
       }
@@ -458,14 +387,7 @@ export default function ModularUIBuilder() {
       <section style={{ marginBottom: 12 }}>
         <h4>Add / Remove Tool Button</h4>
         <ToolButtonForm
-          headerOptions={[
-            ...new Set([
-              ...Object.keys(config.modularHeaders || {}),
-              "tools-header",
-              "default-top-header",
-              ...Object.keys(runtimeCategories),
-            ]),
-          ]}
+          headerOptions={Object.keys(runtimeCategories)}
           toolOptions={viewerTools}
           onAdd={(values) => addToolButton(values)}
         />
@@ -482,15 +404,16 @@ export default function ModularUIBuilder() {
         <button onClick={applyToViewer}>Apply to Viewer</button>
         <button onClick={exportConfig}>Export JSON</button>
         {/* Refresh Categories removed — Apply to Viewer now refreshes categories automatically */}
-        <label style={{ display: "inline-block" }}>
-          <input
-            type="file"
-            accept="application/json"
-            onChange={importConfigFile}
-            style={{ display: "none" }}
-          />
-          <button>Import JSON</button>
-        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          onChange={importConfigFile}
+          hidden
+        />
+        <button onClick={() => fileInputRef.current?.click()}>
+          Import JSON
+        </button>
       </div>
 
       <section style={{ marginTop: 12 }}>

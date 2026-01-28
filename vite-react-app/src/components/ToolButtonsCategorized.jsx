@@ -40,8 +40,9 @@ export default function ToolButtonsCategorized({
               for (const itemKey of groupComponent.items || []) {
                 const itemComponent = config.modularComponents[itemKey];
                 if (itemComponent) {
-                  const toolName = itemComponent.toolName;
-                  configTools.push(toolName);
+                  // Push the dataElement (itemKey), not the toolName
+                  console.log(itemKey, itemComponent.toolName);
+                  configTools.push(itemKey);
                 }
               }
             }
@@ -58,7 +59,6 @@ export default function ToolButtonsCategorized({
 
   for (const [toolKey, toolComponent, headerKeys] of toolList) {
     let assigned = false;
-    const ui = window.viewerInstance && window.viewerInstance.UI;
     const toolName = toolComponent.toolName;
 
     // Prefer header membership when available (e.g., default-top-header)
@@ -75,53 +75,37 @@ export default function ToolButtonsCategorized({
       for (const [categoryName, categoryToolNames] of Object.entries(
         extendedRuntime || {},
       )) {
-        if ((categoryToolNames || []).includes(toolName)) {
+        // Check if toolKey (dataElement) or toolName is in the category
+        if (
+          (categoryToolNames || []).includes(toolKey) ||
+          (categoryToolNames || []).includes(toolName)
+        ) {
           categorized[categoryName] = categorized[categoryName] || [];
           categorized[categoryName].push([toolKey, toolComponent, headerKeys]);
           assigned = true;
           break;
         }
 
-        // If the runtime category entry references a groupedItems dataElement, resolve it only when it is a groupedItems component in the config
-        for (const t of categoryToolNames || []) {
-          try {
-            const isGroupedItems =
-              config &&
-              config.modularComponents &&
-              config.modularComponents[t] &&
-              config.modularComponents[t].type === "groupedItems";
-            if (!isGroupedItems) continue;
-            if (!ui || !ui.getGroupedItems) continue;
-            const grouped = ui.getGroupedItems(t);
-            const groups = Array.isArray(grouped)
-              ? grouped
-              : grouped
-                ? [grouped]
-                : [];
-            let found = false;
-            for (const g of groups) {
-              const items = g.items || (g.getItems && g.getItems()) || [];
-              for (const it of items) {
-                const itValue = it.toolName;
-                if (itValue === toolName) {
-                  categorized[categoryName] = categorized[categoryName] || [];
-                  categorized[categoryName].push([
-                    toolKey,
-                    toolComponent,
-                    headerKeys,
-                  ]);
-                  assigned = true;
-                  found = true;
-                  break;
-                }
+        // If the runtime category entry references a groupedItems dataElement, check if this toolButton is in that groupedItems in the config
+        if (!assigned) {
+          for (const t of categoryToolNames || []) {
+            const groupedItemsComp = config.modularComponents[t];
+            if (groupedItemsComp?.type === "groupedItems") {
+              // Check if this toolKey is in the groupedItems' items array
+              if ((groupedItemsComp.items || []).includes(toolKey)) {
+                categorized[categoryName] = categorized[categoryName] || [];
+                categorized[categoryName].push([
+                  toolKey,
+                  toolComponent,
+                  headerKeys,
+                ]);
+                assigned = true;
+                break;
               }
-              if (found) break;
             }
-            if (found) break;
-          } catch (e) {
-            // ignore resolution errors
           }
         }
+        if (assigned) break;
       }
     }
 
