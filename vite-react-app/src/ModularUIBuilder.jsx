@@ -41,7 +41,7 @@ export default function ModularUIBuilder() {
   // helper: resolve a tool-like item's canonical value (used for lookup/dedupe)
   function getValue(it) {
     if (!it) return "";
-    return it.toolName || it.dataElement || it.value || "";
+    return it.dataElement || "";
   }
 
   // helper: add a value string to a category, deduplicating by value (Set-based)
@@ -197,11 +197,6 @@ export default function ModularUIBuilder() {
   }
 
   function deleteToolButton(dataElement) {
-    const compToDelete = (config.modularComponents || {})[dataElement];
-    const needle = compToDelete
-      ? compToDelete.toolName || compToDelete.dataElement || compToDelete.label
-      : dataElement;
-
     // Remove component and clean up any references to it in headers and other components
     setConfig((c) => {
       const modularComponents = { ...c.modularComponents };
@@ -251,7 +246,7 @@ export default function ModularUIBuilder() {
       if (!rc) return rc;
       const next = {};
       for (const [cat, items] of Object.entries(rc)) {
-        next[cat] = items.filter((t) => t !== needle);
+        next[cat] = items.filter((t) => t !== dataElement);
       }
       return next;
     });
