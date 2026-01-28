@@ -298,7 +298,7 @@ export default function ModularUIBuilder() {
       for (const key of Object.keys(headers)) {
         if (Array.isArray(headers[key].items)) {
           headers[key].items = headers[key].items.filter(
-            (i) => i !== dataElement
+            (i) => i !== dataElement,
           );
         }
       }
@@ -418,7 +418,7 @@ export default function ModularUIBuilder() {
       try {
         window.viewerInstance.UI.importModularComponents(
           exampleConfig,
-          exampleFunctionMap
+          exampleFunctionMap,
         );
         // open the custom panel to show result
         try {

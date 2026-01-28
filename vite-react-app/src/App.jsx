@@ -18,7 +18,7 @@ function App() {
         initialDoc:
           "https://pdftron.s3.amazonaws.com/downloads/pl/demo-annotated.pdf",
       },
-      viewer.current
+      viewer.current,
     ).then((instance) => {
       viewer.current.dataset.webviewerMounted = "true";
 

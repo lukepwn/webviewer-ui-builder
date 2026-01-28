@@ -7,11 +7,11 @@ export default function ToolButtonForm({
 }) {
   const [dataElement, setDataElement] = useState("panButton");
   const [toolName, setToolName] = useState(
-    (toolOptions && toolOptions.length && toolOptions[0].value) || ""
+    (toolOptions && toolOptions.length && toolOptions[0].value) || "",
   );
   const [customToolName, setCustomToolName] = useState("");
   const [header, setHeader] = useState(
-    headerOptions && headerOptions.length ? headerOptions[0] : "tools-header"
+    headerOptions && headerOptions.length ? headerOptions[0] : "tools-header",
   );
   const [customHeader, setCustomHeader] = useState("");
   const [label, setLabel] = useState("");

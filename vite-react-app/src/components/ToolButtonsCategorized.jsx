@@ -9,12 +9,12 @@ export default function ToolButtonsCategorized({
   const toolList = Object.entries(config.modularComponents)
     .filter(
       ([toolKey, toolComponent]) =>
-        toolComponent && toolComponent.type === "toolButton"
+        toolComponent && toolComponent.type === "toolButton",
     )
     .map(([toolKey, toolComponent]) => {
       const headerKeys = Object.entries(config.modularHeaders)
         .filter(([headerKey, headerConfig]) =>
-          (headerConfig.items || []).includes(toolKey)
+          (headerConfig.items || []).includes(toolKey),
         )
         .map(([headerKey]) => headerKey);
       return [toolKey, toolComponent, headerKeys];
@@ -28,7 +28,7 @@ export default function ToolButtonsCategorized({
     if (categoryName.startsWith("toolbarGroup-")) {
       const configTools = [];
       for (const [componentKey, componentConfig] of Object.entries(
-        config.modularComponents
+        config.modularComponents,
       )) {
         if (
           componentConfig.type === "ribbonItem" &&
@@ -73,7 +73,7 @@ export default function ToolButtonsCategorized({
     // Otherwise fall back to runtime-derived categories
     if (!assigned) {
       for (const [categoryName, categoryToolNames] of Object.entries(
-        extendedRuntime || {}
+        extendedRuntime || {},
       )) {
         if ((categoryToolNames || []).includes(toolName)) {
           categorized[categoryName] = categorized[categoryName] || [];
@@ -96,8 +96,8 @@ export default function ToolButtonsCategorized({
             const groups = Array.isArray(grouped)
               ? grouped
               : grouped
-              ? [grouped]
-              : [];
+                ? [grouped]
+                : [];
             let found = false;
             for (const g of groups) {
               const items = g.items || (g.getItems && g.getItems()) || [];

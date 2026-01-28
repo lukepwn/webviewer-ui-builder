@@ -14,3 +14,6 @@ Best practices code:
    const core = window.viewerInstance.Core || {};
 
 2.
+
+01/19 - clean up return satement, so many divs
+01/27 - make a list of tickets this can help with
