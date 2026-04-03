@@ -112,68 +112,96 @@ export default function ToolButtonsCategorized({
     // Removed fallback
   }
 
-  const [expanded, setExpanded] = useState({});
+  const categoryNames = Object.keys(categorized);
+  const [selectedCategory, setSelectedCategory] = useState(
+    categoryNames[0] || null,
+  );
+
+  const currentTools = selectedCategory ? categorized[selectedCategory] : [];
 
   return (
     <div style={{ marginTop: 12 }}>
       <h5>Tool Buttons (categorized)</h5>
-      {Object.keys(categorized).length === 0
-        ? null
-        : Object.entries(categorized).map(([categoryName, toolsList]) => (
-            <div key={categoryName} style={{ marginBottom: 8 }}>
-              <button
-                onClick={() =>
-                  setExpanded((prev) => ({
-                    ...prev,
-                    [categoryName]: !prev[categoryName],
-                  }))
-                }
-              >
-                {expanded[categoryName] ? "▼" : "▶"} {categoryName}
-              </button>
-              {expanded[categoryName] && (
-                <div
-                  style={{
-                    maxHeight: 120,
-                    overflow: "auto",
-                    border: "1px solid #eee",
-                    padding: 8,
-                  }}
-                >
-                  {toolsList.map(([toolKey, toolComponent, headerKeys]) => (
-                    <div
-                      key={toolKey}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "4px 0",
-                      }}
-                    >
-                      <div>
-                        {toolKey} — {toolComponent.toolName || "toolButton"}
-                        {headerKeys &&
-                        headerKeys.length > 0 &&
-                        !headerKeys.includes(categoryName) ? (
-                          <span style={{ color: "#666", marginLeft: 8 }}>
-                            (in: {headerKeys.join(", ")})
-                          </span>
-                        ) : null}
-                      </div>
-                      <div>
-                        <button
-                          style={{ marginLeft: 8 }}
-                          onClick={() => deleteToolButton(toolKey)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
+      {/* Filter buttons (horizontal) */}
+      {categoryNames.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            marginBottom: 16,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ color: "#666", fontSize: 12 }}>Filter:</span>
+          {categoryNames.map((categoryName) => (
+            <button
+              key={categoryName}
+              onClick={() => setSelectedCategory(categoryName)}
+              style={{
+                padding: "6px 12px",
+                backgroundColor:
+                  selectedCategory === categoryName ? "#007acc" : "#f0f0f0",
+                color: selectedCategory === categoryName ? "white" : "#333",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight:
+                  selectedCategory === categoryName ? "bold" : "normal",
+              }}
+            >
+              {categoryName}
+            </button>
           ))}
+        </div>
+      )}
+
+      {/* Display filtered tools */}
+      {categoryNames.length === 0 ? null : (
+        <div
+          style={{
+            border: "1px solid #eee",
+            borderRadius: 4,
+            padding: 12,
+          }}
+        >
+          {currentTools.length === 0 ? (
+            <p style={{ color: "#999", margin: 0 }}>No tools in this group</p>
+          ) : (
+            currentTools.map(([toolKey, toolComponent, headerKeys]) => (
+              <div
+                key={toolKey}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #f0f0f0",
+                }}
+              >
+                <div>
+                  {toolKey} — {toolComponent.toolName || "toolButton"}
+                  {headerKeys &&
+                  headerKeys.length > 0 &&
+                  !headerKeys.includes(selectedCategory) ? (
+                    <span style={{ color: "#666", marginLeft: 8 }}>
+                      (in: {headerKeys.join(", ")})
+                    </span>
+                  ) : null}
+                </div>
+                <button
+                  style={{ marginLeft: 8 }}
+                  onClick={() => deleteToolButton(toolKey)}
+                >
+                  Delete
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
