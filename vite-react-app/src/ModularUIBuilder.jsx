@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import ToolButtonForm from "./components/ToolButtonForm";
 import ToolButtonsCategorized from "./components/ToolButtonsCategorized";
 import ConfigPreview from "./components/ConfigPreview";
 
@@ -116,6 +115,12 @@ export default function ModularUIBuilder() {
             toolbarGroup.dataElement ||
             toolbarGroup.name ||
             "tools-header";
+
+          // Remove any view toolbar group completely
+          if (catKey === "view" || catKey === "toolbarGroup-view") {
+            return;
+          }
+
           categories[catKey] = categories[catKey] || [];
 
           // include direct items on toolbar group if present
@@ -146,6 +151,10 @@ export default function ModularUIBuilder() {
         // ignore
       }
 
+      // Remove existing view toolbar groups entirely
+      delete categories.view;
+      delete categories["toolbarGroup-view"];
+
       // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
       const Tools = Core && Core.Tools && Core.Tools.ToolNames;
       const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
@@ -159,6 +168,8 @@ export default function ModularUIBuilder() {
 
   function addToolButton({ dataElement, toolName, label, header }) {
     if (!dataElement || !header) return;
+    const lowerHeader = String(header).toLowerCase();
+    if (lowerHeader === "view" || lowerHeader === "toolbargroup-view") return;
 
     // react calls function and returns the latest new state
     // config to avoid stale state, then we modify and return new state
@@ -168,6 +179,11 @@ export default function ModularUIBuilder() {
         [dataElement]: { type: "toolButton", dataElement, toolName, label },
       };
       const headers = { ...c.modularHeaders };
+
+      // Ensure selected header exists when default value is used
+      if (!headers[header]) {
+        headers[header] = { type: "header", dataElement: header, items: [] };
+      }
 
       const headerComp = modularComponents[header];
       if (headerComp?.groupedItems?.length) {
@@ -187,6 +203,9 @@ export default function ModularUIBuilder() {
       }
 
       // Otherwise, add to the header directly (i.e. default-top-header)
+      if (!Array.isArray(headers[header].items)) {
+        headers[header].items = [];
+      }
 
       if (!headers[header].items.includes(dataElement)) {
         headers[header].items = [...headers[header].items, dataElement];
@@ -205,10 +224,15 @@ export default function ModularUIBuilder() {
 
       const headers = { ...c.modularHeaders };
       for (const key of Object.keys(headers)) {
-        if (Array.isArray(headers[key].items)) {
+        if (Array.isArray(headers[key]?.items)) {
           headers[key].items = headers[key].items.filter(
             (i) => i !== dataElement,
           );
+          // Keep header definitions for consistency, even if empty.
+          // This avoids invalid header validation in UI.importModularComponents.
+          if (headers[key].items.length === 0) {
+            headers[key].items = [];
+          }
         }
       }
 
@@ -259,8 +283,45 @@ export default function ModularUIBuilder() {
       console.warn("WebViewer instance not available");
       return;
     }
+
+    const sanitizeHeaders = (headers = {}) => {
+      const allowedPlacements = new Set(["top", "bottom", "left", "right"]);
+      const result = {};
+      for (const [key, value] of Object.entries(headers)) {
+        const lowerKey = String(key).toLowerCase();
+
+        // Exclude view groups entirely, and keep toolbarGroup group IDs out of modularHeaders
+        if (
+          lowerKey === "view" ||
+          lowerKey === "toolbar-group-view" ||
+          lowerKey.startsWith("toolbargroup-")
+        ) {
+          continue;
+        }
+
+        if (
+          value &&
+          value.placement &&
+          !allowedPlacements.has(String(value.placement).toLowerCase())
+        ) {
+          const copy = { ...value };
+          delete copy.placement;
+          result[key] = copy;
+          continue;
+        }
+
+        result[key] = value;
+      }
+      return result;
+    };
+
+    const configForImport = {
+      ...config,
+      modularHeaders: sanitizeHeaders(config.modularHeaders),
+    };
+
     try {
-      window.viewerInstance.UI.importModularComponents(config, {});
+      window.viewerInstance.UI.importModularComponents(configForImport, {});
       // Refresh runtime-derived categories immediately so the builder UI reflects the imported config
       try {
         discoverRuntimeToolData();
@@ -381,16 +442,22 @@ export default function ModularUIBuilder() {
 
       <section style={{ marginBottom: 12 }}>
         <h4>Add / Remove Tool Button</h4>
-        <ToolButtonForm
-          headerOptions={Object.keys(runtimeCategories)}
-          toolOptions={viewerTools}
-          onAdd={(values) => addToolButton(values)}
-        />
 
         <ToolButtonsCategorized
           config={config}
           runtimeCategories={runtimeCategories}
           deleteToolButton={deleteToolButton}
+          addToolButton={addToolButton}
+          headerOptions={[
+            ...new Set([
+              ...Object.keys(runtimeCategories),
+              ...Object.keys(config.modularHeaders),
+            ]),
+          ].filter((name) => {
+            const lower = String(name).toLowerCase();
+            return lower !== "view" && lower !== "toolbargroup-view";
+          })}
+          toolOptions={viewerTools}
         />
       </section>
 

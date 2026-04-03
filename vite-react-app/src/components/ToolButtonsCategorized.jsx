@@ -1,9 +1,165 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import "./ToolButtonsCategorized.css";
+
+// Filter Buttons Component
+function FilterButtons({
+  categoryNames,
+  selectedCategory,
+  onCategorySelect,
+  onAddToolClick,
+}) {
+  return (
+    <div className="filter-container">
+      <span className="filter-label">Filter:</span>
+      {categoryNames.map((categoryName) => (
+        <button
+          key={categoryName}
+          onClick={() => onCategorySelect(categoryName)}
+          className={`filter-button ${selectedCategory === categoryName ? "active" : ""}`}
+        >
+          {categoryName}
+        </button>
+      ))}
+      <button onClick={onAddToolClick} className="add-tool-button">
+        + Add Tool
+      </button>
+    </div>
+  );
+}
+
+// Tool List Component
+function ToolList({ tools, selectedCategory, onDeleteTool }) {
+  if (tools.length === 0) {
+    return <p className="no-tools-message">No tools in this group</p>;
+  }
+
+  return tools.map(([toolKey, toolComponent, headerKeys]) => (
+    <div key={toolKey} className="tool-item">
+      <div className="tool-info">
+        {toolKey} — {toolComponent.toolName || "toolButton"}
+        {headerKeys &&
+        headerKeys.length > 0 &&
+        !headerKeys.includes(selectedCategory) ? (
+          <span className="tool-header-info">
+            (in: {headerKeys.join(", ")})
+          </span>
+        ) : null}
+      </div>
+      <button className="delete-button" onClick={() => onDeleteTool(toolKey)}>
+        Delete
+      </button>
+    </div>
+  ));
+}
+
+// Add Tool Modal Component
+function AddToolModal({
+  isOpen,
+  onClose,
+  formData,
+  onFormChange,
+  headerOptions,
+  toolOptions,
+  onSubmit,
+}) {
+  if (!isOpen) return null;
+
+  const { dataElement, toolName, header, label } = formData;
+
+  const effectiveToolName = toolName;
+  const effectiveHeader = header;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal-title">Add Tool Button</h3>
+
+        <div className="form-container">
+          <div className="form-group">
+            <label className="form-label">Data Element</label>
+            <input
+              value={dataElement}
+              onChange={(e) => onFormChange("dataElement", e.target.value)}
+              placeholder="e.g., panButton"
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Header</label>
+            <select
+              value={header}
+              onChange={(e) => onFormChange("header", e.target.value)}
+              className="form-select"
+            >
+              {headerOptions.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Tool</label>
+            <select
+              value={toolName}
+              onChange={(e) => onFormChange("toolName", e.target.value)}
+              className="form-select"
+            >
+              {toolOptions && toolOptions.length ? (
+                toolOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label || t.value}
+                  </option>
+                ))
+              ) : (
+                <option value="">(no tools available)</option>
+              )}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Label (optional)</label>
+            <input
+              value={label}
+              onChange={(e) => onFormChange("label", e.target.value)}
+              placeholder="display label"
+              className="form-input"
+            />
+          </div>
+
+          <div className="button-group">
+            <button onClick={onClose} className="cancel-button">
+              Cancel
+            </button>
+            <button
+              onClick={() =>
+                onSubmit({
+                  dataElement,
+                  toolName: effectiveToolName,
+                  label,
+                  header: effectiveHeader,
+                })
+              }
+              className="submit-button"
+            >
+              Add Tool Button
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ToolButtonsCategorized({
   config = {},
   runtimeCategories = {},
   deleteToolButton,
+  addToolButton,
+  headerOptions = [],
+  toolOptions = [],
 }) {
   // Compute all tool buttons and their header memberships; show categorized view
   const toolList = Object.entries(config.modularComponents)
@@ -19,8 +175,6 @@ export default function ToolButtonsCategorized({
         .map(([headerKey]) => headerKey);
       return [toolKey, toolComponent, headerKeys];
     });
-
-  if (toolList.length === 0) return null;
 
   // Compute extended runtimeCategories with config additions for toolbarGroups
   const extendedRuntime = { ...runtimeCategories };
@@ -112,96 +266,145 @@ export default function ToolButtonsCategorized({
     // Removed fallback
   }
 
-  const categoryNames = Object.keys(categorized);
+  const categorySet = new Set(Object.keys(categorized));
+
+  // Also include potential empty runtime categories and headers
+  Object.keys(runtimeCategories || {}).forEach((n) => categorySet.add(n));
+  Object.keys(config.modularHeaders || {}).forEach((n) => categorySet.add(n));
+
+  const categoryNames = Array.from(categorySet).filter((name) => {
+    const lower = String(name).toLowerCase();
+    return (
+      lower !== "view" &&
+      lower !== "toolbargroup-view" &&
+      lower !== "tools-header"
+    );
+  });
+
   const [selectedCategory, setSelectedCategory] = useState(
     categoryNames[0] || null,
   );
 
-  const currentTools = selectedCategory ? categorized[selectedCategory] : [];
+  const currentTools =
+    selectedCategory && Array.isArray(categorized[selectedCategory])
+      ? categorized[selectedCategory]
+      : [];
+
+  useEffect(() => {
+    if (selectedCategory && !categoryNames.includes(selectedCategory)) {
+      setSelectedCategory(categoryNames[0] || null);
+    }
+  }, [categoryNames, selectedCategory]);
+
+  // Form state for the popup
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [dataElement, setDataElement] = useState("panButton");
+  const [toolName, setToolName] = useState(
+    (toolOptions && toolOptions.length && toolOptions[0].value) || "",
+  );
+  const [header, setHeader] = useState(
+    (headerOptions && headerOptions.length && headerOptions[0]) ||
+      "default-top-header",
+  );
+  const [label, setLabel] = useState("");
+
+  useEffect(() => {
+    if (!toolName && toolOptions && toolOptions.length) {
+      setToolName(toolOptions[0].value);
+    }
+  }, [toolOptions, toolName]);
+
+  useEffect(() => {
+    if (!header && headerOptions && headerOptions.length) {
+      setHeader(headerOptions[0]);
+    }
+  }, [headerOptions, header]);
+
+  const headerOptionsFinal =
+    headerOptions && headerOptions.length
+      ? headerOptions.filter((name) => {
+          const lower = String(name).toLowerCase();
+          return (
+            lower !== "view" &&
+            lower !== "toolbargroup-view" &&
+            lower !== "tools-header"
+          );
+        })
+      : ["default-top-header"];
+
+  // Form handlers
+  const handleFormChange = (field, value) => {
+    switch (field) {
+      case "dataElement":
+        setDataElement(value);
+        break;
+      case "toolName":
+        setToolName(value);
+        break;
+      case "header":
+        setHeader(value);
+        break;
+      case "label":
+        setLabel(value);
+        break;
+    }
+  };
+
+  const handleFormSubmit = (formValues) => {
+    if (!formValues.dataElement || !formValues.toolName || !formValues.header) {
+      alert("dataElement, toolName and header are required");
+      return;
+    }
+
+    const headerLower = String(formValues.header).toLowerCase();
+    if (headerLower === "view" || headerLower === "toolbargroup-view") {
+      alert("Adding tools to view toolbar group is not allowed");
+      return;
+    }
+
+    addToolButton(formValues);
+    setDataElement("");
+    setLabel("");
+    setShowAddForm(false);
+  };
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <h5>Tool Buttons (categorized)</h5>
+    <div className="tool-buttons-container">
+      <h5 className="tool-buttons-title">Tool Buttons (categorized)</h5>
 
-      {/* Filter buttons (horizontal) */}
       {categoryNames.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginBottom: 16,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ color: "#666", fontSize: 12 }}>Filter:</span>
-          {categoryNames.map((categoryName) => (
-            <button
-              key={categoryName}
-              onClick={() => setSelectedCategory(categoryName)}
-              style={{
-                padding: "6px 12px",
-                backgroundColor:
-                  selectedCategory === categoryName ? "#007acc" : "#f0f0f0",
-                color: selectedCategory === categoryName ? "white" : "#333",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight:
-                  selectedCategory === categoryName ? "bold" : "normal",
-              }}
-            >
-              {categoryName}
-            </button>
-          ))}
+        <FilterButtons
+          categoryNames={categoryNames}
+          selectedCategory={selectedCategory}
+          onCategorySelect={setSelectedCategory}
+          onAddToolClick={() => setShowAddForm(true)}
+        />
+      )}
+
+      {categoryNames.length > 0 && (
+        <div className="tools-display">
+          <ToolList
+            tools={currentTools}
+            selectedCategory={selectedCategory}
+            onDeleteTool={deleteToolButton}
+          />
         </div>
       )}
 
-      {/* Display filtered tools */}
-      {categoryNames.length === 0 ? null : (
-        <div
-          style={{
-            border: "1px solid #eee",
-            borderRadius: 4,
-            padding: 12,
-          }}
-        >
-          {currentTools.length === 0 ? (
-            <p style={{ color: "#999", margin: 0 }}>No tools in this group</p>
-          ) : (
-            currentTools.map(([toolKey, toolComponent, headerKeys]) => (
-              <div
-                key={toolKey}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 0",
-                  borderBottom: "1px solid #f0f0f0",
-                }}
-              >
-                <div>
-                  {toolKey} — {toolComponent.toolName || "toolButton"}
-                  {headerKeys &&
-                  headerKeys.length > 0 &&
-                  !headerKeys.includes(selectedCategory) ? (
-                    <span style={{ color: "#666", marginLeft: 8 }}>
-                      (in: {headerKeys.join(", ")})
-                    </span>
-                  ) : null}
-                </div>
-                <button
-                  style={{ marginLeft: 8 }}
-                  onClick={() => deleteToolButton(toolKey)}
-                >
-                  Delete
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      <AddToolModal
+        isOpen={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        formData={{
+          dataElement,
+          toolName,
+          header,
+          label,
+        }}
+        onFormChange={handleFormChange}
+        headerOptions={headerOptionsFinal}
+        toolOptions={toolOptions}
+        onSubmit={handleFormSubmit}
+      />
     </div>
   );
 }

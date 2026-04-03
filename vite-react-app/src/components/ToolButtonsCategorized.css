@@ -1,0 +1,194 @@
+/* ToolButtonsCategorized.css */
+
+.tool-buttons-container {
+  margin-top: 12px;
+}
+
+.tool-buttons-title {
+  margin-bottom: 16px;
+}
+
+.filter-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-label {
+  color: #666;
+  font-size: 12px;
+}
+
+.filter-button {
+  padding: 6px 12px;
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.filter-button.active {
+  background-color: #007acc;
+  color: white;
+  font-weight: bold;
+}
+
+.add-tool-button {
+  padding: 6px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 16px;
+}
+
+.tools-display {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.no-tools-message {
+  color: #999;
+  margin: 0;
+}
+
+.tool-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tool-info {
+  flex: 1;
+}
+
+.tool-header-info {
+  color: #666;
+  margin-left: 8px;
+}
+
+.delete-button {
+  margin-left: 8px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.custom-input {
+  margin-top: 8px;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.cancel-button {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.submit-button {
+  padding: 8px 16px;
+  background-color: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.cancel-button:hover,
+.submit-button:hover,
+.filter-button:hover,
+.add-tool-button:hover {
+  opacity: 0.9;
+}
+
+.cancel-button:active,
+.submit-button:active,
+.filter-button:active,
+.add-tool-button:active {
+  transform: translateY(1px);
+}
