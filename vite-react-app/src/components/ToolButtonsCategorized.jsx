@@ -45,8 +45,12 @@ function ToolList({ tools, selectedCategory, onDeleteTool }) {
           </span>
         ) : null}
       </div>
-      <button className="delete-button" onClick={() => onDeleteTool(toolKey)}>
-        Delete
+      <button
+        className="delete-button"
+        onClick={() => onDeleteTool(toolKey)}
+        aria-label={`Remove ${toolKey}`}
+      >
+        ×
       </button>
     </div>
   ));
