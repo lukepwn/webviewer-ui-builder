@@ -21,6 +21,7 @@
     "cut": "Cut",
     "paste": "Paste",
     "pasteWithoutFormatting": "Paste without formatting",
+    "addComment": "Add Comment",
     "delete": "Delete",
     "deleted": "Deleted",
     "group": "Group",
@@ -168,8 +169,8 @@
     "ellipse": "Ellipse",
     "eraser": "Eraser",
     "fileattachment": "File Attachment",
-    "freehand": "Free Hand",
-    "freeHandHighlight": "Free Hand Highlight",
+    "freehand": "Freehand",
+    "freeHandHighlight": "Freehand Highlight",
     "freetext": "Free Text",
     "markInsertText": "Insert Text",
     "markReplaceText": "Replace Text",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Stamp text cannot be empty",
     "unpostedComment": "Unposted Comment",
     "lockedLayer": "Layer is locked",
-    "layerVisibililtyNoChange": "Layer visibililty can't be changed",
+    "layerVisibilityNoChange": "Layer visibility can't be changed",
     "noLayers": "This document has no layers.",
     "noSignatureFields": "This document has no signature fields.",
     "untitled": "Untitled",
@@ -353,7 +354,11 @@
     "listEmptyValue": "One or more fields have an empty value.",
     "listDuplicateValue": "Multiple fields have the following values: ",
     "networkError": "Something went wrong loading this component:  ",
-    "refreshPage": "Please check your network connection and refresh the page."
+    "refreshPage": "Please check your network connection and refresh the page.",
+    "renderErrors": {
+      "error": "Something went wrong here.",
+      "refreshPanel": "You can continue working. Try reopening the panel."
+    }
   },
   "option": {
     "type": {
@@ -361,7 +366,7 @@
       "custom": "Custom",
       "ellipse": "Ellipse",
       "fileattachment": "File Attachment",
-      "freehand": "Free Hand",
+      "freehand": "Freehand",
       "callout": "Callout",
       "freetext": "Free Text",
       "line": "Line",
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Sort Order List",
       "position": "Position",
+      "linePosition": "Position",
       "time": "Time",
       "status": "Status",
       "author": "Author",
@@ -482,17 +488,20 @@
       "markForRedaction": "Mark for redaction"
     },
     "searchPanel": {
+      "searchResults": "Search results",
       "caseSensitive": "Case sensitive",
       "wholeWordOnly": "Whole word",
       "wildcard": "Wildcard",
       "replace": "Replace",
       "replaceAll": "Replace All",
       "replaceText": "Replace Text",
+      "replaceOptions": "Replace Options",
       "confirmMessageReplaceAll": "Are you sure you want to replace all text?",
       "confirmMessageReplaceOne": "Are you sure you want to replace this text?",
       "moreOptions": "More options",
       "lessOptions": "Less options",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "filter": "Filter"
     },
     "toolsOverlay": {
       "currentStamp": "Current Stamp",
@@ -1313,6 +1322,7 @@
     "bold": "Bold",
     "italic": "Italic",
     "underline": "Underline",
+    "strikeout": "Strikeout",
     "textColor": "Text color",
     "leftAlign": "Left align",
     "centerAlign": "Center align",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Delete Table",
     "deleted": "Deleted: ",
     "added": "Added: ",
+    "formatted": "Formatted: ",
     "editing": "Editing",
     "editingDescription": "Edit document",
     "reviewing": "Reviewing",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "View without suggestions",
     "notSupportedOnMobile": "Office editing is not supported on mobile devices.",
     "previewAllChanges": "Preview all changes",
+    "changes": "Changes",
+    "comments": "Comments",
+    "commentsAndChangesTabs": "Comments and Changes Tabs",
     "accept": "Accept",
     "reject": "Reject",
     "pastingTitle": "Pasting not available",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Font Family"
     },
-    "blankSheet": "Blank Sheet",
+    "blankSheet": "Sheet",
     "insertImage": "Insert image"
   },
   "insertPageModal": {

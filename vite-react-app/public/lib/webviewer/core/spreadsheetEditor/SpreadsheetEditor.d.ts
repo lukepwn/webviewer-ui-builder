@@ -3,8 +3,8 @@
 //***********************************************************************************************
 //***********************************************************************************************
 //   Type definitions for SpreadsheetEditor.js
-//   Updated: 11/14/2025 07:53
-//   Version: 23.0.0.3
+//   Updated: 3/12/2026 23:46
+//   Version: 23.0.0.4
 //   https://www.leadtools.com
 //***********************************************************************************************
 
@@ -69,6 +69,38 @@ declare module lt.Document.SheetEditor {
       sheetIndex: number; // read-only
    }
 
+   class SheetDataChangedInfo {
+      get_sheetIndex(): number;
+      get_ranges(): CellRange[];
+      sheetIndex: number; // read-only
+      ranges: CellRange[]; // read-only
+   }
+
+   enum SheetEditorDataChangeType {
+      dataChange = 0,
+      cutPaste = 1,
+      mergeCells = 2,
+      unmergeCells = 3,
+      addRowColumn = 4,
+      deleteRowColumn = 5
+   }
+
+   interface SheetEditorDataChangedEventHandler extends LeadEventHandler {
+      (sender: any, e: SheetEditorDataChangedEventArgs): void;
+   }
+
+   class SheetEditorDataChangedEventType extends LeadEvent {
+      add(value: SheetEditorDataChangedEventHandler): SheetEditorDataChangedEventHandler;
+      remove(value: SheetEditorDataChangedEventHandler): void;
+   }
+
+   class SheetEditorDataChangedEventArgs extends LeadEventArgs {
+      get_changeType(): SheetEditorDataChangeType;
+      get_changes(): SheetDataChangedInfo[];
+      changeType: SheetEditorDataChangeType; // read-only
+      changes: SheetDataChangedInfo[]; // read-only
+   }
+
    interface SheetEditorSelectionChangedEventHandler extends LeadEventHandler {
       (sender: any, e: SheetEditorSelectionChangedEventArgs): void;
    }
@@ -105,9 +137,11 @@ declare module lt.Document.SheetEditor {
    class SheedEditorSheetStateChangedEventArgs extends LeadEventArgs {
       get_sheetIndex(): number;
       get_sheetName(): string;
+      get_oldSheetName(): string;
       get_action(): SheedEditorSheetAction;
       sheetIndex: number; // read-only
       sheetName: string; // read-only
+      oldSheetName: string; // read-only
       action: SheedEditorSheetAction; // read-only
    }
 
@@ -176,12 +210,27 @@ declare module lt.Document.SheetEditor {
       highlightResults(currentResult: SearchResult): void;
       moveToIndex(index: number): SearchResult;
       get_selectedResultIndex(): number;
+      get_selectedResult(): SearchResult;
       moveToNext(): SearchResult;
       moveToPrevious(): SearchResult;
       replace(replaceContent: string): SearchResult;
       replaceAll(replaceContent: string): void;
       results: SearchResult[]; // read-only
       selectedResultIndex: number; // read-only
+      selectedResult: SearchResult; // read-only
+   }
+
+   class SearchOptions {
+      get_isCaseSensitive(): boolean;
+      set_isCaseSensitive(value: boolean): void;
+      get_alsoSearchWithinFormulas(): boolean;
+      set_alsoSearchWithinFormulas(value: boolean): void;
+      get_regularExpression(): any;
+      set_regularExpression(value: any): void;
+      constructor();
+      isCaseSensitive: boolean;
+      alsoSearchWithinFormulas: boolean;
+      regularExpression: any;
    }
 
    class SheetEditorSearch {
@@ -189,6 +238,7 @@ declare module lt.Document.SheetEditor {
       searchSheetRegExp(sheetOrder: number, regex: any): SearchResults;
       search(content: string, matchCase: boolean): SearchResults;
       searchRegex(regex: any): SearchResults;
+      searchWithOptions(content: string, searchOptions: SearchOptions): SearchResults;
    }
 
    class SheetEditorHistory {
@@ -276,6 +326,9 @@ declare module lt.Document.SheetEditor {
       get_history(): SheetEditorHistory;
       get_search(): SheetEditorSearch;
       get_clipboard(): SheetEditorClipboard;
+      positionToCellAnchor(x: number, y: number): CellAnchorPosition;
+      surfacePositionToCellAnchor(x: number, y: number): CellAnchorPosition;
+      cellAnchorToSurfacePosition(row: number, column: number, offsetX: number, offsetY: number): LeadPointD;
       beginUpdate(): void;
       endUpdate(): void;
       invalidate(): void;
@@ -300,6 +353,9 @@ declare module lt.Document.SheetEditor {
       add_selectionChanged(value: SheetEditorSelectionChangedEventHandler): void;
       remove_selectionChanged(value: SheetEditorSelectionChangedEventHandler): void;
       onSelectionChanged(e: SheetEditorSelectionChangedEventArgs): void;  // protected
+      add_dataChanged(value: SheetEditorDataChangedEventHandler): void;
+      remove_dataChanged(value: SheetEditorDataChangedEventHandler): void;
+      onDataChanged(e: SheetEditorDataChangedEventArgs): void;  // protected
       getWorkbook(): LEADWorkbook;
       formulaBarService: SheetEditorFormulaBarService; // read-only
       interactiveService: SheetEditorInteractiveService; // read-only
@@ -311,6 +367,7 @@ declare module lt.Document.SheetEditor {
       activeSheetChanged: SheetEditorActiveSheetChangedEventType; // read-only
       sheetStateChanged: SheedEditorSheetStateChangedEventType; // read-only
       selectionChanged: SheetEditorSelectionChangedEventType; // read-only
+      dataChanged: SheetEditorDataChangedEventType; // read-only
    }
 
    class Cell {
@@ -716,6 +773,34 @@ declare module lt.Document.SheetEditor {
       formulaBarTextChangedEvent: SheetEditorFormulaBarTextEventType; // read-only
       formulaSearchEvent: SheetEditorFormulaBarSearchEventType; // read-only
       formulaHelpEvent: SheetEditorFormulaBarHelpEventType; // read-only
+   }
+
+   class CellAnchorPosition {
+      get_row(): number;
+      get_column(): number;
+      get_offsetX(): number;
+      get_offsetY(): number;
+      constructor(row: number, col: number, offsetX: number, offsetY: number);
+      row: number; // read-only
+      column: number; // read-only
+      offsetX: number; // read-only
+      offsetY: number; // read-only
+   }
+
+   class LeadPointD {
+      static get_empty(): LeadPointD;
+      get_isEmpty(): boolean;
+      static create(x: number, y: number): LeadPointD;
+      clone(): LeadPointD;
+      get_x(): number;
+      set_x(value: number): void;
+      get_y(): number;
+      set_y(value: number): void;
+      constructor();
+      static empty: LeadPointD; // read-only
+      isEmpty: boolean; // read-only
+      x: number;
+      y: number;
    }
 
    class LeadRectD {

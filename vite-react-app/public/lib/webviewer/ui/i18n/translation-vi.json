@@ -21,6 +21,7 @@
     "cut": "Cắt",
     "paste": "Dán",
     "pasteWithoutFormatting": "Dán mà không cần định dạng",
+    "addComment": "Thêm bình luận",
     "delete": "Xóa",
     "deleted": "Đã xóa",
     "group": "Nhóm",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Văn bản tem không thể trống",
     "unpostedComment": "Nhận Xét Chưa Đăng",
     "lockedLayer": "Lớp bị khóa",
-    "layerVisibililtyNoChange": "Không thể thay đổi độ hiển thị lớp",
+    "layerVisibilityNoChange": "Không thể thay đổi độ hiển thị lớp",
     "noLayers": "Tài liệu này không có lớp.",
     "noSignatureFields": "Tài liệu này không có trường chữ ký.",
     "untitled": "Không có tiêu đề",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Một hoặc nhiều trường có giá trị trống.",
     "listDuplicateValue": "Nhiều trường có các giá trị sau:",
     "networkError": "Đã xảy ra lỗi khi tải thành phần này. Vui lòng kiểm tra kết nối mạng và làm mới trang.",
-    "refreshPage": "Vui lòng kiểm tra kết nối mạng của bạn và làm mới trang."
+    "refreshPage": "Vui lòng kiểm tra kết nối mạng của bạn và làm mới trang.",
+    "renderErrors": {
+      "error": "Đã xảy ra lỗi ở đây.",
+      "refreshPanel": "Bạn có thể tiếp tục làm việc. Hãy thử mở lại bảng điều khiển."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Sắp Xếp Danh Sách Lệnh",
       "position": "Vị trí",
+      "linePosition": "Vị trí",
       "time": "Thời gian",
       "status": "Trạng thái",
       "author": "Tác giả",
@@ -482,17 +488,20 @@
       "markForRedaction": "Đánh dấu để biên tập"
     },
     "searchPanel": {
+      "searchResults": "kết quả tìm kiếm",
       "caseSensitive": "Nhạy cảm viết hoa",
       "wholeWordOnly": "Toàn bộ từ",
       "wildcard": "Wildcard",
       "replace": "Thay thế",
       "replaceAll": "Thay thế tất cả",
       "replaceText": "Thay thế văn bản",
+      "replaceOptions": "Thay thế các tùy chọn",
       "confirmMessageReplaceAll": "Bạn có chắc chắn muốn thay thế tất cả văn bản không?",
       "confirmMessageReplaceOne": "Bạn có chắc chắn muốn thay thế văn bản này không?",
       "moreOptions": "Lựa chọn khác",
       "lessOptions": "Ít tùy chọn hơn",
-      "confirm": "Xác nhận"
+      "confirm": "Xác nhận",
+      "filter": "Lọc"
     },
     "toolsOverlay": {
       "currentStamp": "Tem Hiện Tại",
@@ -1313,6 +1322,7 @@
     "bold": "In đậm",
     "italic": "chữ nghiêng",
     "underline": "gạch dưới",
+    "strikeout": "Strikeout",
     "textColor": "Văn bản màu",
     "leftAlign": "Căn trái",
     "centerAlign": "Căn giữa",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Xóa bảng",
     "deleted": "Đã xóa:",
     "added": "Thêm:",
+    "formatted": "Đã định dạng:",
     "editing": "Chỉnh sửa",
     "editingDescription": "Chỉnh sửa tài liệu",
     "reviewing": "Đang xem xét",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Xem không có đề xuất",
     "notSupportedOnMobile": "Chỉnh sửa văn phòng không được hỗ trợ trên thiết bị di động.",
     "previewAllChanges": "Xem trước tất cả các thay đổi",
+    "changes": "Thay đổi",
+    "comments": "Bình luận",
+    "commentsAndChangesTabs": "Các tab Bình luận và Thay đổi",
     "accept": "Chấp nhận",
     "reject": "Từ chối",
     "pastingTitle": "Dán không có sẵn",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Họ phông chữ"
     },
-    "blankSheet": "Tờ giấy trắng",
+    "blankSheet": "Tờ giấy",
     "insertImage": "Chèn hình ảnh"
   },
   "insertPageModal": {

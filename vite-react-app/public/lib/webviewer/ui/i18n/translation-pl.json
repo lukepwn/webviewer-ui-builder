@@ -21,6 +21,7 @@
     "cut": "Cięcie",
     "paste": "Pasta",
     "pasteWithoutFormatting": "Wklej bez formatowania",
+    "addComment": "Dodaj komentarz",
     "delete": "Usuń",
     "deleted": "Usunięto",
     "group": "Grupuj",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Tekst stempla nie może być pusty",
     "unpostedComment": "Nieopublikowany komentarz",
     "lockedLayer": "Warstwa jest zablokowana",
-    "layerVisibililtyNoChange": "Widoczności warstwy nie można zmienić",
+    "layerVisibilityNoChange": "Widoczności warstwy nie można zmienić",
     "noLayers": "Ten dokument nie ma warstw.",
     "noSignatureFields": "Dokument ten nie zawiera pól na podpis.",
     "untitled": "Nieuprawny",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Jedno lub więcej pól ma pustą wartość.",
     "listDuplicateValue": "Pola wielokrotne mają następujące wartości:",
     "networkError": "Wystąpił błąd podczas ładowania tego komponentu. Sprawdź połączenie sieciowe i odśwież stronę.",
-    "refreshPage": "Sprawdź połączenie sieciowe i odśwież stronę."
+    "refreshPage": "Sprawdź połączenie sieciowe i odśwież stronę.",
+    "renderErrors": {
+      "error": "Coś tu poszło nie tak.",
+      "refreshPanel": "Możesz kontynuować pracę. Spróbuj ponownie otworzyć panel."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Sortuj listę kolejności",
       "position": "Pozycja",
+      "linePosition": "Pozycja",
       "time": "Czas",
       "status": "Status",
       "author": "Autor",
@@ -482,17 +488,20 @@
       "markForRedaction": "Oznacz do redakcji"
     },
     "searchPanel": {
+      "searchResults": "Wyniki wyszukiwania",
       "caseSensitive": "Rozróżnianie wielkości liter",
       "wholeWordOnly": "Całe słowo",
       "wildcard": "Dzika karta",
       "replace": "Zastąp",
       "replaceAll": "Zastąp wszystko",
       "replaceText": "Zastąp tekst",
+      "replaceOptions": "Zamień opcje",
       "confirmMessageReplaceAll": "Czy na pewno chcesz zamienić cały tekst?",
       "confirmMessageReplaceOne": "Czy na pewno chcesz zastąpić ten tekst?",
       "moreOptions": "Więcej opcji",
       "lessOptions": "Mniej opcji",
-      "confirm": "Potwierdź"
+      "confirm": "Potwierdź",
+      "filter": "Filtr"
     },
     "toolsOverlay": {
       "currentStamp": "Aktualny stempel",
@@ -1313,6 +1322,7 @@
     "bold": "Pogrubiony",
     "italic": "italski",
     "underline": "Podkreślać",
+    "strikeout": "Wykreślić",
     "textColor": "Kolor tekstu",
     "leftAlign": "Wyrównaj do lewej",
     "centerAlign": "Wyrównaj do środka",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Usuń tabelę",
     "deleted": "Usunięto:",
     "added": "Dodany:",
+    "formatted": "Sformatowano:",
     "editing": "Redagowanie",
     "editingDescription": "Edytuj dokument",
     "reviewing": "Przeglądanie",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Zobacz bez sugestii",
     "notSupportedOnMobile": "Edycja pakietu Office nie jest obsługiwana na urządzeniach mobilnych.",
     "previewAllChanges": "Podgląd wszystkich zmian",
+    "changes": "Zmiany",
+    "comments": "Uwagi",
+    "commentsAndChangesTabs": "Karty komentarzy i zmian",
     "accept": "Zaakceptować",
     "reject": "Odrzucić",
     "pastingTitle": "Wklejanie niedostępne",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Rodzina czcionek"
     },
-    "blankSheet": "Pusta Arkusz",
+    "blankSheet": "Arkusz",
     "insertImage": "Wstaw obraz"
   },
   "insertPageModal": {

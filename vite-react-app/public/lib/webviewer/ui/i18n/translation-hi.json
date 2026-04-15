@@ -21,6 +21,7 @@
     "cut": "काटना",
     "paste": "पेस्ट करें",
     "pasteWithoutFormatting": "बिना फॉर्मेट किए पेस्ट करें",
+    "addComment": "टिप्पणी जोड़ना",
     "delete": "हटाएं",
     "deleted": "हटाए गए",
     "group": "समूह",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "स्टाम्प टेक्स्ट खाली नहीं हो सकता",
     "unpostedComment": "पोस्ट नहीं की गई टिप्पणी",
     "lockedLayer": "परत बंद है",
-    "layerVisibililtyNoChange": "परत दृश्यता को बदला नहीं जा सकता",
+    "layerVisibilityNoChange": "परत दृश्यता को बदला नहीं जा सकता",
     "noLayers": "इस दस्तावेज़ में कोई परतें नहीं हैं.",
     "noSignatureFields": "इस दस्तावेज़ में कोई हस्ताक्षर फ़ील्ड नहीं है.",
     "untitled": "शीर्षकहीन",
@@ -353,7 +354,11 @@
     "listEmptyValue": "एक या अधिक फ़ील्ड में रिक्त मान है.",
     "listDuplicateValue": "एकाधिक फ़ील्ड में निम्नलिखित मान होते हैं:",
     "networkError": "इस घटक को लोड करते समय कुछ गड़बड़ी हुई। कृपया अपना नेटवर्क कनेक्शन जांचें और पेज रीफ़्रेश करें।",
-    "refreshPage": "कृपया अपना नेटवर्क कनेक्शन जांचें और पेज को रीफ्रेश करें।"
+    "refreshPage": "कृपया अपना नेटवर्क कनेक्शन जांचें और पेज को रीफ्रेश करें।",
+    "renderErrors": {
+      "error": "यहां कुछ गड़बड़ हो गई।",
+      "refreshPanel": "आप काम जारी रख सकते हैं। पैनल को दोबारा खोलने का प्रयास करें।"
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "क्रमबद्ध क्रम सूची",
       "position": "स्थान",
+      "linePosition": "स्थान",
       "time": "समय",
       "status": "स्थिति",
       "author": "लेखक",
@@ -482,17 +488,20 @@
       "markForRedaction": "रिडक्शन के लिए मार्क"
     },
     "searchPanel": {
+      "searchResults": "खोज के परिणाम",
       "caseSensitive": "अक्षर संवेदनशील",
       "wholeWordOnly": "पूरा शब्द",
       "wildcard": "वाइल्डकार्ड",
       "replace": "बदलने के",
       "replaceAll": "सबको बदली करें",
       "replaceText": "टेक्स्ट बदलें",
+      "replaceOptions": "विकल्प बदलें",
       "confirmMessageReplaceAll": "क्या आप वाकई सभी टेक्स्ट को बदलना चाहते हैं?",
       "confirmMessageReplaceOne": "क्या आप वाकई इस टेक्स्ट को बदलना चाहते हैं?",
       "moreOptions": "अधिक विकल्प",
       "lessOptions": "कम विकल्प",
-      "confirm": "पुष्टि करें"
+      "confirm": "पुष्टि करें",
+      "filter": "फ़िल्टर"
     },
     "toolsOverlay": {
       "currentStamp": "वर्तमान टिकट",
@@ -1313,6 +1322,7 @@
     "bold": "निडर",
     "italic": "तिरछा",
     "underline": "रेखांकन",
+    "strikeout": "मिटाना",
     "textColor": "पाठ का रंग",
     "leftAlign": "बाएं संरेखित करें",
     "centerAlign": "केंद्र संरेखित करें",
@@ -1338,6 +1348,7 @@
     "deleteTable": "तालिका हटाएँ",
     "deleted": "हटाया गया:",
     "added": "जोड़ा गया:",
+    "formatted": "स्वरूपित:",
     "editing": "संपादन",
     "editingDescription": "दस्तावेज़ संपादित करें",
     "reviewing": "की समीक्षा",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "सुझाव के बिना देखें",
     "notSupportedOnMobile": "कार्यालय संपादन मोबाइल उपकरणों पर समर्थित नहीं है।",
     "previewAllChanges": "सभी परिवर्तनों का पूर्वावलोकन करें",
+    "changes": "परिवर्तन",
+    "comments": "टिप्पणियाँ",
+    "commentsAndChangesTabs": "टिप्पणियाँ और परिवर्तन टैब",
     "accept": "स्वीकार करना",
     "reject": "अस्वीकार करना",
     "pastingTitle": "चिपकाना उपलब्ध नहीं है",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "फुहारा परिवार"
     },
-    "blankSheet": "ब्लेंक शीट",
+    "blankSheet": "चादर",
     "insertImage": "चित्र डालें"
   },
   "insertPageModal": {

@@ -21,6 +21,7 @@
     "cut": "کاٹنا",
     "paste": "چسپاں کریں۔",
     "pasteWithoutFormatting": "فارمیٹنگ کے بغیر پیسٹ کریں۔",
+    "addComment": "تبصرہ شامل کریں۔",
     "delete": "حذف کریں۔",
     "deleted": "حذف کر دیا گیا۔",
     "group": "گروپ",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "ڈاک ٹکٹ خالی نہیں ہو سکتا",
     "unpostedComment": "غیر پوسٹ شدہ تبصرہ",
     "lockedLayer": "پرت مقفل ہے۔",
-    "layerVisibililtyNoChange": "پرت کی مرئیت کو تبدیل نہیں کیا جا سکتا",
+    "layerVisibilityNoChange": "پرت کی مرئیت کو تبدیل نہیں کیا جا سکتا",
     "noLayers": "اس دستاویز کی کوئی تہہ نہیں ہے۔",
     "noSignatureFields": "اس دستاویز میں کوئی دستخطی فیلڈ نہیں ہے۔",
     "untitled": "بلا عنوان",
@@ -353,7 +354,11 @@
     "listEmptyValue": "ایک یا زیادہ فیلڈز کی قدر خالی ہے۔",
     "listDuplicateValue": "متعدد شعبوں میں درج ذیل اقدار ہیں: ",
     "networkError": "اس جزو کو لوڈ کرنے میں کچھ غلط ہو گیا۔ براہ کرم اپنا نیٹ ورک کنکشن چیک کریں اور صفحہ ریفریش کریں۔",
-    "refreshPage": "براہ کرم اپنا نیٹ ورک کنکشن چیک کریں اور صفحہ ریفریش کریں۔"
+    "refreshPage": "براہ کرم اپنا نیٹ ورک کنکشن چیک کریں اور صفحہ ریفریش کریں۔",
+    "renderErrors": {
+      "error": "یہاں کچھ غلط ہو گیا۔",
+      "refreshPanel": "آپ کام جاری رکھ سکتے ہیں۔ پینل کو دوبارہ کھولنے کی کوشش کریں۔"
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "ترتیب کی فہرست",
       "position": "پوزیشن",
+      "linePosition": "پوزیشن",
       "time": "وقت",
       "status": "حیثیت",
       "author": "مصنف",
@@ -482,17 +488,20 @@
       "markForRedaction": "ترمیم کے لیے نشان زد کریں۔"
     },
     "searchPanel": {
+      "searchResults": "تلاش کے نتائج",
       "caseSensitive": "کیس حساس",
       "wholeWordOnly": "پورا لفظ",
       "wildcard": "وائلڈ کارڈ",
       "replace": "بدل دیں۔",
       "replaceAll": "سبھی کو تبدیل کریں۔",
       "replaceText": "متن کو تبدیل کریں۔",
+      "replaceOptions": "متبادل اختیارات",
       "confirmMessageReplaceAll": "کیا آپ واقعی تمام متن کو تبدیل کرنا چاہتے ہیں؟",
       "confirmMessageReplaceOne": "کیا آپ واقعی اس متن کو تبدیل کرنا چاہتے ہیں؟",
       "moreOptions": "مزید اختیارات",
       "lessOptions": "کم اختیارات",
-      "confirm": "تصدیق کریں۔"
+      "confirm": "تصدیق کریں۔",
+      "filter": "فلٹر"
     },
     "toolsOverlay": {
       "currentStamp": "موجودہ ڈاک ٹکٹ",
@@ -1313,6 +1322,7 @@
     "bold": "بولڈ",
     "italic": "ترچھا",
     "underline": "انڈر لائن",
+    "strikeout": "اسٹرائیک آؤٹ",
     "textColor": "متن کا رنگ",
     "leftAlign": "بائیں سیدھ کریں۔",
     "centerAlign": "بیچ میں سیدھ کریں۔",
@@ -1338,6 +1348,7 @@
     "deleteTable": "ٹیبل کو حذف کریں۔",
     "deleted": "حذف شدہ: ",
     "added": "شامل کیا گیا: ",
+    "formatted": "فارمیٹ شدہ: ",
     "editing": "ایڈیٹنگ",
     "editingDescription": "دستاویز میں ترمیم کریں۔",
     "reviewing": "جائزہ لے رہا ہے۔",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "تجاویز کے بغیر دیکھیں",
     "notSupportedOnMobile": "آفس ایڈیٹنگ موبائل آلات پر تعاون یافتہ نہیں ہے۔",
     "previewAllChanges": "تمام تبدیلیوں کا جائزہ لیں۔",
+    "changes": "تبدیلیاں",
+    "comments": "تبصرے",
+    "commentsAndChangesTabs": "تبصرے اور تبدیلیاں ٹیبز",
     "accept": "قبول کریں۔",
     "reject": "رد کرنا",
     "pastingTitle": "چسپاں کرنا دستیاب نہیں ہے۔",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "فونٹ فیملی"
     },
-    "blankSheet": "خالی شیٹ",
+    "blankSheet": "چادر",
     "insertImage": "تصویر داخل کریں۔"
   },
   "insertPageModal": {

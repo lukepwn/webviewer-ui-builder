@@ -21,6 +21,7 @@
     "cut": "A tăia",
     "paste": "Pastă",
     "pasteWithoutFormatting": "Lipiți fără formatare",
+    "addComment": "Adăugați comentariu",
     "delete": "Șterge",
     "deleted": "Șters",
     "group": "grup",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Textul ștampilei nu poate fi gol",
     "unpostedComment": "Comentariu nepostat",
     "lockedLayer": "Stratul este blocat",
-    "layerVisibililtyNoChange": "Vizibilitatea stratului nu poate fi modificată",
+    "layerVisibilityNoChange": "Vizibilitatea stratului nu poate fi modificată",
     "noLayers": "Acest document nu are straturi.",
     "noSignatureFields": "Acest document nu are câmpuri de semnătură.",
     "untitled": "Fără titlu",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Unul sau mai multe câmpuri au o valoare goală.",
     "listDuplicateValue": "Câmpurile multiple au următoarele valori:",
     "networkError": "Ceva nu a funcționat la încărcarea acestei componente. Verificați conexiunea la rețea și actualizați pagina.",
-    "refreshPage": "Vă rugăm să verificați conexiunea la rețea și să actualizați pagina."
+    "refreshPage": "Vă rugăm să verificați conexiunea la rețea și să actualizați pagina.",
+    "renderErrors": {
+      "error": "Ceva nu a mers bine aici.",
+      "refreshPanel": "Puteți continua să lucrați. Încercați să redeschideți panoul."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Listă de ordine de sortare",
       "position": "Poziţie",
+      "linePosition": "Poziţie",
       "time": "Timp",
       "status": "stare",
       "author": "Autor",
@@ -482,17 +488,20 @@
       "markForRedaction": "Marcați pentru redactare"
     },
     "searchPanel": {
+      "searchResults": "rezultatele cautarii",
       "caseSensitive": "Caz sensibil",
       "wholeWordOnly": "Intregul cuvant",
       "wildcard": "Wildcard",
       "replace": "A inlocui",
       "replaceAll": "Înlocuiește-le pe toate",
       "replaceText": "Înlocuiește textul",
+      "replaceOptions": "Opțiuni de înlocuire",
       "confirmMessageReplaceAll": "Sigur doriți să înlocuiți tot textul?",
       "confirmMessageReplaceOne": "Sigur doriți să înlocuiți acest text?",
       "moreOptions": "Mai multe opțiuni",
       "lessOptions": "Mai puține opțiuni",
-      "confirm": "A confirma"
+      "confirm": "A confirma",
+      "filter": "Filtra"
     },
     "toolsOverlay": {
       "currentStamp": "Ştampila curentă",
@@ -1313,6 +1322,7 @@
     "bold": "Îndrăzneţ",
     "italic": "Cursiv",
     "underline": "Subliniați",
+    "strikeout": "Strikeout",
     "textColor": "Culoarea textului",
     "leftAlign": "Aliniere la stânga",
     "centerAlign": "Alinierea la centru",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Ștergeți tabelul",
     "deleted": "Șters:",
     "added": "Adăugat:",
+    "formatted": "Formatat:",
     "editing": "Editare",
     "editingDescription": "Editați documentul",
     "reviewing": "Revizuirea",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Vizualizați fără sugestii",
     "notSupportedOnMobile": "Editarea Office nu este acceptată pe dispozitivele mobile.",
     "previewAllChanges": "Previzualizează toate modificările",
+    "changes": "Modificări",
+    "comments": "Comentarii",
+    "commentsAndChangesTabs": "Filele Comentarii și Modificări",
     "accept": "Accept",
     "reject": "Respinge",
     "pastingTitle": "Lipirea nu este disponibilă",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Familia de fonturi"
     },
-    "blankSheet": "Foaie goală",
+    "blankSheet": "Foaie",
     "insertImage": "Inserează imaginea"
   },
   "insertPageModal": {

@@ -21,6 +21,7 @@
     "cut": "কাটা",
     "paste": "পেস্ট করুন",
     "pasteWithoutFormatting": "বিন্যাস ছাড়া পেস্ট করুন",
+    "addComment": "মন্তব্য যোগ করুন",
     "delete": "মুছে ফেলা",
     "deleted": "মুছে ফেলা হয়েছে",
     "group": "গ্রুপ",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "স্ট্যাম্প টেক্সট খালি হতে পারে না",
     "unpostedComment": "পোস্ট না করা মন্তব্য",
     "lockedLayer": "স্তর লক করা আছে",
-    "layerVisibililtyNoChange": "স্তর দৃশ্যমানতা পরিবর্তন করা যাবে না",
+    "layerVisibilityNoChange": "স্তর দৃশ্যমানতা পরিবর্তন করা যাবে না",
     "noLayers": "এই নথিতে কোন স্তর নেই।",
     "noSignatureFields": "এই নথিতে কোন স্বাক্ষর ক্ষেত্র নেই।",
     "untitled": "শিরোনামহীন",
@@ -353,7 +354,11 @@
     "listEmptyValue": "এক বা একাধিক ক্ষেত্রের একটি খালি মান আছে।",
     "listDuplicateValue": "একাধিক ক্ষেত্রের নিম্নলিখিত মান রয়েছে:",
     "networkError": "এই কম্পোনেন্টটি লোড করার সময় কিছু সমস্যা হয়েছে। অনুগ্রহ করে আপনার নেটওয়ার্ক সংযোগ পরীক্ষা করুন এবং পৃষ্ঠাটি রিফ্রেশ করুন।",
-    "refreshPage": "আপনার নেটওয়ার্ক সংযোগ পরীক্ষা করুন এবং পৃষ্ঠাটি রিফ্রেশ করুন।"
+    "refreshPage": "আপনার নেটওয়ার্ক সংযোগ পরীক্ষা করুন এবং পৃষ্ঠাটি রিফ্রেশ করুন।",
+    "renderErrors": {
+      "error": "এখানে কিছু ভুল হয়েছে।",
+      "refreshPanel": "তুমি কাজ চালিয়ে যেতে পারো। প্যানেলটি আবার খোলার চেষ্টা করো।"
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "বাছাই অর্ডার তালিকা",
       "position": "অবস্থান",
+      "linePosition": "অবস্থান",
       "time": "সময়",
       "status": "স্ট্যাটাস",
       "author": "লেখক",
@@ -482,17 +488,20 @@
       "markForRedaction": "সংশোধনের জন্য চিহ্নিত করুন"
     },
     "searchPanel": {
+      "searchResults": "অনুসন্ধান ফলাফল",
       "caseSensitive": "কেস সংবেদনশীল",
       "wholeWordOnly": "সমগ্র শব্দ",
       "wildcard": "ওয়াইল্ডকার্ড",
       "replace": "প্রতিস্থাপন করুন",
       "replaceAll": "সমস্ত প্রতিস্থাপন",
       "replaceText": "পাঠ্য প্রতিস্থাপন করুন",
+      "replaceOptions": "প্রতিস্থাপনের বিকল্পগুলি",
       "confirmMessageReplaceAll": "আপনি কি নিশ্চিত যে আপনি সমস্ত পাঠ্য প্রতিস্থাপন করতে চান?",
       "confirmMessageReplaceOne": "আপনি কি এই পাঠ্যটি প্রতিস্থাপন করার বিষয়ে নিশ্চিত?",
       "moreOptions": "আরও বিকল্প",
       "lessOptions": "কম বিকল্প",
-      "confirm": "নিশ্চিত করুন"
+      "confirm": "নিশ্চিত করুন",
+      "filter": "ফিল্টার"
     },
     "toolsOverlay": {
       "currentStamp": "বর্তমান স্ট্যাম্প",
@@ -1313,6 +1322,7 @@
     "bold": "সাহসী",
     "italic": "তির্যক",
     "underline": "আন্ডারলাইন করুন",
+    "strikeout": "স্ট্রাইকআউট",
     "textColor": "লেখার রঙ",
     "leftAlign": "বাম সারিবদ্ধ",
     "centerAlign": "কেন্দ্র সারিবদ্ধ",
@@ -1338,6 +1348,7 @@
     "deleteTable": "টেবিল মুছুন",
     "deleted": "মুছে ফেলা হয়েছে:",
     "added": "যোগ করা হয়েছে:",
+    "formatted": "ফর্ম্যাট করা হয়েছে:",
     "editing": "সম্পাদনা",
     "editingDescription": "নথি সম্পাদনা করুন",
     "reviewing": "পর্যালোচনা করা হচ্ছে",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "পরামর্শ ছাড়াই দেখুন",
     "notSupportedOnMobile": "অফিস সম্পাদনা মোবাইল ডিভাইসে সমর্থিত নয়।",
     "previewAllChanges": "সমস্ত পরিবর্তনের পূর্বরূপ দেখুন",
+    "changes": "পরিবর্তন",
+    "comments": "মন্তব্য",
+    "commentsAndChangesTabs": "মন্তব্য এবং পরিবর্তন ট্যাব",
     "accept": "গ্রহণ করুন",
     "reject": "প্রত্যাখ্যান করুন",
     "pastingTitle": "আটকানো উপলব্ধ নয়৷",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "ফন্ট ফ্যামিলি"
     },
-    "blankSheet": "খালি শীট",
+    "blankSheet": "পত্রক",
     "insertImage": "ছবি ঢোকান"
   },
   "insertPageModal": {

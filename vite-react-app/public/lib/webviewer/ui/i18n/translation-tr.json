@@ -21,6 +21,7 @@
     "cut": "Kesmek",
     "paste": "Yapıştırmak",
     "pasteWithoutFormatting": "biçimlendirmeden yapıştır",
+    "addComment": "Yorum Ekle",
     "delete": "Silmek",
     "deleted": "silindi",
     "group": "Grup",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Damga metni boş olamaz",
     "unpostedComment": "Yayınlanmamış Yorum",
     "lockedLayer": "Katman kilitli",
-    "layerVisibililtyNoChange": "Katman görünürlüğü değiştirilemez",
+    "layerVisibilityNoChange": "Katman görünürlüğü değiştirilemez",
     "noLayers": "Bu belgenin katmanı yok.",
     "noSignatureFields": "Bu belgede imza alanı yok.",
     "untitled": "başlıksız",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Bir veya daha fazla alanda boş değer var.",
     "listDuplicateValue": "Birden fazla alanın değerleri aşağıdaki gibidir:",
     "networkError": "Bu bileşen yüklenirken bir sorun oluştu. Lütfen ağ bağlantınızı kontrol edin ve sayfayı yenileyin.",
-    "refreshPage": "Lütfen ağ bağlantınızı kontrol edin ve sayfayı yenileyin."
+    "refreshPage": "Lütfen ağ bağlantınızı kontrol edin ve sayfayı yenileyin.",
+    "renderErrors": {
+      "error": "Burada bir sorun oluştu.",
+      "refreshPanel": "Çalışmaya devam edebilirsiniz. Paneli yeniden açmayı deneyin."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Sıralama Listesi",
       "position": "Konum",
+      "linePosition": "Konum",
       "time": "Zaman",
       "status": "Durum",
       "author": "Yazar",
@@ -482,17 +488,20 @@
       "markForRedaction": "Redaksiyon için işaretle"
     },
     "searchPanel": {
+      "searchResults": "Arama Sonuçları",
       "caseSensitive": "Harfe duyarlı",
       "wholeWordOnly": "Tüm dünya",
       "wildcard": "joker karakter",
       "replace": "Yer değiştirmek",
       "replaceAll": "Hepsini değiştir",
       "replaceText": "Metni Değiştir",
+      "replaceOptions": "Değiştirme Seçenekleri",
       "confirmMessageReplaceAll": "Tüm metni değiştirmek istediğinizden emin misiniz?",
       "confirmMessageReplaceOne": "Bu metni değiştirmek istediğinizden emin misiniz?",
       "moreOptions": "Daha fazla seçenek",
       "lessOptions": "Daha az seçenek",
-      "confirm": "Onaylamak"
+      "confirm": "Onaylamak",
+      "filter": "Filtrele"
     },
     "toolsOverlay": {
       "currentStamp": "Geçerli Damga",
@@ -1313,6 +1322,7 @@
     "bold": "Gözü pek",
     "italic": "İtalik",
     "underline": "Altını çizmek",
+    "strikeout": "Vuruş",
     "textColor": "metin rengi",
     "leftAlign": "Sola hizala",
     "centerAlign": "Ortaya hizala",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Tabloyu Sil",
     "deleted": "Silindi:",
     "added": "Katma:",
+    "formatted": "Biçimlendirildi:",
     "editing": "Düzenleme",
     "editingDescription": "Dokümanı düzenle",
     "reviewing": "İnceleniyor",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Öneriler olmadan görüntüle",
     "notSupportedOnMobile": "Office düzenlemesi mobil cihazlarda desteklenmez.",
     "previewAllChanges": "Tüm değişiklikleri önizleyin",
+    "changes": "Değişiklikler",
+    "comments": "Yorumlar",
+    "commentsAndChangesTabs": "Yorumlar ve Değişiklikler Sekmeleri",
     "accept": "Kabul etmek",
     "reject": "Reddetmek",
     "pastingTitle": "Yapıştırma kullanılamıyor",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Yazı Tipi Ailesi"
     },
-    "blankSheet": "Boş Sayfa",
+    "blankSheet": "Çarşaf",
     "insertImage": "Resim ekle"
   },
   "insertPageModal": {

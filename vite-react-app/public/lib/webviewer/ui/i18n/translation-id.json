@@ -21,6 +21,7 @@
     "cut": "Memotong",
     "paste": "Tempel",
     "pasteWithoutFormatting": "Tempel tanpa memformat",
+    "addComment": "Tambahkan Komentar",
     "delete": "Menghapus",
     "deleted": "Dihapus",
     "group": "Kelompok",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Teks stempel tidak boleh kosong",
     "unpostedComment": "Komentar yang Belum Diposkan",
     "lockedLayer": "Lapisan terkunci",
-    "layerVisibililtyNoChange": "Visibilitas lapisan tidak dapat diubah",
+    "layerVisibilityNoChange": "Visibilitas lapisan tidak dapat diubah",
     "noLayers": "Dokumen ini tidak memiliki lapisan.",
     "noSignatureFields": "Dokumen ini tidak memiliki bidang tanda tangan.",
     "untitled": "Tanpa Judul",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Satu atau lebih bidang memiliki nilai kosong.",
     "listDuplicateValue": "Beberapa bidang memiliki nilai berikut:",
     "networkError": "Terjadi kesalahan saat memuat komponen ini. Silakan periksa koneksi jaringan Anda dan segarkan halaman.",
-    "refreshPage": "Silakan periksa koneksi jaringan Anda dan segarkan halaman."
+    "refreshPage": "Silakan periksa koneksi jaringan Anda dan segarkan halaman.",
+    "renderErrors": {
+      "error": "Terjadi kesalahan di sini.",
+      "refreshPanel": "Anda dapat melanjutkan pekerjaan. Coba buka kembali panelnya."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Urutkan Daftar Pesanan",
       "position": "Posisi",
+      "linePosition": "Posisi",
       "time": "Waktu",
       "status": "Status",
       "author": "Pengarang",
@@ -482,17 +488,20 @@
       "markForRedaction": "Tandai untuk redaksi"
     },
     "searchPanel": {
+      "searchResults": "Hasil Pencarian",
       "caseSensitive": "Hal - hal sensitif",
       "wholeWordOnly": "Seluruh kata",
       "wildcard": "Wildcard",
       "replace": "Mengganti",
       "replaceAll": "Menggantikan semua",
       "replaceText": "Ganti Teks",
+      "replaceOptions": "Opsi Penggantian",
       "confirmMessageReplaceAll": "Anda yakin ingin mengganti semua teks?",
       "confirmMessageReplaceOne": "Anda yakin ingin mengganti teks ini?",
       "moreOptions": "Lebih banyak pilihan",
       "lessOptions": "Lebih sedikit pilihan",
-      "confirm": "Mengonfirmasi"
+      "confirm": "Mengonfirmasi",
+      "filter": "Menyaring"
     },
     "toolsOverlay": {
       "currentStamp": "Stempel saat ini",
@@ -1313,6 +1322,7 @@
     "bold": "Berani",
     "italic": "Miring",
     "underline": "Menggarisbawahi",
+    "strikeout": "Coretan",
     "textColor": "Warna teks",
     "leftAlign": "Rata kiri",
     "centerAlign": "Rata tengah",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Hapus Tabel",
     "deleted": "Dihapus:",
     "added": "Ditambahkan:",
+    "formatted": "Diformat:",
     "editing": "Mengedit",
     "editingDescription": "Sunting dokumen",
     "reviewing": "Meninjau",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Lihat tanpa saran",
     "notSupportedOnMobile": "Pengeditan Office tidak didukung di perangkat seluler.",
     "previewAllChanges": "Pratinjau semua perubahan",
+    "changes": "Perubahan",
+    "comments": "Komentar",
+    "commentsAndChangesTabs": "Tab Komentar dan Perubahan",
     "accept": "Menerima",
     "reject": "Menolak",
     "pastingTitle": "Penempelan tidak tersedia",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Keluarga Font"
     },
-    "blankSheet": "Lembar Kosong",
+    "blankSheet": "Lembaran",
     "insertImage": "Sisipkan gambar"
   },
   "insertPageModal": {

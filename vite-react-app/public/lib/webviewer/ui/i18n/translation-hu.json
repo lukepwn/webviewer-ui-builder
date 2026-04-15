@@ -21,6 +21,7 @@
     "cut": "Vágott",
     "paste": "Paszta",
     "pasteWithoutFormatting": "Beillesztés formázás nélkül",
+    "addComment": "Hozzászólás hozzáadása",
     "delete": "Töröl",
     "deleted": "Törölve",
     "group": "Csoport",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "A bélyegző szövege nem lehet üres",
     "unpostedComment": "Nem közzétett megjegyzés",
     "lockedLayer": "A réteg zárolva van",
-    "layerVisibililtyNoChange": "A réteg láthatósága nem módosítható",
+    "layerVisibilityNoChange": "A réteg láthatósága nem módosítható",
     "noLayers": "Ennek a dokumentumnak nincsenek rétegei.",
     "noSignatureFields": "Ez a dokumentum nem tartalmaz aláírási mezőket.",
     "untitled": "Névtelen",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Egy vagy több mező üres értékkel rendelkezik.",
     "listDuplicateValue": "Több mező a következő értékekkel rendelkezik:",
     "networkError": "Hiba történt a komponens betöltése során. Kérjük, ellenőrizze a hálózati kapcsolatot, és frissítse az oldalt.",
-    "refreshPage": "Kérjük, ellenőrizze a hálózati kapcsolatot, és frissítse az oldalt."
+    "refreshPage": "Kérjük, ellenőrizze a hálózati kapcsolatot, és frissítse az oldalt.",
+    "renderErrors": {
+      "error": "Valami itt félrement.",
+      "refreshPanel": "Folytathatja a munkát. Próbálja meg újra megnyitni a panelt."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Rendezési lista",
       "position": "Pozíció",
+      "linePosition": "Pozíció",
       "time": "Idő",
       "status": "Állapot",
       "author": "Szerző",
@@ -482,17 +488,20 @@
       "markForRedaction": "Jelölje meg szerkesztésre"
     },
     "searchPanel": {
+      "searchResults": "Keresési eredmények",
       "caseSensitive": "Kis-nagybetű érzékeny",
       "wholeWordOnly": "Egész világ",
       "wildcard": "Helyettesítő karakter",
       "replace": "Cserélje ki",
       "replaceAll": "Cserélje ki az összeset",
       "replaceText": "Szöveg cseréje",
+      "replaceOptions": "Cserebeállítások",
       "confirmMessageReplaceAll": "Biztos benne, hogy le akarja cserélni az összes szöveget?",
       "confirmMessageReplaceOne": "Biztosan le szeretné cserélni ezt a szöveget?",
       "moreOptions": "Több lehetőség",
       "lessOptions": "Kevesebb lehetőség",
-      "confirm": "megerősít"
+      "confirm": "megerősít",
+      "filter": "Szűrő"
     },
     "toolsOverlay": {
       "currentStamp": "Aktuális bélyegző",
@@ -1313,6 +1322,7 @@
     "bold": "Bátor",
     "italic": "Dőlt",
     "underline": "Aláhúzás",
+    "strikeout": "Áthúzni",
     "textColor": "Szöveg szín",
     "leftAlign": "Balra igazítás",
     "centerAlign": "Középre igazítás",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Táblázat törlése",
     "deleted": "Törölve:",
     "added": "Hozzáadva:",
+    "formatted": "Formázva:",
     "editing": "Szerkesztés",
     "editingDescription": "Dokumentum szerkesztése",
     "reviewing": "Áttekintés",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Megtekintés javaslatok nélkül",
     "notSupportedOnMobile": "Az irodai szerkesztés nem támogatott mobileszközökön.",
     "previewAllChanges": "Tekintse meg az összes módosítás előnézetét",
+    "changes": "Változások",
+    "comments": "Hozzászólások",
+    "commentsAndChangesTabs": "Megjegyzések és változtatások fülek",
     "accept": "Elfogad",
     "reject": "Elutasít",
     "pastingTitle": "A beillesztés nem elérhető",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Betűcsalád"
     },
-    "blankSheet": "Üres lap",
+    "blankSheet": "Lap",
     "insertImage": "Kép beszúrása"
   },
   "insertPageModal": {

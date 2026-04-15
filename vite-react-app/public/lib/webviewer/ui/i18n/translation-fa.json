@@ -21,6 +21,7 @@
     "cut": "برش",
     "paste": "چسباندن",
     "pasteWithoutFormatting": "چسباندن بدون قالب‌بندی",
+    "addComment": "اضافه کردن نظر",
     "delete": "حذف",
     "deleted": "حذف شده",
     "group": "گروه",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "متن مهر نمی‌تواند خالی باشد",
     "unpostedComment": "نظر ارسال نشده",
     "lockedLayer": "لایه قفل شده است",
-    "layerVisibililtyNoChange": "قابلیت مشاهده لایه‌ها قابل تغییر نیست",
+    "layerVisibilityNoChange": "قابلیت مشاهده لایه‌ها قابل تغییر نیست",
     "noLayers": "این سند هیچ لایه‌ای ندارد.",
     "noSignatureFields": "این سند هیچ فیلد امضا ندارد.",
     "untitled": "بدون عنوان",
@@ -353,7 +354,11 @@
     "listEmptyValue": "یک یا چند فیلد دارای مقدار خالی هستند.",
     "listDuplicateValue": "چندین فیلد دارای مقادیر زیر هستند:",
     "networkError": "مشکلی در بارگیری این کامپوننت پیش آمده است. لطفاً اتصال شبکه خود را بررسی کرده و صفحه را تازه‌سازی کنید.",
-    "refreshPage": "لطفاً اتصال شبکه خود را بررسی کرده و صفحه را رفرش کنید."
+    "refreshPage": "لطفاً اتصال شبکه خود را بررسی کرده و صفحه را رفرش کنید.",
+    "renderErrors": {
+      "error": "اینجا یه مشکلی پیش اومده.",
+      "refreshPanel": "می‌توانید به کار خود ادامه دهید. پنل را دوباره باز کنید."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "لیست مرتب سازی",
       "position": "موقعیت",
+      "linePosition": "موقعیت",
       "time": "زمان",
       "status": "وضعیت",
       "author": "نویسنده",
@@ -482,17 +488,20 @@
       "markForRedaction": "علامت گذاری برای ویرایش"
     },
     "searchPanel": {
+      "searchResults": "نتایج جستجو",
       "caseSensitive": "حساس به حروف بزرگ و کوچک",
       "wholeWordOnly": "کل کلمه",
       "wildcard": "وایلدکارت",
       "replace": "جایگزین کردن",
       "replaceAll": "جایگزین کردن همه",
       "replaceText": "متن جایگزین",
+      "replaceOptions": "گزینه‌های جایگزین",
       "confirmMessageReplaceAll": "آیا مطمئن هستید که می‌خواهید تمام متن را جایگزین کنید؟",
       "confirmMessageReplaceOne": "آیا مطمئن هستید که می‌خواهید این متن را جایگزین کنید؟",
       "moreOptions": "گزینه‌های بیشتر",
       "lessOptions": "گزینه‌های کمتر",
-      "confirm": "تأیید"
+      "confirm": "تأیید",
+      "filter": "فیلتر"
     },
     "toolsOverlay": {
       "currentStamp": "تمبر فعلی",
@@ -1313,6 +1322,7 @@
     "bold": "پررنگ",
     "italic": "ایتالیک",
     "underline": "زیرخط دار",
+    "strikeout": "اعتصاب",
     "textColor": "رنگ متن",
     "leftAlign": "تراز چپ",
     "centerAlign": "تراز وسط",
@@ -1338,6 +1348,7 @@
     "deleteTable": "حذف جدول",
     "deleted": "حذف شده:",
     "added": "اضافه شد:",
+    "formatted": "قالب‌بندی شده:",
     "editing": "ویرایش",
     "editingDescription": "ویرایش سند",
     "reviewing": "بررسی",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "بدون پیشنهاد مشاهده کنید",
     "notSupportedOnMobile": "ویرایش آفیس در دستگاه‌های تلفن همراه پشتیبانی نمی‌شود.",
     "previewAllChanges": "پیش‌نمایش همه تغییرات",
+    "changes": "تغییرات",
+    "comments": "نظرات",
+    "commentsAndChangesTabs": "تب‌های نظرات و تغییرات",
     "accept": "پذیرفتن",
     "reject": "رد کردن",
     "pastingTitle": "چسباندن در دسترس نیست",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "خانواده فونت"
     },
-    "blankSheet": "ورق خالی",
+    "blankSheet": "ورق",
     "insertImage": "درج تصویر"
   },
   "insertPageModal": {

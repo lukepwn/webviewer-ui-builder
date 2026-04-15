@@ -21,6 +21,7 @@
     "cut": "potong",
     "paste": "tampal",
     "pasteWithoutFormatting": "Tampal tanpa memformat",
+    "addComment": "Tambah Komen",
     "delete": "Padam",
     "deleted": "Dipadamkan",
     "group": "Kumpulan",
@@ -331,7 +332,7 @@
     "emptyCustomStampInput": "Teks setem tidak boleh kosong",
     "unpostedComment": "Komen Tidak Disiarkan",
     "lockedLayer": "Lapisan dikunci",
-    "layerVisibililtyNoChange": "Keterlihatan lapisan tidak boleh diubah",
+    "layerVisibilityNoChange": "Keterlihatan lapisan tidak boleh diubah",
     "noLayers": "Dokumen ini tidak mempunyai lapisan.",
     "noSignatureFields": "Dokumen ini tidak mempunyai medan tandatangan.",
     "untitled": "Tidak bertajuk",
@@ -353,7 +354,11 @@
     "listEmptyValue": "Satu atau lebih medan mempunyai nilai kosong.",
     "listDuplicateValue": "Medan berbilang mempunyai nilai berikut: ",
     "networkError": "Kesilapan telah berlaku semasa memuatkan komponen ini. Sila semak sambungan rangkaian anda dan muat semula halaman.",
-    "refreshPage": "Sila semak sambungan rangkaian anda dan muat semula halaman."
+    "refreshPage": "Sila semak sambungan rangkaian anda dan muat semula halaman.",
+    "renderErrors": {
+      "error": "Ada sesuatu yang tidak kena di sini.",
+      "refreshPanel": "Anda boleh teruskan kerja. Cuba buka semula panel itu."
+    }
   },
   "option": {
     "type": {
@@ -384,6 +389,7 @@
     "notesOrder": {
       "dropdownLabel": "Isih Senarai Pesanan",
       "position": "kedudukan",
+      "linePosition": "Kedudukan",
       "time": "Masa",
       "status": "Status",
       "author": "Pengarang",
@@ -482,17 +488,20 @@
       "markForRedaction": "Tandakan untuk redaksi"
     },
     "searchPanel": {
+      "searchResults": "Keputusan Carian",
       "caseSensitive": "Sensitif huruf besar",
       "wholeWordOnly": "Seluruh perkataan",
       "wildcard": "Kad bebas",
       "replace": "Gantikan",
       "replaceAll": "Gantikan Semua",
       "replaceText": "Gantikan Teks",
+      "replaceOptions": "Gantikan Pilihan",
       "confirmMessageReplaceAll": "Adakah anda pasti mahu menggantikan semua teks?",
       "confirmMessageReplaceOne": "Adakah anda pasti mahu menggantikan teks ini?",
       "moreOptions": "Lebih banyak pilihan",
       "lessOptions": "Kurang pilihan",
-      "confirm": "sahkan"
+      "confirm": "sahkan",
+      "filter": "Penapis"
     },
     "toolsOverlay": {
       "currentStamp": "Setem Semasa",
@@ -1313,6 +1322,7 @@
     "bold": "berani",
     "italic": "Italic",
     "underline": "Garis bawah",
+    "strikeout": "Strikeout",
     "textColor": "Warna teks",
     "leftAlign": "Jajar ke kiri",
     "centerAlign": "Jajaran tengah",
@@ -1338,6 +1348,7 @@
     "deleteTable": "Padamkan Jadual",
     "deleted": "Dipadamkan:",
     "added": "Ditambah:",
+    "formatted": "Diformat: ",
     "editing": "Suntingan",
     "editingDescription": "Edit dokumen",
     "reviewing": "Mengkaji",
@@ -1346,6 +1357,9 @@
     "viewOnlyDescription": "Lihat tanpa cadangan",
     "notSupportedOnMobile": "Penyuntingan pejabat tidak disokong pada peranti mudah alih.",
     "previewAllChanges": "Pratonton semua perubahan",
+    "changes": "Perubahan",
+    "comments": "Komen",
+    "commentsAndChangesTabs": "Tab Komen dan Perubahan",
     "accept": "Terima",
     "reject": "Tolak",
     "pastingTitle": "Menampal tidak tersedia",
@@ -1535,7 +1549,7 @@
     "fontFamily": {
       "dropdownLabel": "Keluarga Font"
     },
-    "blankSheet": "Lembaran Kosong",
+    "blankSheet": "Helaian",
     "insertImage": "Sisipkan imej"
   },
   "insertPageModal": {
