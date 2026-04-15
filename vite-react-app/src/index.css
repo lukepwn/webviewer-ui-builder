@@ -3,7 +3,12 @@ body {
   place-items: center;
   height: 100vh;
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
     Arial;
 }
 
@@ -25,6 +30,44 @@ main {
   box-sizing: border-box;
   margin-bottom: 6px;
 }
-.ModularUIBuilder button {
-  margin-right: 6px;
+
+.ModularUIBuilder .action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ModularUIBuilder .action-buttons button {
+  margin-right: 0;
+  padding: 10px 14px;
+  min-height: 38px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease;
+  cursor: pointer;
+}
+
+.ModularUIBuilder .action-buttons button.primary-button {
+  background-color: #007acc;
+  color: #fff;
+  border-color: #007acc;
+}
+
+.ModularUIBuilder .action-buttons button.primary-button:hover {
+  background-color: #0061a8;
+}
+
+.ModularUIBuilder .action-buttons button.secondary-button {
+  background-color: #f4f7fb;
+  color: #1f2937;
+  border-color: #d1d9e6;
+}
+
+.ModularUIBuilder .action-buttons button.secondary-button:hover {
+  background-color: #e9eff7;
 }

@@ -99,8 +99,8 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  background-color: #f8fafc;
-  color: #334155;
+  background-color: #fcf8f9;
+  color: #d61832;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -110,7 +110,7 @@
 }
 
 .delete-button:hover {
-  background-color: #e2e8f0;
+  background-color: #e9c7d1;
 }
 
 .delete-button:active {

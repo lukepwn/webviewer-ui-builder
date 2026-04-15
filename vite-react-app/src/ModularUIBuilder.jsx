@@ -341,73 +341,6 @@ export default function ModularUIBuilder() {
     download("webviewer-ui-config.json", JSON.stringify(config, null, 2));
   }
 
-  // Example loader: creates a sample button, flyout and custom panel and applies it
-  function loadExampleAndApply() {
-    const exampleConfig = {
-      modularComponents: {
-        panButton: {
-          type: "toolButton",
-          dataElement: "panButton",
-          toolName: "Pan",
-        },
-        rectangleButton: {
-          type: "toolButton",
-          dataElement: "rectangleButton",
-          toolName: "AnnotationCreateRectangle",
-        },
-      },
-      modularHeaders: {
-        "tools-header": {
-          dataElement: "tools-header",
-          placement: "left",
-          items: ["panButton", "rectangleButton"],
-        },
-      },
-    };
-
-    const exampleFunctionMap = {
-      alertClick: () => alert("Example button clicked!"),
-      customPanelRender: () => {
-        const div = document.createElement("div");
-        div.style.padding = "12px";
-        const h = document.createElement("h3");
-        h.textContent = "Custom Panel (Example)";
-        const p = document.createElement("p");
-        p.textContent = "This panel was added by the example loader.";
-        const btn = document.createElement("button");
-        btn.textContent = "Panel action";
-        btn.onclick = () => alert("Panel action clicked");
-        div.appendChild(h);
-        div.appendChild(p);
-        div.appendChild(btn);
-        return div;
-      },
-    };
-
-    setConfig(exampleConfig);
-
-    if (window.viewerInstance && window.viewerInstance.UI) {
-      try {
-        window.viewerInstance.UI.importModularComponents(
-          exampleConfig,
-          exampleFunctionMap,
-        );
-        // open the custom panel to show result
-        try {
-          window.viewerInstance.UI.openElements(["customPanel"]);
-        } catch (err) {
-          // ignore if not available
-        }
-        // example applied to viewer
-      } catch (err) {
-        console.error(err);
-        console.error("Failed to apply example: ", err.message);
-      }
-    } else {
-      // Example loaded into builder state; start the viewer and click Apply to Viewer
-    }
-  }
-
   function importConfigFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -463,10 +396,13 @@ export default function ModularUIBuilder() {
         />
       </section>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button onClick={loadExampleAndApply}>Load Example and Apply</button>
-        <button onClick={applyToViewer}>Apply to Viewer</button>
-        <button onClick={exportConfig}>Export JSON</button>
+      <div className="action-buttons">
+        <button className="primary-button" onClick={applyToViewer}>
+          Apply to Viewer
+        </button>
+        <button className="secondary-button" onClick={exportConfig}>
+          Export JSON
+        </button>
         {/* Refresh Categories removed — Apply to Viewer now refreshes categories automatically */}
         <input
           ref={fileInputRef}
@@ -475,7 +411,10 @@ export default function ModularUIBuilder() {
           onChange={importConfigFile}
           hidden
         />
-        <button onClick={() => fileInputRef.current?.click()}>
+        <button
+          className="secondary-button"
+          onClick={() => fileInputRef.current?.click()}
+        >
           Import JSON
         </button>
       </div>
