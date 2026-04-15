@@ -17,8 +17,17 @@
 }
 
 .filter-label {
-  color: #666;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* padding: 6px 12px; */
+  /* background-color: #f0f0f0; */
+  color: #333;
+  border: 1px solid transparent;
+  border-radius: 4px;
   font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .filter-button {
@@ -77,6 +86,61 @@
 
 .tool-item:last-child {
   margin-bottom: 0;
+}
+
+.tool-group {
+  margin-bottom: 10px;
+}
+
+.tool-group-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background-color: #eef2ff;
+  border: 1px solid #dbeafe;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.tool-group-label-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-group-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-collapse-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  background-color: #fff;
+  color: #374151;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.group-collapse-button:hover {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.group-title-text {
+  font-weight: 700;
+  min-width: 0;
 }
 
 .tool-info {
@@ -265,13 +329,24 @@
   color: #1f2937;
   border: 1px solid #e0e7ff;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.tool-group-label .group-type {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #4b5563;
-  margin-left: 8px;
+.group-collapse-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.group-title-text {
+  font-weight: 700;
 }
 
 .other-item {

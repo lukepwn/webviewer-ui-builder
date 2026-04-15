@@ -10,7 +10,7 @@ function FilterButtons({
 }) {
   return (
     <div className="filter-container">
-      <span className="filter-label">Filter:</span>
+      <span className="filter-label">Filters:</span>
       {categoryNames.map((categoryName) => (
         <button
           key={categoryName}
@@ -33,6 +33,8 @@ function ToolList({
   selectedCategory,
   onDeleteTool,
   onMoveItem,
+  collapsedGroupKeys,
+  onToggleGroup,
   depth = 0,
 }) {
   if (!tools || tools.length === 0) {
@@ -94,19 +96,33 @@ function ToolList({
 
     if (item.type === "group") {
       const title = item.component.label || item.component.title || item.key;
+      const isCollapsed = collapsedGroupKeys.has(item.key);
       return (
         <div key={item.key} className="tool-group">
           <div className="tool-group-label" style={paddingStyle}>
-            {title} <span className="group-type">({item.component.type})</span>
-            {moveControls}
+            <div className="tool-group-label-main">
+              <button
+                className="group-collapse-button"
+                onClick={() => onToggleGroup(item.key)}
+                aria-label={`Toggle ${title}`}
+              >
+                {isCollapsed ? "▶" : "▼"}
+              </button>
+              <span className="group-title-text">{title}</span>
+            </div>
+            <div className="tool-group-label-actions">{moveControls}</div>
           </div>
-          <ToolList
-            tools={item.children}
-            selectedCategory={selectedCategory}
-            onDeleteTool={onDeleteTool}
-            onMoveItem={onMoveItem}
-            depth={depth + 1}
-          />
+          {!isCollapsed && (
+            <ToolList
+              tools={item.children}
+              selectedCategory={selectedCategory}
+              onDeleteTool={onDeleteTool}
+              onMoveItem={onMoveItem}
+              collapsedGroupKeys={collapsedGroupKeys}
+              onToggleGroup={onToggleGroup}
+              depth={depth + 1}
+            />
+          )}
         </div>
       );
     }
@@ -276,6 +292,20 @@ export default function ToolButtonsCategorized({
   headerOptions = [],
   toolOptions = [],
 }) {
+  const [collapsedGroupKeys, setCollapsedGroupKeys] = useState(new Set());
+
+  const toggleGroupCollapse = (groupKey) => {
+    setCollapsedGroupKeys((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
   const getConfigComponent = (itemKey) =>
     config?.modularComponents?.[itemKey] || null;
 
@@ -480,7 +510,7 @@ export default function ToolButtonsCategorized({
 
   return (
     <div className="tool-buttons-container">
-      <h5 className="tool-buttons-title">Tool Buttons (categorized)</h5>
+      <h5 className="tool-buttons-title">Headers</h5>
 
       {categoryNames.length > 0 && (
         <FilterButtons
@@ -498,6 +528,8 @@ export default function ToolButtonsCategorized({
             selectedCategory={selectedCategory}
             onDeleteTool={deleteToolButton}
             onMoveItem={onMoveItem}
+            collapsedGroupKeys={collapsedGroupKeys}
+            onToggleGroup={toggleGroupCollapse}
           />
         </div>
       )}

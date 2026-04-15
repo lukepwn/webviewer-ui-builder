@@ -451,8 +451,6 @@ export default function ModularUIBuilder() {
       <h3>Modular UI Builder</h3>
 
       <section style={{ marginBottom: 12 }}>
-        <h4>Add / Remove Tool Button</h4>
-
         <ToolButtonsCategorized
           config={config}
           runtimeCategories={runtimeCategories}
