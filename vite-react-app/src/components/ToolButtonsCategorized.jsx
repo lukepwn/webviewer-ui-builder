@@ -28,32 +28,97 @@ function FilterButtons({
 }
 
 // Tool List Component
-function ToolList({ tools, selectedCategory, onDeleteTool }) {
-  if (tools.length === 0) {
+function ToolList({
+  tools,
+  selectedCategory,
+  onDeleteTool,
+  onMoveItem,
+  depth = 0,
+}) {
+  if (!tools || tools.length === 0) {
     return <p className="no-tools-message">No tools in this group</p>;
   }
 
-  return tools.map(([toolKey, toolComponent, headerKeys]) => (
-    <div key={toolKey} className="tool-item">
-      <div className="tool-info">
-        {toolKey} — {toolComponent.toolName || "toolButton"}
-        {headerKeys &&
-        headerKeys.length > 0 &&
-        !headerKeys.includes(selectedCategory) ? (
-          <span className="tool-header-info">
-            (in: {headerKeys.join(", ")})
-          </span>
-        ) : null}
+  return tools.map((item, index) => {
+    const paddingStyle = { paddingLeft: `${depth * 16}px` };
+    const canMoveUp = index > 0;
+    const canMoveDown = index < tools.length - 1;
+    const isRuntimeList = item.listMeta?.sourceType === "runtime";
+    const moveControls = onMoveItem ? (
+      <div className="tool-move-controls">
+        <button
+          className="move-button"
+          onClick={() => onMoveItem(item, -1)}
+          disabled={!canMoveUp || isRuntimeList}
+          aria-label={`Move ${item.key} up`}
+        >
+          ↑
+        </button>
+        <button
+          className="move-button"
+          onClick={() => onMoveItem(item, 1)}
+          disabled={!canMoveDown || isRuntimeList}
+          aria-label={`Move ${item.key} down`}
+        >
+          ↓
+        </button>
       </div>
-      <button
-        className="delete-button"
-        onClick={() => onDeleteTool(toolKey)}
-        aria-label={`Remove ${toolKey}`}
-      >
-        ×
-      </button>
-    </div>
-  ));
+    ) : null;
+
+    if (item.type === "tool") {
+      return (
+        <div key={item.key} className="tool-item" style={paddingStyle}>
+          <div className="tool-info">
+            {item.key} — {item.component.toolName || "toolButton"}
+            {item.headerKeys &&
+            item.headerKeys.length > 0 &&
+            !item.headerKeys.includes(selectedCategory) ? (
+              <span className="tool-header-info">
+                (in: {item.headerKeys.join(", ")})
+              </span>
+            ) : null}
+          </div>
+          <div className="tool-item-actions">
+            {moveControls}
+            <button
+              className="delete-button"
+              onClick={() => onDeleteTool(item.key)}
+              aria-label={`Remove ${item.key}`}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (item.type === "group") {
+      const title = item.component.label || item.component.title || item.key;
+      return (
+        <div key={item.key} className="tool-group">
+          <div className="tool-group-label" style={paddingStyle}>
+            {title} <span className="group-type">({item.component.type})</span>
+            {moveControls}
+          </div>
+          <ToolList
+            tools={item.children}
+            selectedCategory={selectedCategory}
+            onDeleteTool={onDeleteTool}
+            onMoveItem={onMoveItem}
+            depth={depth + 1}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div key={item.key} className="tool-item other-item" style={paddingStyle}>
+        <div className="tool-info">
+          {item.key} — {item.component.type}
+        </div>
+      </div>
+    );
+  });
 }
 
 // Add Tool Modal Component (now manages its own state)
@@ -207,117 +272,166 @@ export default function ToolButtonsCategorized({
   runtimeCategories = {},
   deleteToolButton,
   addToolButton,
+  onMoveItem,
   headerOptions = [],
   toolOptions = [],
 }) {
-  // Compute all tool buttons and their header memberships; show categorized view
-  const toolList = Object.entries(config.modularComponents)
-    .filter(
-      ([toolKey, toolComponent]) =>
-        toolComponent && toolComponent.type === "toolButton",
-    )
-    .map(([toolKey, toolComponent]) => {
-      const headerKeys = Object.entries(config.modularHeaders)
-        .filter(([headerKey, headerConfig]) =>
-          (headerConfig.items || []).includes(toolKey),
-        )
-        .map(([headerKey]) => headerKey);
-      return [toolKey, toolComponent, headerKeys];
-    });
+  const getConfigComponent = (itemKey) =>
+    config?.modularComponents?.[itemKey] || null;
 
-  // Compute extended runtimeCategories with config additions for toolbarGroups
-  const extendedRuntime = { ...runtimeCategories };
-  for (const categoryName of Object.keys(extendedRuntime)) {
-    if (categoryName.startsWith("toolbarGroup-")) {
-      const configTools = [];
-      for (const [componentKey, componentConfig] of Object.entries(
-        config.modularComponents,
-      )) {
-        if (
-          componentConfig.type === "ribbonItem" &&
-          componentConfig.toolbarGroup === categoryName
-        ) {
-          for (const groupKey of componentConfig.groupedItems || []) {
-            const groupComponent = config.modularComponents[groupKey];
-            if (groupComponent && groupComponent.type === "groupedItems") {
-              for (const itemKey of groupComponent.items || []) {
-                const itemComponent = config.modularComponents[itemKey];
-                if (itemComponent) {
-                  // Push the dataElement (itemKey), not the toolName
-                  console.log(itemKey, itemComponent.toolName);
-                  configTools.push(itemKey);
-                }
-              }
-            }
-          }
-        }
+  const getToolHeaderKeys = (toolKey) =>
+    Object.entries(config.modularHeaders || {})
+      .filter(([, headerConfig]) =>
+        (headerConfig.items || []).includes(toolKey),
+      )
+      .map(([headerKey]) => headerKey);
+
+  const getConfigKeyForRuntimeItem = (itemKey) => {
+    if (!itemKey) return null;
+
+    if (config.modularComponents?.[itemKey]) {
+      return itemKey;
+    }
+
+    const match = Object.entries(config.modularComponents || {}).find(
+      ([, component]) =>
+        component?.type === "toolButton" && component.toolName === itemKey,
+    );
+
+    return match?.[0] || null;
+  };
+
+  const buildCategoryTree = (
+    itemKeys,
+    parentMeta,
+    visited = new Set(),
+    added = new Set(),
+  ) => {
+    if (!Array.isArray(itemKeys)) return [];
+
+    const tree = [];
+
+    for (const rawKey of itemKeys) {
+      if (!rawKey) continue;
+
+      const configKey = getConfigKeyForRuntimeItem(rawKey) || rawKey;
+      if (visited.has(configKey) || added.has(configKey)) continue;
+
+      const component = getConfigComponent(configKey);
+      if (!component) continue;
+
+      const nextVisited = new Set(visited).add(configKey);
+      added.add(configKey);
+      const listMeta = parentMeta;
+
+      if (component.type === "toolButton") {
+        tree.push({
+          type: "tool",
+          key: configKey,
+          component,
+          headerKeys: getToolHeaderKeys(configKey),
+          listMeta,
+        });
+        continue;
       }
-      extendedRuntime[categoryName] = [
-        ...new Set([...(extendedRuntime[categoryName] || []), ...configTools]),
+
+      const childKeys = [
+        ...(Array.isArray(component.items) ? component.items : []),
+        ...(Array.isArray(component.groupedItems)
+          ? component.groupedItems
+          : []),
       ];
+
+      if (childKeys.length === 0) {
+        tree.push({ type: "other", key: configKey, component, listMeta });
+        continue;
+      }
+
+      tree.push({
+        type: "group",
+        key: configKey,
+        component,
+        listMeta,
+        children: buildCategoryTree(
+          childKeys,
+          {
+            sourceType: "group",
+            sourceKey: configKey,
+            categoryName: parentMeta?.categoryName,
+          },
+          nextVisited,
+          new Set(),
+        ),
+      });
+    }
+
+    return tree;
+  };
+
+  const categorySources = {};
+
+  for (const [headerKey, headerConfig] of Object.entries(
+    config.modularHeaders || {},
+  )) {
+    categorySources[headerKey] = headerConfig.items || [];
+  }
+
+  for (const [, componentConfig] of Object.entries(
+    config.modularComponents || {},
+  )) {
+    if (
+      componentConfig?.type === "ribbonItem" &&
+      typeof componentConfig.toolbarGroup === "string"
+    ) {
+      const categoryName = componentConfig.toolbarGroup;
+      if (!categorySources[categoryName]) {
+        categorySources[categoryName] = [
+          ...(Array.isArray(componentConfig.items)
+            ? componentConfig.items
+            : []),
+          ...(Array.isArray(componentConfig.groupedItems)
+            ? componentConfig.groupedItems
+            : []),
+        ];
+      }
+    }
+  }
+
+  for (const [categoryName, categoryToolNames] of Object.entries(
+    runtimeCategories || {},
+  )) {
+    if (!categorySources[categoryName]) {
+      categorySources[categoryName] = categoryToolNames;
     }
   }
 
   const categorized = {};
-
-  for (const [toolKey, toolComponent, headerKeys] of toolList) {
-    let assigned = false;
-    const toolName = toolComponent.toolName;
-
-    // Prefer header membership when available (e.g., default-top-header)
-    if (headerKeys && headerKeys.length > 0) {
-      for (const headerKey of headerKeys) {
-        categorized[headerKey] = categorized[headerKey] || [];
-        categorized[headerKey].push([toolKey, toolComponent, headerKeys]);
-      }
-      assigned = true;
+  for (const [categoryName, sourceKeys] of Object.entries(categorySources)) {
+    let rootMeta = {
+      sourceType: "runtime",
+      sourceKey: categoryName,
+      categoryName,
+    };
+    if (config.modularHeaders?.[categoryName]) {
+      rootMeta = {
+        sourceType: "header",
+        sourceKey: categoryName,
+        categoryName,
+      };
+    } else if (
+      config.modularComponents?.[categoryName] &&
+      config.modularComponents[categoryName].type === "ribbonItem"
+    ) {
+      rootMeta = {
+        sourceType: "toolbarGroup",
+        sourceKey: categoryName,
+        categoryName,
+      };
     }
-
-    // Otherwise fall back to runtime-derived categories
-    if (!assigned) {
-      for (const [categoryName, categoryToolNames] of Object.entries(
-        extendedRuntime || {},
-      )) {
-        // Check if toolKey (dataElement) or toolName is in the category
-        if (
-          (categoryToolNames || []).includes(toolKey) ||
-          (categoryToolNames || []).includes(toolName)
-        ) {
-          categorized[categoryName] = categorized[categoryName] || [];
-          categorized[categoryName].push([toolKey, toolComponent, headerKeys]);
-          assigned = true;
-          break;
-        }
-
-        // If the runtime category entry references a groupedItems dataElement, check if this toolButton is in that groupedItems in the config
-        if (!assigned) {
-          for (const t of categoryToolNames || []) {
-            const groupedItemsComp = config.modularComponents[t];
-            if (groupedItemsComp?.type === "groupedItems") {
-              // Check if this toolKey is in the groupedItems' items array
-              if ((groupedItemsComp.items || []).includes(toolKey)) {
-                categorized[categoryName] = categorized[categoryName] || [];
-                categorized[categoryName].push([
-                  toolKey,
-                  toolComponent,
-                  headerKeys,
-                ]);
-                assigned = true;
-                break;
-              }
-            }
-          }
-        }
-        if (assigned) break;
-      }
-    }
-
-    // Removed fallback
+    categorized[categoryName] = buildCategoryTree(sourceKeys, rootMeta);
   }
 
   const categorySet = new Set(Object.keys(categorized));
-
-  // Also include potential empty runtime categories and headers
   Object.keys(runtimeCategories || {}).forEach((n) => categorySet.add(n));
   Object.keys(config.modularHeaders || {}).forEach((n) => categorySet.add(n));
 
@@ -383,6 +497,7 @@ export default function ToolButtonsCategorized({
             tools={currentTools}
             selectedCategory={selectedCategory}
             onDeleteTool={deleteToolButton}
+            onMoveItem={onMoveItem}
           />
         </div>
       )}

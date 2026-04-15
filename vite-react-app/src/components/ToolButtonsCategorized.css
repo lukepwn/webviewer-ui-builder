@@ -84,10 +84,35 @@
   min-width: 0;
 }
 
-.tool-header-info {
-  color: #6b7280;
-  margin-left: 8px;
-  font-size: 0.92rem;
+.tool-item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tool-move-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.move-button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.move-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .delete-button {
@@ -226,4 +251,30 @@
 .filter-button:active,
 .add-tool-button:active {
   transform: translateY(1px);
+}
+
+.tool-group {
+  margin-bottom: 10px;
+}
+
+.tool-group-label {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: #eef2ff;
+  font-weight: 700;
+  color: #1f2937;
+  border: 1px solid #e0e7ff;
+  margin-bottom: 6px;
+}
+
+.tool-group-label .group-type {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-left: 8px;
+}
+
+.other-item {
+  border-style: dashed;
+  opacity: 0.8;
 }

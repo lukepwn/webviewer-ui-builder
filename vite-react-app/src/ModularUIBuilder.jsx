@@ -280,6 +280,81 @@ export default function ModularUIBuilder() {
     // deleted component and cleaned up references
   }
 
+  function moveCategoryItem(item, direction) {
+    if (!item || !item.key || !item.listMeta || !direction) return;
+    const itemKey = item.key;
+    const { sourceType, sourceKey } = item.listMeta;
+
+    setConfig((c) => {
+      const modularComponents = { ...c.modularComponents };
+      const modularHeaders = { ...c.modularHeaders };
+
+      const moveInArray = (arr) => {
+        const current = Array.isArray(arr) ? [...arr] : [];
+        const index = current.findIndex((entry) => entry === itemKey);
+        if (index < 0) return null;
+        const nextIndex = index + direction;
+        if (nextIndex < 0 || nextIndex >= current.length) return null;
+        current.splice(index, 1);
+        current.splice(nextIndex, 0, itemKey);
+        return current;
+      };
+
+      const updateComponentArray = (component, keyName) => {
+        const arr = Array.isArray(component[keyName])
+          ? [...component[keyName]]
+          : [];
+        if (!arr.includes(itemKey)) return null;
+        return moveInArray(arr);
+      };
+
+      if (sourceType === "header") {
+        const header = modularHeaders[sourceKey];
+        if (!header) return c;
+        const nextItems = moveInArray(header.items);
+        if (!nextItems) return c;
+        modularHeaders[sourceKey] = { ...header, items: nextItems };
+        return { ...c, modularComponents, modularHeaders };
+      }
+
+      if (sourceType === "group") {
+        const component = modularComponents[sourceKey];
+        if (!component) return c;
+        let nextItems = updateComponentArray(component, "items");
+        if (!nextItems) {
+          nextItems = updateComponentArray(component, "groupedItems");
+          if (!nextItems) return c;
+          modularComponents[sourceKey] = {
+            ...component,
+            groupedItems: nextItems,
+          };
+        } else {
+          modularComponents[sourceKey] = { ...component, items: nextItems };
+        }
+        return { ...c, modularComponents, modularHeaders };
+      }
+
+      if (sourceType === "toolbarGroup") {
+        const component = modularComponents[sourceKey];
+        if (!component) return c;
+        let nextItems = updateComponentArray(component, "items");
+        if (!nextItems) {
+          nextItems = updateComponentArray(component, "groupedItems");
+          if (!nextItems) return c;
+          modularComponents[sourceKey] = {
+            ...component,
+            groupedItems: nextItems,
+          };
+        } else {
+          modularComponents[sourceKey] = { ...component, items: nextItems };
+        }
+        return { ...c, modularComponents, modularHeaders };
+      }
+
+      return c;
+    });
+  }
+
   async function applyToViewer() {
     if (!window.viewerInstance || !window.viewerInstance.UI) {
       console.warn("WebViewer instance not available");
@@ -383,6 +458,7 @@ export default function ModularUIBuilder() {
           runtimeCategories={runtimeCategories}
           deleteToolButton={deleteToolButton}
           addToolButton={addToolButton}
+          onMoveItem={moveCategoryItem}
           headerOptions={[
             ...new Set([
               ...Object.keys(runtimeCategories),
