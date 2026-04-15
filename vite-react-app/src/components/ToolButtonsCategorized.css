@@ -29,13 +29,13 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: normal;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .filter-button.active {
   background-color: #007acc;
   color: white;
-  font-weight: bold;
 }
 
 .add-tool-button {

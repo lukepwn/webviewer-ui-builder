@@ -16,4 +16,11 @@ Best practices code:
 2.
 
 01/19 - clean up return satement, so many divs
+
 01/27 - make a list of tickets this can help with
+
+04/14 - create repositioning logic
+
+04/14 - add other elements to the tools-display such as style picker
+
+deadline: june 30
