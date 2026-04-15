@@ -180,14 +180,11 @@ export default function ModularUIBuilder() {
       };
       const headers = { ...c.modularHeaders };
 
-      // Ensure selected header exists when default value is used
-      if (!headers[header]) {
-        headers[header] = { type: "header", dataElement: header, items: [] };
-      }
-
       const headerComp = modularComponents[header];
       if (headerComp?.groupedItems?.length) {
-        // Add to the first groupedItems component
+        // If selected header is actually a toolbar group ribbon item,
+        // add the tool to the first groupedItems component instead of
+        // creating an invalid header entry.
         const groupedItemsKey = headerComp.groupedItems[0];
         const groupedItemsComp = modularComponents[groupedItemsKey] || {
           type: "groupedItems",
@@ -200,6 +197,11 @@ export default function ModularUIBuilder() {
         modularComponents[groupedItemsKey] = groupedItemsComp;
 
         return { ...c, modularComponents, modularHeaders: headers };
+      }
+
+      // Ensure selected header exists when default value is used
+      if (!headers[header]) {
+        headers[header] = { type: "header", dataElement: header, items: [] };
       }
 
       // Otherwise, add to the header directly (i.e. default-top-header)

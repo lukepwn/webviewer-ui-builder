@@ -56,22 +56,77 @@ function ToolList({ tools, selectedCategory, onDeleteTool }) {
   ));
 }
 
-// Add Tool Modal Component
+// Add Tool Modal Component (now manages its own state)
 function AddToolModal({
   isOpen,
   onClose,
-  formData,
-  onFormChange,
   headerOptions,
   toolOptions,
   onSubmit,
 }) {
+  const [dataElement, setDataElement] = useState("panButton");
+  const [toolName, setToolName] = useState(
+    (toolOptions && toolOptions.length && toolOptions[0].value) || "",
+  );
+  const [header, setHeader] = useState(
+    (headerOptions && headerOptions.length && headerOptions[0]) ||
+      "default-top-header",
+  );
+  const [label, setLabel] = useState("");
+
+  useEffect(() => {
+    if (!toolName && toolOptions && toolOptions.length) {
+      setToolName(toolOptions[0].value);
+    }
+  }, [toolOptions, toolName]);
+
+  useEffect(() => {
+    if (!header && headerOptions && headerOptions.length) {
+      setHeader(headerOptions[0]);
+    }
+  }, [headerOptions, header]);
+
+  const handleFormChange = (field, value) => {
+    switch (field) {
+      case "dataElement":
+        setDataElement(value);
+        break;
+      case "toolName":
+        setToolName(value);
+        break;
+      case "header":
+        setHeader(value);
+        break;
+      case "label":
+        setLabel(value);
+        break;
+    }
+  };
+
+  const handleFormSubmit = () => {
+    if (!dataElement || !toolName || !header) {
+      alert("dataElement, toolName and header are required");
+      return;
+    }
+
+    const headerLower = String(header).toLowerCase();
+    if (headerLower === "view" || headerLower === "toolbargroup-view") {
+      alert("Adding tools to view toolbar group is not allowed");
+      return;
+    }
+
+    onSubmit({
+      dataElement,
+      toolName,
+      label,
+      header,
+    });
+    setDataElement("");
+    setLabel("");
+    onClose();
+  };
+
   if (!isOpen) return null;
-
-  const { dataElement, toolName, header, label } = formData;
-
-  const effectiveToolName = toolName;
-  const effectiveHeader = header;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -83,7 +138,7 @@ function AddToolModal({
             <label className="form-label">Data Element</label>
             <input
               value={dataElement}
-              onChange={(e) => onFormChange("dataElement", e.target.value)}
+              onChange={(e) => handleFormChange("dataElement", e.target.value)}
               placeholder="e.g., panButton"
               className="form-input"
             />
@@ -93,7 +148,7 @@ function AddToolModal({
             <label className="form-label">Header</label>
             <select
               value={header}
-              onChange={(e) => onFormChange("header", e.target.value)}
+              onChange={(e) => handleFormChange("header", e.target.value)}
               className="form-select"
             >
               {headerOptions.map((h) => (
@@ -108,7 +163,7 @@ function AddToolModal({
             <label className="form-label">Tool</label>
             <select
               value={toolName}
-              onChange={(e) => onFormChange("toolName", e.target.value)}
+              onChange={(e) => handleFormChange("toolName", e.target.value)}
               className="form-select"
             >
               {toolOptions && toolOptions.length ? (
@@ -127,7 +182,7 @@ function AddToolModal({
             <label className="form-label">Label (optional)</label>
             <input
               value={label}
-              onChange={(e) => onFormChange("label", e.target.value)}
+              onChange={(e) => handleFormChange("label", e.target.value)}
               placeholder="display label"
               className="form-input"
             />
@@ -137,17 +192,7 @@ function AddToolModal({
             <button onClick={onClose} className="cancel-button">
               Cancel
             </button>
-            <button
-              onClick={() =>
-                onSubmit({
-                  dataElement,
-                  toolName: effectiveToolName,
-                  label,
-                  header: effectiveHeader,
-                })
-              }
-              className="submit-button"
-            >
+            <button onClick={handleFormSubmit} className="submit-button">
               Add Tool Button
             </button>
           </div>
@@ -302,27 +347,6 @@ export default function ToolButtonsCategorized({
 
   // Form state for the popup
   const [showAddForm, setShowAddForm] = useState(false);
-  const [dataElement, setDataElement] = useState("panButton");
-  const [toolName, setToolName] = useState(
-    (toolOptions && toolOptions.length && toolOptions[0].value) || "",
-  );
-  const [header, setHeader] = useState(
-    (headerOptions && headerOptions.length && headerOptions[0]) ||
-      "default-top-header",
-  );
-  const [label, setLabel] = useState("");
-
-  useEffect(() => {
-    if (!toolName && toolOptions && toolOptions.length) {
-      setToolName(toolOptions[0].value);
-    }
-  }, [toolOptions, toolName]);
-
-  useEffect(() => {
-    if (!header && headerOptions && headerOptions.length) {
-      setHeader(headerOptions[0]);
-    }
-  }, [headerOptions, header]);
 
   const headerOptionsFinal =
     headerOptions && headerOptions.length
@@ -336,40 +360,8 @@ export default function ToolButtonsCategorized({
         })
       : ["default-top-header"];
 
-  // Form handlers
-  const handleFormChange = (field, value) => {
-    switch (field) {
-      case "dataElement":
-        setDataElement(value);
-        break;
-      case "toolName":
-        setToolName(value);
-        break;
-      case "header":
-        setHeader(value);
-        break;
-      case "label":
-        setLabel(value);
-        break;
-    }
-  };
-
   const handleFormSubmit = (formValues) => {
-    if (!formValues.dataElement || !formValues.toolName || !formValues.header) {
-      alert("dataElement, toolName and header are required");
-      return;
-    }
-
-    const headerLower = String(formValues.header).toLowerCase();
-    if (headerLower === "view" || headerLower === "toolbargroup-view") {
-      alert("Adding tools to view toolbar group is not allowed");
-      return;
-    }
-
     addToolButton(formValues);
-    setDataElement("");
-    setLabel("");
-    setShowAddForm(false);
   };
 
   return (
@@ -398,13 +390,6 @@ export default function ToolButtonsCategorized({
       <AddToolModal
         isOpen={showAddForm}
         onClose={() => setShowAddForm(false)}
-        formData={{
-          dataElement,
-          toolName,
-          header,
-          label,
-        }}
-        onFormChange={handleFormChange}
         headerOptions={headerOptionsFinal}
         toolOptions={toolOptions}
         onSubmit={handleFormSubmit}
