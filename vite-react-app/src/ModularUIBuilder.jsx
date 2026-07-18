@@ -50,16 +50,13 @@ export default function ModularUIBuilder() {
   }
 
   useEffect(() => {
-    // 1. Webviewer instantiated in App.jsx and exposed as window.viewerInstance
     if (window.viewerInstance && window.viewerInstance.UI) {
       try {
         const exported = window.viewerInstance.UI.exportModularComponents();
         setConfig(exported);
-      } catch (e) {
-        // no-op
-      }
+      } catch (e) {}
 
-      // 2. On mount, try to load existing modularComponents from viewer
+      //On mount, try to load existing modularComponents from viewer
       discoverRuntimeToolData();
     }
   }, []);
