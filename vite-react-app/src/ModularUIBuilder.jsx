@@ -19,16 +19,20 @@ export default function ModularUIBuilder() {
     flyouts: {},
     panels: {},
   });
+  console.log("RENDER", config);
 
   const [runtimeCategories, setRuntimeCategories] = useState({});
   const [viewerTools, setViewerTools] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    console.log("CONFIG CHANGED", config);
+  }, [config]);
+
+  useEffect(() => {
     if (window.viewerInstance && window.viewerInstance.UI) {
       try {
         const exported = window.viewerInstance.UI.exportModularComponents();
-
         setConfig(exported);
       } catch (e) {}
 
@@ -78,26 +82,13 @@ export default function ModularUIBuilder() {
       });
     }
 
-    // Also include items from the default top header (default-top-header)
-    try {
-      const topHeader = UI.getModularHeader("default-top-header");
-
-      console.log(topHeader);
-      categories["default-top-header"] = categories["default-top-header"] || [];
-
-      // get grouped items from the header
-      const headerGrouped = topHeader.getGroupedItems();
-      console.log(headerGrouped);
-    } catch (e) {
-      // ignore
-    }
-
     // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
     const Tools = Core && Core.Tools && Core.Tools.ToolNames;
     const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
 
-    // setRuntimeCategories(categories);
-    // setViewerTools(viewerToolList);
+    console.log(Tools, viewerToolList);
+    setRuntimeCategories(categories);
+    setViewerTools(viewerToolList);
   }
 
   function addToolButton({ dataElement, toolName, label, header }) {
