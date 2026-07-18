@@ -1,7 +1,5 @@
 # App Workflow
 
-1. The app starts in [src/App.jsx](src/App.jsx#L14-L26), where WebViewer is initialized inside the main viewer container and the instance is stored for later use.
-2. The page UI in [src/App.jsx](src/App.jsx#L34-L50) renders the Show UI Builder button, and clicking it toggles the showBuilder state to reveal the builder sidebar.
 3. When showBuilder is true, [src/App.jsx](src/App.jsx#L40-L50) mounts the ModularUIBuilder component inside the sidebar so the builder can interact with the running viewer.
 4. The builder component in [src/ModularUIBuilder.jsx](src/ModularUIBuilder.jsx#L28-L63) loads the current modular UI configuration from the initialized viewer through exportModularComponents.
 5. The runtime discovery logic in [src/ModularUIBuilder.jsx](src/ModularUIBuilder.jsx#L67-L166) inspects the viewer UI API to find toolbar groups, headers, and available tools.

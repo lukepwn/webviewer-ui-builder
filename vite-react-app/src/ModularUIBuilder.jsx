@@ -2,9 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import ToolButtonsCategorized from "./components/ToolButtonsCategorized";
 import ConfigPreview from "./components/ConfigPreview";
 
-/**
- * @param download - downloads ui config json
- */
 function download(filename, content) {
   const blob = new Blob([content], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -14,16 +11,6 @@ function download(filename, content) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-/**
- *
- * Steps:
- * 1. Webviewer instantiated in App.jsx and exposed as window.viewerInstance
- * 2. On mount, try to load existing modularComponents from viewer
- * 3. Discover runtime toolbar groups and tools
- * 4.
- * 5.
- */
 
 export default function ModularUIBuilder() {
   const [config, setConfig] = useState({
@@ -37,22 +24,11 @@ export default function ModularUIBuilder() {
   const [viewerTools, setViewerTools] = useState([]);
   const fileInputRef = useRef(null);
 
-  // helper: resolve a tool-like item's canonical value (used for lookup/dedupe)
-  function getValue(it) {
-    if (!it) return "";
-    return it.dataElement || "";
-  }
-
-  // helper: add a value string to a category, deduplicating by value (Set-based)
-  function addCategoryItem(categories, key, value) {
-    if (!value) return;
-    categories[key] = Array.from(new Set([...categories[key], value]));
-  }
-
   useEffect(() => {
     if (window.viewerInstance && window.viewerInstance.UI) {
       try {
         const exported = window.viewerInstance.UI.exportModularComponents();
+
         setConfig(exported);
       } catch (e) {}
 
@@ -62,105 +38,66 @@ export default function ModularUIBuilder() {
   }, []);
 
   function discoverRuntimeToolData() {
-    if (!window.viewerInstance || !window.viewerInstance.UI) return;
+    const UI = window.viewerInstance.UI;
+    const Core = window.viewerInstance.Core;
+    const categories = {};
 
-    try {
-      const UI = window.viewerInstance.UI;
-      const Core =
-        window.viewerInstance.Core || window.viewerInstance.core || {};
+    const removeDuplicates = (items, catKey) => {
+      items.forEach((item) => {
+        //Take the existing array for this category, add the new value, remove any duplicates (set-based), and store the unique array back
+        categories[catKey] = Array.from(
+          new Set([...categories[catKey], item.dataElement]),
+        );
+      });
+    };
 
-      // Primary discovery: use the runtime ribbon group to find toolbar groups and their items
-      const categories = {};
+    const addGroupedRefToCategory = (ref, catKey) => {
+      const grouped = UI.getGroupedItems(ref);
+      removeDuplicates(grouped.items, catKey);
+    };
 
-      // helpers: assume APIs return the expected shapes and iterate directly
-      const addItemsArrayToCategory = (items, catKey) => {
-        items.forEach((it) => {
-          const value = getValue(it);
-          addCategoryItem(categories, catKey, value);
+    // generic helper to iterate grouped items array (from getGroupedItems() or similar)
+    const addGroupedItemsToCategory = (groupedArray, catKey) => {
+      groupedArray.forEach((g) => {
+        const items = g.items || g.getItems();
+        removeDuplicates(items, catKey);
+      });
+    };
+
+    const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
+    if (ribbonGroup) {
+      ribbonGroup.items.forEach((toolbarGroup) => {
+        const catKey = toolbarGroup.toolbarGroup;
+
+        categories[catKey] = categories[catKey] || [];
+
+        const toolbarGroupedItems = toolbarGroup.groupedItems;
+        toolbarGroupedItems.forEach((item) => {
+          addGroupedRefToCategory(item, catKey);
         });
-      };
-
-      const addGroupedRefToCategory = (ref, catKey) => {
-        const grouped = UI.getGroupedItems(ref);
-        const groups = Array.isArray(grouped) ? grouped : [grouped];
-        for (const g of groups) {
-          const items = g.items || g.getItems();
-          addItemsArrayToCategory(items, catKey);
-        }
-      };
-
-      // generic helper to iterate grouped items array (from getGroupedItems() or similar)
-      const addGroupedItemsToCategory = (groupedArray, catKey) => {
-        groupedArray.forEach((g) => {
-          const items = g.items || g.getItems();
-          addItemsArrayToCategory(items, catKey);
-        });
-      };
-
-      const ribbonGroup = UI.getRibbonGroup("default-ribbon-group");
-
-      // proceed to examine toolbar groups if present
-      if (ribbonGroup) {
-        ribbonGroup.items.forEach((toolbarGroupRaw) => {
-          const toolbarGroup =
-            typeof toolbarGroupRaw === "string"
-              ? { dataElement: toolbarGroupRaw }
-              : toolbarGroupRaw || {};
-
-          const catKey =
-            toolbarGroup.toolbarGroup ||
-            toolbarGroup.dataElement ||
-            toolbarGroup.name ||
-            "tools-header";
-
-          // Remove any view toolbar group completely
-          if (catKey === "view" || catKey === "toolbarGroup-view") {
-            return;
-          }
-
-          categories[catKey] = categories[catKey] || [];
-
-          // include direct items on toolbar group if present
-          if (Array.isArray(toolbarGroup.items)) {
-            addItemsArrayToCategory(toolbarGroup.items, catKey);
-          }
-
-          const toolbarGroupedItems = toolbarGroup.groupedItems;
-          toolbarGroupedItems.forEach((item) => {
-            addGroupedRefToCategory(item, catKey);
-          });
-        });
-      }
-
-      // Also include items from the default top header (default-top-header)
-      try {
-        const topHeader =
-          UI.getModularHeader && UI.getModularHeader("default-top-header");
-        if (topHeader) {
-          categories["default-top-header"] =
-            categories["default-top-header"] || [];
-
-          // get grouped items from the header
-          const headerGrouped = topHeader.getGroupedItems();
-          addGroupedItemsToCategory(headerGrouped, "default-top-header");
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      // Remove existing view toolbar groups entirely
-      delete categories.view;
-      delete categories["toolbarGroup-view"];
-
-      // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
-      const Tools = Core && Core.Tools && Core.Tools.ToolNames;
-      const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
-
-      setRuntimeCategories(categories);
-      setViewerTools(viewerToolList);
-    } catch (err) {
-      // no-op
+      });
     }
+
+    // Also include items from the default top header (default-top-header)
+    try {
+      const topHeader = UI.getModularHeader("default-top-header");
+
+      console.log(topHeader);
+      categories["default-top-header"] = categories["default-top-header"] || [];
+
+      // get grouped items from the header
+      const headerGrouped = topHeader.getGroupedItems();
+      console.log(headerGrouped);
+    } catch (e) {
+      // ignore
+    }
+
+    // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
+    const Tools = Core && Core.Tools && Core.Tools.ToolNames;
+    const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
+
+    // setRuntimeCategories(categories);
+    // setViewerTools(viewerToolList);
   }
 
   function addToolButton({ dataElement, toolName, label, header }) {
