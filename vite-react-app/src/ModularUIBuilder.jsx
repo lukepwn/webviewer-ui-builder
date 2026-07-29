@@ -83,7 +83,7 @@ export default function ModularUIBuilder() {
     }
 
     // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
-    const Tools = Core && Core.Tools && Core.Tools.ToolNames;
+    const Tools = Core.Tools.ToolNames;
     const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
 
     console.log(Tools, viewerToolList);
