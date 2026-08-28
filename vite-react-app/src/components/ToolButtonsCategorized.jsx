@@ -250,7 +250,7 @@ function AddToolModal({
               {toolOptions && toolOptions.length ? (
                 toolOptions.map((t) => (
                   <option key={t.value} value={t.value}>
-                    {t.label || t.value}
+                    {t.key}
                   </option>
                 ))
               ) : (

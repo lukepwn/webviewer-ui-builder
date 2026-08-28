@@ -81,10 +81,13 @@ export default function ModularUIBuilder() {
         });
       });
     }
-
+    
     // Build a dropdown list from SDK tools only (Core.Tools.ToolNames)
     const Tools = Core.Tools.ToolNames;
-    const viewerToolList = Object.values(Tools).map((tn) => ({ value: tn }));
+    const viewerToolList = Object.entries(Tools).map(([key, value]) => ({
+      key,   // readable name (e.g., "PAN")
+      value  // WebViewer identifier (e.g., "Pan")
+    }));
 
     console.log(Tools, viewerToolList);
     setRuntimeCategories(categories);
