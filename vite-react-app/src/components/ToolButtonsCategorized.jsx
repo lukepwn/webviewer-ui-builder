@@ -1,546 +1,247 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import "./ToolButtonsCategorized.css";
 
-// Filter Buttons Component
-function FilterButtons({
-  categoryNames,
-  selectedCategory,
-  onCategorySelect,
-  onAddToolClick,
-}) {
-  return (
-    <div className="filter-container">
-      <span className="filter-label">Filters:</span>
-      {categoryNames.map((categoryName) => (
-        <button
-          key={categoryName}
-          onClick={() => onCategorySelect(categoryName)}
-          className={`filter-button ${selectedCategory === categoryName ? "active" : ""}`}
-        >
-          {categoryName}
-        </button>
-      ))}
-      <button onClick={onAddToolClick} className="add-tool-button">
-        + Add Tool
-      </button>
-    </div>
-  );
-}
-
-// Tool List Component
-function ToolList({
-  tools,
-  selectedCategory,
-  onDeleteTool,
-  onMoveItem,
-  collapsedGroupKeys,
-  onToggleGroup,
-  depth = 0,
-}) {
-  if (!tools || tools.length === 0) {
-    return <p className="no-tools-message">No tools in this group</p>;
+// Helper badge formatter based on component type
+function renderComponentBadge(component = {}) {
+  const type = component.type || "";
+  if (type === "toolButton") {
+    return <span className="item-badge badge-tool">Tool</span>;
   }
-
-  return tools.map((item, index) => {
-    const paddingStyle = { paddingLeft: `${depth * 16}px` };
-    const canMoveUp = index > 0;
-    const canMoveDown = index < tools.length - 1;
-    const isRuntimeList = item.listMeta?.sourceType === "runtime";
-    const moveControls = onMoveItem ? (
-      <div className="tool-move-controls">
-        <button
-          className="move-button"
-          onClick={() => onMoveItem(item, -1)}
-          disabled={!canMoveUp || isRuntimeList}
-          aria-label={`Move ${item.key} up`}
-        >
-          ↑
-        </button>
-        <button
-          className="move-button"
-          onClick={() => onMoveItem(item, 1)}
-          disabled={!canMoveDown || isRuntimeList}
-          aria-label={`Move ${item.key} down`}
-        >
-          ↓
-        </button>
-      </div>
-    ) : null;
-
-    if (item.type === "tool") {
-      return (
-        <div key={item.key} className="tool-item" style={paddingStyle}>
-          <div className="tool-info">
-            {item.key} — {item.component.toolName || "toolButton"}
-            {item.headerKeys &&
-            item.headerKeys.length > 0 &&
-            !item.headerKeys.includes(selectedCategory) ? (
-              <span className="tool-header-info">
-                (in: {item.headerKeys.join(", ")})
-              </span>
-            ) : null}
-          </div>
-          <div className="tool-item-actions">
-            {moveControls}
-            <button
-              className="delete-button"
-              onClick={() => onDeleteTool(item.key)}
-              aria-label={`Remove ${item.key}`}
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (item.type === "group") {
-      const title = item.component.label || item.component.title || item.key;
-      const isCollapsed = collapsedGroupKeys.has(item.key);
-      return (
-        <div key={item.key} className="tool-group">
-          <div className="tool-group-label" style={paddingStyle}>
-            <div className="tool-group-label-main">
-              <button
-                className="group-collapse-button"
-                onClick={() => onToggleGroup(item.key)}
-                aria-label={`Toggle ${title}`}
-              >
-                {isCollapsed ? "▶" : "▼"}
-              </button>
-              <span className="group-title-text">{title}</span>
-            </div>
-            <div className="tool-group-label-actions">{moveControls}</div>
-          </div>
-          {!isCollapsed && (
-            <ToolList
-              tools={item.children}
-              selectedCategory={selectedCategory}
-              onDeleteTool={onDeleteTool}
-              onMoveItem={onMoveItem}
-              collapsedGroupKeys={collapsedGroupKeys}
-              onToggleGroup={onToggleGroup}
-              depth={depth + 1}
-            />
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div key={item.key} className="tool-item other-item" style={paddingStyle}>
-        <div className="tool-info">
-          {item.key} — {item.component.type}
-        </div>
-      </div>
-    );
-  });
+  if (type === "presetButton") {
+    return <span className="item-badge badge-preset">Action</span>;
+  }
+  if (type === "toggleButton" || type === "toggleElementButton") {
+    return <span className="item-badge badge-toggle">Toggle</span>;
+  }
+  if (type === "pageControls" || type === "zoom" || type === "viewControls") {
+    return <span className="item-badge badge-controls">Control</span>;
+  }
+  if (type === "label") {
+    return <span className="item-badge badge-label">Label</span>;
+  }
+  if (type === "divider" || type === "spacer") {
+    return <span className="item-badge badge-layout">Layout</span>;
+  }
+  return <span className="item-badge badge-other">{type || "Item"}</span>;
 }
 
-// Add Tool Modal Component (now manages its own state)
-function AddToolModal({
-  isOpen,
-  onClose,
-  headerOptions,
-  toolOptions,
-  onSubmit,
+// Component List item row
+function ComponentItemRow({
+  item,
+  index,
+  totalItems,
+  onMoveItem,
+  onDeleteTool,
+  targetContext,
 }) {
-  const [dataElement, setDataElement] = useState("panButton");
-  const [toolName, setToolName] = useState(
-    (toolOptions && toolOptions.length && toolOptions[0].value) || "",
-  );
-  const [header, setHeader] = useState(
-    (headerOptions && headerOptions.length && headerOptions[0]) ||
-      "default-top-header",
-  );
-  const [label, setLabel] = useState("");
+  const comp = item.component || {};
+  const canMoveUp = index > 0;
+  const canMoveDown = index < totalItems - 1;
 
-  useEffect(() => {
-    if (!toolName && toolOptions && toolOptions.length) {
-      setToolName(toolOptions[0].value);
-    }
-  }, [toolOptions, toolName]);
-
-  useEffect(() => {
-    if (!header && headerOptions && headerOptions.length) {
-      setHeader(headerOptions[0]);
-    }
-  }, [headerOptions, header]);
-
-  const handleFormChange = (field, value) => {
-    switch (field) {
-      case "dataElement":
-        setDataElement(value);
-        break;
-      case "toolName":
-        setToolName(value);
-        break;
-      case "header":
-        setHeader(value);
-        break;
-      case "label":
-        setLabel(value);
-        break;
-    }
-  };
-
-  const handleFormSubmit = () => {
-    if (!dataElement || !toolName || !header) {
-      alert("dataElement, toolName and header are required");
-      return;
-    }
-
-    const headerLower = String(header).toLowerCase();
-    if (headerLower === "view" || headerLower === "toolbargroup-view") {
-      alert("Adding tools to view toolbar group is not allowed");
-      return;
-    }
-
-    onSubmit({
-      dataElement,
-      toolName,
-      label,
-      header,
-    });
-    setDataElement("");
-    setLabel("");
-    onClose();
-  };
-
-  if (!isOpen) return null;
+  const displayName =
+    comp.label || comp.title || comp.toolName || comp.buttonType || item.key;
+  const subText =
+    comp.dataElement && comp.dataElement !== displayName
+      ? `(${comp.dataElement})`
+      : "";
+  const iconName = comp.img;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Add Tool Button</h3>
-
-        <div className="form-container">
-          <div className="form-group">
-            <label className="form-label">Data Element</label>
-            <input
-              value={dataElement}
-              onChange={(e) => handleFormChange("dataElement", e.target.value)}
-              placeholder="e.g., panButton"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Header</label>
-            <select
-              value={header}
-              onChange={(e) => handleFormChange("header", e.target.value)}
-              className="form-select"
-            >
-              {headerOptions.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Tool</label>
-            <select
-              value={toolName}
-              onChange={(e) => handleFormChange("toolName", e.target.value)}
-              className="form-select"
-            >
-              {toolOptions && toolOptions.length ? (
-                toolOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.key}
-                  </option>
-                ))
-              ) : (
-                <option value="">(no tools available)</option>
-              )}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Label (optional)</label>
-            <input
-              value={label}
-              onChange={(e) => handleFormChange("label", e.target.value)}
-              placeholder="display label"
-              className="form-input"
-            />
-          </div>
-
-          <div className="button-group">
-            <button onClick={onClose} className="cancel-button">
-              Cancel
-            </button>
-            <button onClick={handleFormSubmit} className="submit-button">
-              Add Tool Button
-            </button>
-          </div>
+    <div className="tool-item">
+      <div className="tool-info">
+        {renderComponentBadge(comp)}
+        <div className="tool-name-container">
+          <span className="tool-display-name">{displayName}</span>
+          {subText && <span className="tool-subtext">{subText}</span>}
         </div>
+        {iconName && (
+          <span className="tool-icon-pill" title={`Icon: ${iconName}`}>
+            {iconName}
+          </span>
+        )}
+      </div>
+
+      <div className="tool-item-actions">
+        {onMoveItem && (
+          <div className="tool-move-controls">
+            <button
+              className="move-button"
+              onClick={() => onMoveItem(item, -1, targetContext)}
+              disabled={!canMoveUp}
+              title={`Move ${item.key} up`}
+            >
+              ↑
+            </button>
+            <button
+              className="move-button"
+              onClick={() => onMoveItem(item, 1, targetContext)}
+              disabled={!canMoveDown}
+              title={`Move ${item.key} down`}
+            >
+              ↓
+            </button>
+          </div>
+        )}
+        {onDeleteTool && (
+          <button
+            className="delete-button"
+            onClick={() => onDeleteTool(item.key, targetContext)}
+            title={`Remove ${item.key}`}
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export default function ToolButtonsCategorized({
-  config = {},
-  runtimeCategories = {},
-  deleteToolButton,
-  addToolButton,
+  activeHeader = "",
+  headerPlacement = "top",
+  ribbonTabs = [],
+  selectedRibbonTab = "",
+  onSelectRibbonTab,
+  ribbonTools = [],
+  directHeaderItems = [],
+  onDeleteTool,
   onMoveItem,
-  headerOptions = [],
-  toolOptions = [],
+  onOpenAddModal,
 }) {
-  const [collapsedGroupKeys, setCollapsedGroupKeys] = useState(new Set());
-
-  const toggleGroupCollapse = (groupKey) => {
-    setCollapsedGroupKeys((current) => {
-      const next = new Set(current);
-      if (next.has(groupKey)) {
-        next.delete(groupKey);
-      } else {
-        next.add(groupKey);
-      }
-      return next;
-    });
-  };
-
-  const getConfigComponent = (itemKey) =>
-    config?.modularComponents?.[itemKey] || null;
-
-  const getToolHeaderKeys = (toolKey) =>
-    Object.entries(config.modularHeaders || {})
-      .filter(([, headerConfig]) =>
-        (headerConfig.items || []).includes(toolKey),
-      )
-      .map(([headerKey]) => headerKey);
-
-  const getConfigKeyForRuntimeItem = (itemKey) => {
-    if (!itemKey) return null;
-
-    if (config.modularComponents?.[itemKey]) {
-      return itemKey;
-    }
-
-    const match = Object.entries(config.modularComponents || {}).find(
-      ([, component]) =>
-        component?.type === "toolButton" && component.toolName === itemKey,
-    );
-
-    return match?.[0] || null;
-  };
-
-  const buildCategoryTree = (
-    itemKeys,
-    parentMeta,
-    visited = new Set(),
-    added = new Set(),
-  ) => {
-    if (!Array.isArray(itemKeys)) return [];
-
-    const tree = [];
-
-    for (const rawKey of itemKeys) {
-      if (!rawKey) continue;
-
-      const configKey = getConfigKeyForRuntimeItem(rawKey) || rawKey;
-      if (visited.has(configKey) || added.has(configKey)) continue;
-
-      const component = getConfigComponent(configKey);
-      if (!component) continue;
-
-      const nextVisited = new Set(visited).add(configKey);
-      added.add(configKey);
-      const listMeta = parentMeta;
-
-      if (component.type === "toolButton") {
-        tree.push({
-          type: "tool",
-          key: configKey,
-          component,
-          headerKeys: getToolHeaderKeys(configKey),
-          listMeta,
-        });
-        continue;
-      }
-
-      const childKeys = [
-        ...(Array.isArray(component.items) ? component.items : []),
-        ...(Array.isArray(component.groupedItems)
-          ? component.groupedItems
-          : []),
-      ];
-
-      if (childKeys.length === 0) {
-        tree.push({ type: "other", key: configKey, component, listMeta });
-        continue;
-      }
-
-      tree.push({
-        type: "group",
-        key: configKey,
-        component,
-        listMeta,
-        children: buildCategoryTree(
-          childKeys,
-          {
-            sourceType: "group",
-            sourceKey: configKey,
-            categoryName: parentMeta?.categoryName,
-          },
-          nextVisited,
-          new Set(),
-        ),
-      });
-    }
-
-    return tree;
-  };
-
-  const categorySources = {};
-
-  for (const [headerKey, headerConfig] of Object.entries(
-    config.modularHeaders || {},
-  )) {
-    categorySources[headerKey] = headerConfig.items || [];
-  }
-
-  for (const [, componentConfig] of Object.entries(
-    config.modularComponents || {},
-  )) {
-    if (
-      componentConfig?.type === "ribbonItem" &&
-      typeof componentConfig.toolbarGroup === "string"
-    ) {
-      const categoryName = componentConfig.toolbarGroup;
-      if (!categorySources[categoryName]) {
-        categorySources[categoryName] = [
-          ...(Array.isArray(componentConfig.items)
-            ? componentConfig.items
-            : []),
-          ...(Array.isArray(componentConfig.groupedItems)
-            ? componentConfig.groupedItems
-            : []),
-        ];
-      }
-    }
-  }
-
-  for (const [categoryName, categoryToolNames] of Object.entries(
-    runtimeCategories || {},
-  )) {
-    if (!categorySources[categoryName]) {
-      categorySources[categoryName] = categoryToolNames;
-    }
-  }
-
-  const categorized = {};
-  for (const [categoryName, sourceKeys] of Object.entries(categorySources)) {
-    let rootMeta = {
-      sourceType: "runtime",
-      sourceKey: categoryName,
-      categoryName,
-    };
-    if (config.modularHeaders?.[categoryName]) {
-      rootMeta = {
-        sourceType: "header",
-        sourceKey: categoryName,
-        categoryName,
-      };
-    } else if (
-      config.modularComponents?.[categoryName] &&
-      config.modularComponents[categoryName].type === "ribbonItem"
-    ) {
-      rootMeta = {
-        sourceType: "toolbarGroup",
-        sourceKey: categoryName,
-        categoryName,
-      };
-    }
-    categorized[categoryName] = buildCategoryTree(sourceKeys, rootMeta);
-  }
-
-  const categorySet = new Set(Object.keys(categorized));
-  Object.keys(runtimeCategories || {}).forEach((n) => categorySet.add(n));
-  Object.keys(config.modularHeaders || {}).forEach((n) => categorySet.add(n));
-
-  const categoryNames = Array.from(categorySet).filter((name) => {
-    const lower = String(name).toLowerCase();
-    return (
-      lower !== "view" &&
-      lower !== "toolbargroup-view" &&
-      lower !== "tools-header"
-    );
-  });
-
-  const [selectedCategory, setSelectedCategory] = useState(
-    categoryNames[0] || null,
-  );
-
-  const currentTools =
-    selectedCategory && Array.isArray(categorized[selectedCategory])
-      ? categorized[selectedCategory]
-      : [];
-
-  useEffect(() => {
-    if (selectedCategory && !categoryNames.includes(selectedCategory)) {
-      setSelectedCategory(categoryNames[0] || null);
-    }
-  }, [categoryNames, selectedCategory]);
-
-  // Form state for the popup
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  const headerOptionsFinal =
-    headerOptions && headerOptions.length
-      ? headerOptions.filter((name) => {
-          const lower = String(name).toLowerCase();
-          return (
-            lower !== "view" &&
-            lower !== "toolbargroup-view" &&
-            lower !== "tools-header"
-          );
-        })
-      : ["default-top-header"];
-
-  const handleFormSubmit = (formValues) => {
-    addToolButton(formValues);
-  };
+  const [collapsedDirect, setCollapsedDirect] = useState(false);
 
   return (
     <div className="tool-buttons-container">
-      <h5 className="tool-buttons-title">Headers</h5>
+      {/* Centralized Add Component Action Header */}
+      <div className="centralized-add-header">
+        <div className="section-title-col">
+          <span className="section-title">Header Components</span>
+          <span className="field-hint">
+            Active: <strong>{activeHeader}</strong>
+          </span>
+        </div>
+        <button
+          type="button"
+          className="central-add-button"
+          onClick={() =>
+            onOpenAddModal("tool", selectedRibbonTab ? "ribbon" : "header")
+          }
+          title="Add tools, presets, panel toggles, controls, or ribbon tabs"
+        >
+          + Add Component
+        </button>
+      </div>
 
-      {categoryNames.length > 0 && (
-        <FilterButtons
-          categoryNames={categoryNames}
-          selectedCategory={selectedCategory}
-          onCategorySelect={setSelectedCategory}
-          onAddToolClick={() => setShowAddForm(true)}
-        />
-      )}
+      {/* 1. RIBBON TABS (CATEGORIES) */}
+      <div className="ribbon-tabs-section">
+        <div className="section-header-row">
+          <span className="section-title">Ribbon Tabs / Categories</span>
+        </div>
 
-      {categoryNames.length > 0 && (
-        <div className="tools-display">
-          <ToolList
-            tools={currentTools}
-            selectedCategory={selectedCategory}
-            onDeleteTool={deleteToolButton}
-            onMoveItem={onMoveItem}
-            collapsedGroupKeys={collapsedGroupKeys}
-            onToggleGroup={toggleGroupCollapse}
-          />
+        {ribbonTabs.length === 0 ? (
+          <p className="empty-hint">
+            No ribbon tabs in this header. Click "+ Add Component" above to
+            create tabs or add direct tools.
+          </p>
+        ) : (
+          <div className="filter-container">
+            {ribbonTabs.map((tab) => {
+              const isActive = selectedRibbonTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => onSelectRibbonTab(tab.key)}
+                  className={`filter-button ${isActive ? "active" : ""}`}
+                >
+                  {tab.label || tab.key}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 2. TOOLS UNDER ACTIVE RIBBON TAB */}
+      {selectedRibbonTab && (
+        <div className="category-tools-section">
+          <div className="section-header-row">
+            <span className="section-subtitle">
+              Tools in{" "}
+              <strong>
+                {ribbonTabs.find((t) => t.key === selectedRibbonTab)?.label ||
+                  selectedRibbonTab}
+              </strong>
+            </span>
+          </div>
+
+          <div className="tools-display">
+            {ribbonTools.length === 0 ? (
+              <p className="no-tools-message">
+                No tools in this category. Click "+ Add Component" above to add
+                tools.
+              </p>
+            ) : (
+              ribbonTools.map((item, index) => (
+                <ComponentItemRow
+                  key={item.key}
+                  item={item}
+                  index={index}
+                  totalItems={ribbonTools.length}
+                  onMoveItem={onMoveItem}
+                  onDeleteTool={onDeleteTool}
+                  targetContext={{
+                    type: "ribbon",
+                    ribbonKey: selectedRibbonTab,
+                    headerKey: activeHeader,
+                  }}
+                />
+              ))
+            )}
+          </div>
         </div>
       )}
 
-      <AddToolModal
-        isOpen={showAddForm}
-        onClose={() => setShowAddForm(false)}
-        headerOptions={headerOptionsFinal}
-        toolOptions={toolOptions}
-        onSubmit={handleFormSubmit}
-      />
+      {/* 3. DIRECT HEADER ITEMS (ALWAYS VISIBLE OUTSIDE RIBBON TABS) */}
+      <div className="direct-header-items-section">
+        <div className="section-header-row">
+          <span
+            className="section-subtitle clickable"
+            onClick={() => setCollapsedDirect((c) => !c)}
+          >
+            {collapsedDirect ? "▶" : "▼"} Direct Header Items (Always Visible)
+            <span className="item-count-badge">
+              ({directHeaderItems.length})
+            </span>
+          </span>
+        </div>
+
+        {!collapsedDirect && (
+          <div className="tools-display">
+            {directHeaderItems.length === 0 ? (
+              <p className="no-tools-message">
+                No direct items on this header (items added here stay visible
+                regardless of ribbon tab).
+              </p>
+            ) : (
+              directHeaderItems.map((item, index) => (
+                <ComponentItemRow
+                  key={item.key}
+                  item={item}
+                  index={index}
+                  totalItems={directHeaderItems.length}
+                  onMoveItem={onMoveItem}
+                  onDeleteTool={onDeleteTool}
+                  targetContext={{
+                    type: "header",
+                    headerKey: activeHeader,
+                  }}
+                />
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

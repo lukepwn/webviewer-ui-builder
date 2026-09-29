@@ -24,3 +24,7 @@ Best practices code:
 04/14 - add other elements to the tools-display such as style picker
 
 deadline: june 30
+
+09/29 - full ui builder rework to include other options than tools. add new components like ToolGroupToggleButtons
+
+- add flyouts

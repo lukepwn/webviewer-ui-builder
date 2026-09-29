@@ -10,12 +10,12 @@
     "postinstall": "node ./scripts/copy-webviewer-assets.js"
   },
   "dependencies": {
+    "@pdftron/webviewer": "^12.2.0-20260918",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@pdftron/webviewer": "^12.0.0"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^5.0.0"
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^5.0.0"
   }
 }
