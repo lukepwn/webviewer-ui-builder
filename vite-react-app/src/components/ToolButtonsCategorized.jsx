@@ -1,28 +1,38 @@
-import React, { useState } from "react";
-import "./ToolButtonsCategorized.css";
+import React, { useState } from 'react';
+import './ToolButtonsCategorized.css';
 
 // Helper badge formatter based on component type
 function renderComponentBadge(component = {}) {
-  const type = component.type || "";
-  if (type === "toolButton") {
+  const type = component.type || '';
+  if (type === 'toolButton') {
     return <span className="item-badge badge-tool">Tool</span>;
   }
-  if (type === "presetButton") {
-    return <span className="item-badge badge-preset">Action</span>;
+  if (type === 'presetButton') {
+    return <span className="item-badge badge-preset">Preset</span>;
   }
-  if (type === "toggleButton" || type === "toggleElementButton") {
+  if (type === 'toggleButton' || type === 'toggleElementButton') {
     return <span className="item-badge badge-toggle">Toggle</span>;
   }
-  if (type === "pageControls" || type === "zoom" || type === "viewControls") {
+  if (type === 'pageControls' || type === 'zoom' || type === 'viewControls') {
     return <span className="item-badge badge-controls">Control</span>;
   }
-  if (type === "label") {
+  if (type === 'label') {
     return <span className="item-badge badge-label">Label</span>;
   }
-  if (type === "divider" || type === "spacer") {
+  if (type === 'divider' || type === 'spacer') {
     return <span className="item-badge badge-layout">Layout</span>;
   }
-  return <span className="item-badge badge-other">{type || "Item"}</span>;
+  return <span className="item-badge badge-other">{type || 'Item'}</span>;
+}
+
+// Items can repeat in a list (e.g. several dividers). Returns which occurrence
+// of its key this row is, and whether the key repeats, so handlers can act on
+// this row only.
+function getOccurrenceInfo(list, index) {
+  const key = list[index].key;
+  const occurrence = list.slice(0, index).filter((i) => i.key === key).length;
+  const isDuplicate = list.filter((i) => i.key === key).length > 1;
+  return { occurrence, isDuplicate };
 }
 
 // Component List item row
@@ -43,8 +53,7 @@ function ComponentItemRow({
   const subText =
     comp.dataElement && comp.dataElement !== displayName
       ? `(${comp.dataElement})`
-      : "";
-  const iconName = comp.img;
+      : '';
 
   return (
     <div className="tool-item">
@@ -54,11 +63,6 @@ function ComponentItemRow({
           <span className="tool-display-name">{displayName}</span>
           {subText && <span className="tool-subtext">{subText}</span>}
         </div>
-        {iconName && (
-          <span className="tool-icon-pill" title={`Icon: ${iconName}`}>
-            {iconName}
-          </span>
-        )}
       </div>
 
       <div className="tool-item-actions">
@@ -97,11 +101,12 @@ function ComponentItemRow({
 }
 
 export default function ToolButtonsCategorized({
-  activeHeader = "",
-  headerPlacement = "top",
+  activeHeader = '',
+  headerPlacement = 'top',
   ribbonTabs = [],
-  selectedRibbonTab = "",
+  selectedRibbonTab = '',
   onSelectRibbonTab,
+  onDeleteRibbonTab,
   ribbonTools = [],
   directHeaderItems = [],
   onDeleteTool,
@@ -115,59 +120,85 @@ export default function ToolButtonsCategorized({
       {/* Centralized Add Component Action Header */}
       <div className="centralized-add-header">
         <div className="section-title-col">
-          <span className="section-title">Header Components</span>
+          <span className="section-title">Header & Ribbon Items</span>
           <span className="field-hint">
-            Active: <strong>{activeHeader}</strong>
+            Active Header: <strong>{activeHeader}</strong> ({headerPlacement})
           </span>
         </div>
         <button
           type="button"
           className="central-add-button"
           onClick={() =>
-            onOpenAddModal("tool", selectedRibbonTab ? "ribbon" : "header")
+            onOpenAddModal('tool', selectedRibbonTab ? 'ribbon' : 'header')
           }
-          title="Add tools, presets, panel toggles, controls, or ribbon tabs"
+          title="Add tools, preset buttons, toggles, controls, or containers"
         >
           + Add Component
         </button>
       </div>
 
-      {/* 1. RIBBON TABS (CATEGORIES) */}
+      {/* 1. RIBBON TABS */}
       <div className="ribbon-tabs-section">
         <div className="section-header-row">
-          <span className="section-title">Ribbon Tabs / Categories</span>
+          <span className="section-title">Ribbon Tabs</span>
         </div>
 
         {ribbonTabs.length === 0 ? (
           <p className="empty-hint">
-            No ribbon tabs in this header. Click "+ Add Component" above to
-            create tabs or add direct tools.
+            No ribbon tabs in this header. Click &quot;+ Add Component&quot;
+            above to create a Ribbon Tab or add Header Items.
           </p>
         ) : (
           <div className="filter-container">
             {ribbonTabs.map((tab) => {
               const isActive = selectedRibbonTab === tab.key;
               return (
-                <button
+                <div
                   key={tab.key}
-                  type="button"
+                  className={`filter-button ${isActive ? 'active' : ''}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingRight: onDeleteRibbonTab ? 6 : 12,
+                  }}
                   onClick={() => onSelectRibbonTab(tab.key)}
-                  className={`filter-button ${isActive ? "active" : ""}`}
                 >
-                  {tab.label || tab.key}
-                </button>
+                  <span>{tab.label || tab.key}</span>
+                  {onDeleteRibbonTab && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteRibbonTab(tab.key);
+                      }}
+                      title={`Remove ribbon tab "${tab.label || tab.key}"`}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: isActive ? 'rgba(255,255,255,0.85)' : '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '0 2px',
+                        fontSize: 11,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* 2. TOOLS UNDER ACTIVE RIBBON TAB */}
+      {/* 2. ITEMS UNDER ACTIVE RIBBON TAB */}
       {selectedRibbonTab && (
         <div className="category-tools-section">
           <div className="section-header-row">
             <span className="section-subtitle">
-              Tools in{" "}
+              Items in{' '}
               <strong>
                 {ribbonTabs.find((t) => t.key === selectedRibbonTab)?.label ||
                   selectedRibbonTab}
@@ -178,22 +209,23 @@ export default function ToolButtonsCategorized({
           <div className="tools-display">
             {ribbonTools.length === 0 ? (
               <p className="no-tools-message">
-                No tools in this category. Click "+ Add Component" above to add
-                tools.
+                No items in this ribbon tab. Click &quot;+ Add Component&quot;
+                above to add items.
               </p>
             ) : (
               ribbonTools.map((item, index) => (
                 <ComponentItemRow
-                  key={item.key}
+                  key={`${item.key}-${index}`}
                   item={item}
                   index={index}
                   totalItems={ribbonTools.length}
                   onMoveItem={onMoveItem}
                   onDeleteTool={onDeleteTool}
                   targetContext={{
-                    type: "ribbon",
+                    type: 'ribbon',
                     ribbonKey: selectedRibbonTab,
                     headerKey: activeHeader,
+                    ...getOccurrenceInfo(ribbonTools, index),
                   }}
                 />
               ))
@@ -202,14 +234,14 @@ export default function ToolButtonsCategorized({
         </div>
       )}
 
-      {/* 3. DIRECT HEADER ITEMS (ALWAYS VISIBLE OUTSIDE RIBBON TABS) */}
+      {/* 3. HEADER ITEMS (ALWAYS VISIBLE OUTSIDE RIBBON TABS) */}
       <div className="direct-header-items-section">
         <div className="section-header-row">
           <span
             className="section-subtitle clickable"
             onClick={() => setCollapsedDirect((c) => !c)}
           >
-            {collapsedDirect ? "▶" : "▼"} Direct Header Items (Always Visible)
+            {collapsedDirect ? '▶' : '▼'} Header Items (Always Visible)
             <span className="item-count-badge">
               ({directHeaderItems.length})
             </span>
@@ -226,15 +258,16 @@ export default function ToolButtonsCategorized({
             ) : (
               directHeaderItems.map((item, index) => (
                 <ComponentItemRow
-                  key={item.key}
+                  key={`${item.key}-${index}`}
                   item={item}
                   index={index}
                   totalItems={directHeaderItems.length}
                   onMoveItem={onMoveItem}
                   onDeleteTool={onDeleteTool}
                   targetContext={{
-                    type: "header",
+                    type: 'header',
                     headerKey: activeHeader,
+                    ...getOccurrenceInfo(directHeaderItems, index),
                   }}
                 />
               ))

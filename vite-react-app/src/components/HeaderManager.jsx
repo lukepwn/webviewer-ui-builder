@@ -1,16 +1,16 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 
 export default function HeaderManager({
   headers = {},
-  activeHeader = "",
+  activeHeader = '',
   onSelectHeader,
   onAddHeader,
   onDeleteHeader,
 }) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newHeaderId, setNewHeaderId] = useState("");
-  const [newPlacement, setNewPlacement] = useState("top");
-  const [newJustify, setNewJustify] = useState("start");
+  const [newHeaderId, setNewHeaderId] = useState('');
+  const [newPlacement, setNewPlacement] = useState('top');
+  const [newJustify, setNewJustify] = useState('start');
   const [newGap, setNewGap] = useState(8);
 
   const headerKeys = Object.keys(headers);
@@ -19,7 +19,7 @@ export default function HeaderManager({
     e.preventDefault();
     const id = newHeaderId.trim();
     if (!id) {
-      alert("Header ID (dataElement) is required.");
+      alert('Header ID (dataElement) is required.');
       return;
     }
     if (headers[id]) {
@@ -35,20 +35,20 @@ export default function HeaderManager({
       items: [],
     });
 
-    setNewHeaderId("");
+    setNewHeaderId('');
     setShowAddForm(false);
   };
 
   return (
     <div className="header-manager-box">
       <div className="section-header-row">
-        <span className="section-title">Headers & Toolbars</span>
+        <span className="section-title">Headers</span>
         <button
           className="small-action-button"
           onClick={() => setShowAddForm((s) => !s)}
-          title="Add a new toolbar header"
+          title="Add a new header"
         >
-          {showAddForm ? "✕ Cancel" : "+ New Header"}
+          {showAddForm ? '✕ Cancel' : '+ New Header'}
         </button>
       </div>
 
@@ -59,7 +59,7 @@ export default function HeaderManager({
         <div className="header-chips-list">
           {headerKeys.map((hKey) => {
             const hConfig = headers[hKey] || {};
-            const placement = hConfig.placement || "top";
+            const placement = hConfig.placement || 'top';
             const itemCount = Array.isArray(hConfig.items)
               ? hConfig.items.length
               : 0;
@@ -68,7 +68,7 @@ export default function HeaderManager({
             return (
               <div
                 key={hKey}
-                className={`header-chip ${isActive ? "active" : ""}`}
+                className={`header-chip ${isActive ? 'active' : ''}`}
                 onClick={() => onSelectHeader(hKey)}
               >
                 <div className="header-chip-content">
@@ -112,9 +112,9 @@ export default function HeaderManager({
                   type="radio"
                   name="placement"
                   value="top"
-                  checked={newPlacement === "top"}
-                  onChange={() => setNewPlacement("top")}
-                />{" "}
+                  checked={newPlacement === 'top'}
+                  onChange={() => setNewPlacement('top')}
+                />{' '}
                 Top
               </label>
               <label>
@@ -122,9 +122,9 @@ export default function HeaderManager({
                   type="radio"
                   name="placement"
                   value="bottom"
-                  checked={newPlacement === "bottom"}
-                  onChange={() => setNewPlacement("bottom")}
-                />{" "}
+                  checked={newPlacement === 'bottom'}
+                  onChange={() => setNewPlacement('bottom')}
+                />{' '}
                 Bottom
               </label>
               <label>
@@ -132,9 +132,9 @@ export default function HeaderManager({
                   type="radio"
                   name="placement"
                   value="left"
-                  checked={newPlacement === "left"}
-                  onChange={() => setNewPlacement("left")}
-                />{" "}
+                  checked={newPlacement === 'left'}
+                  onChange={() => setNewPlacement('left')}
+                />{' '}
                 Left
               </label>
               <label>
@@ -142,9 +142,9 @@ export default function HeaderManager({
                   type="radio"
                   name="placement"
                   value="right"
-                  checked={newPlacement === "right"}
-                  onChange={() => setNewPlacement("right")}
-                />{" "}
+                  checked={newPlacement === 'right'}
+                  onChange={() => setNewPlacement('right')}
+                />{' '}
                 Right
               </label>
             </div>
@@ -152,18 +152,18 @@ export default function HeaderManager({
 
           <div className="form-group">
             <label className="form-label">
-              Header Identifier (dataElement){" "}
+              Header Identifier (dataElement){' '}
               <span className="required-star">*</span>
             </label>
             <input
               value={newHeaderId}
               onChange={(e) => setNewHeaderId(e.target.value)}
               placeholder={
-                newPlacement === "bottom"
-                  ? "e.g. bottom-nav-bar"
-                  : newPlacement === "left"
-                    ? "e.g. left-annotation-toolbar"
-                    : "e.g. my-custom-top-header"
+                newPlacement === 'bottom'
+                  ? 'e.g. bottom-nav-bar'
+                  : newPlacement === 'left'
+                    ? 'e.g. left-annotation-toolbar'
+                    : 'e.g. my-custom-top-header'
               }
               className="form-input monospace"
               required

@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Modular UI Test Harness</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        font:
+          13px system-ui,
+          sans-serif;
+      }
+      #viewer {
+        flex: 1;
+        min-width: 0;
+      }
+      #side {
+        width: 520px;
+        overflow: auto;
+        padding: 10px;
+        border-left: 1px solid #ddd;
+      }
+      .test {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .test h4 {
+        margin: 0 0 4px;
+      }
+      .look {
+        color: #555;
+        margin: 4px 0;
+      }
+      .result {
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .ok {
+        color: #0a7d2c;
+      }
+      .fail {
+        color: #b00020;
+      }
+      .warn {
+        color: #a65f00;
+      }
+      button {
+        margin-right: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <div id="side">
+      <h3>Modular UI Test Harness</h3>
+      <div>
+        <button id="runAll">Run all</button>
+        <button id="reset">Reset UI</button>
+        <button id="dump">Dump default config</button>
+        <button id="copy">Copy results</button>
+      </div>
+      <p class="look">
+        Each test imports a config, then tries to open the target element. Auto
+        result is shown below each test. Items marked "LOOK" need a visual check
+        in the viewer.
+      </p>
+      <div id="tests"></div>
+    </div>
+    <script type="module" src="/src/harness/harness.js"></script>
+  </body>
+</html>

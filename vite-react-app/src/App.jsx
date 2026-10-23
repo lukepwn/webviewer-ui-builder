@@ -14,12 +14,14 @@ function App() {
     WebViewer(
       {
         path: 'lib/webviewer',
-        licenseKey: 'YOUR_LICENSE_KEY',
+        fullAPI: true,
+        // licenseKey: 'YOUR_LICENSE_KEY',
         initialDoc:
           'https://pdftron.s3.amazonaws.com/downloads/pl/demo-annotated.pdf',
       },
       viewer.current,
     ).then((instance) => {
+      localStorage.removeItem('init_timestamp');
       viewer.current.dataset.webviewerMounted = 'true';
 
       // Expose instance for the builder and debugging
