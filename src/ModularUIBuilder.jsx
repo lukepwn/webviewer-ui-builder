@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import ToolButtonsCategorized from './components/ToolButtonsCategorized';
 import HeaderManager from './components/HeaderManager';
 import AddComponentModal from './components/AddComponentModal';
@@ -32,7 +38,9 @@ export default function ModularUIBuilder() {
   const [activeSection, setActiveSection] = useState('headers');
   const [activeHeader, setActiveHeader] = useState('default-top-header');
   const [selectedRibbonTab, setSelectedRibbonTab] = useState('');
+  const [headerSubView, setHeaderSubView] = useState('header');
   const [activeFlyout, setActiveFlyout] = useState('');
+  const [activePopup, setActivePopup] = useState('annotationPopup');
   const [autoApply, setAutoApply] = useState(true);
   // Items the SDK guardrails removed/adjusted on the last apply (from prepareConfigForImport)
   const [importWarnings, setImportWarnings] = useState([]);
@@ -42,6 +50,7 @@ export default function ModularUIBuilder() {
   const [modalInitialTab, setModalInitialTab] = useState('tool');
   const [modalInitialLocation, setModalInitialLocation] = useState(null);
   const [modalInitialFlyout, setModalInitialFlyout] = useState(null);
+  const [modalInitialPopup, setModalInitialPopup] = useState(null);
 
   // Keep a pristine backup of WebViewer's default UI configuration on mount
   const defaultConfigRef = useRef(null);
@@ -99,11 +108,21 @@ export default function ModularUIBuilder() {
     }
   }, [config, autoApply, applyConfigToViewer]);
 
-  // Keep active header valid
+  // Keep active header valid (excluding internal tools-header)
   useEffect(() => {
-    const headerKeys = Object.keys(config.modularHeaders || {});
-    if (headerKeys.length > 0 && !config.modularHeaders[activeHeader]) {
-      setActiveHeader(headerKeys[0]);
+    const userHeaderKeys = Object.keys(config.modularHeaders || {}).filter(
+      (k) => k !== 'tools-header',
+    );
+    if (userHeaderKeys.length > 0) {
+      if (
+        !activeHeader ||
+        activeHeader === 'tools-header' ||
+        !config.modularHeaders[activeHeader]
+      ) {
+        setActiveHeader(userHeaderKeys[0]);
+      }
+    } else {
+      setActiveHeader('');
     }
   }, [config.modularHeaders, activeHeader]);
 
@@ -119,56 +138,50 @@ export default function ModularUIBuilder() {
     }
   }, [config.flyouts, activeFlyout]);
 
-  // Helper: Extract ribbon tabs belonging to active header
-  const getRibbonTabs = useCallback(() => {
-    if (!activeHeader || !config.modularHeaders[activeHeader]) return [];
-    const headerItems = config.modularHeaders[activeHeader].items || [];
-    const tabs = [];
+  // Helper: Extract ribbon tabs belonging to a specific header
+  const getRibbonTabsForHeader = useCallback(
+    (headerKey) => {
+      if (!headerKey || !config.modularHeaders?.[headerKey]) return [];
+      const headerItems = config.modularHeaders[headerKey].items || [];
+      const tabs = [];
 
-    // Find ribbon group component in this header
-    for (const itemKey of headerItems) {
-      const comp = config.modularComponents[itemKey];
-      if (comp?.type === 'ribbonGroup' || itemKey === 'default-ribbon-group') {
-        const groupItems = Array.isArray(comp?.items) ? comp.items : [];
-        for (const tabItem of groupItems) {
-          const tabKey =
-            typeof tabItem === 'string' ? tabItem : tabItem?.dataElement;
-          if (!tabKey) continue;
-          const tabComp = config.modularComponents[tabKey] || tabItem;
+      // Find ribbon group component in this header
+      for (const itemKey of headerItems) {
+        const comp = config.modularComponents?.[itemKey];
+        if (
+          comp?.type === 'ribbonGroup' ||
+          itemKey === 'default-ribbon-group'
+        ) {
+          const groupItems = Array.isArray(comp?.items) ? comp.items : [];
+          for (const tabItem of groupItems) {
+            const tabKey =
+              typeof tabItem === 'string' ? tabItem : tabItem?.dataElement;
+            if (!tabKey) continue;
+            const tabComp = config.modularComponents?.[tabKey] || tabItem;
+            tabs.push({
+              key: tabKey,
+              label: tabComp?.label || tabComp?.title || tabKey,
+              component: tabComp,
+            });
+          }
+        } else if (comp?.type === 'ribbonItem') {
           tabs.push({
-            key: tabKey,
-            label: tabComp?.label || tabComp?.title || tabKey,
-            component: tabComp,
-          });
-        }
-      } else if (comp?.type === 'ribbonItem') {
-        tabs.push({
-          key: itemKey,
-          label: comp.label || comp.title || itemKey,
-          component: comp,
-        });
-      }
-    }
-
-    // Also include any top-level ribbon items in modularComponents if no ribbon group was explicitly defined
-    if (tabs.length === 0) {
-      for (const [key, comp] of Object.entries(
-        config.modularComponents || {},
-      )) {
-        if (comp?.type === 'ribbonItem') {
-          tabs.push({
-            key,
-            label: comp.label || comp.title || key,
+            key: itemKey,
+            label: comp.label || comp.title || itemKey,
             component: comp,
           });
         }
       }
-    }
 
-    return tabs;
-  }, [activeHeader, config]);
+      return tabs;
+    },
+    [config],
+  );
 
-  const ribbonTabs = getRibbonTabs();
+  const ribbonTabs = useMemo(
+    () => getRibbonTabsForHeader(activeHeader),
+    [getRibbonTabsForHeader, activeHeader],
+  );
 
   // Set default selected ribbon tab if current is invalid
   useEffect(() => {
@@ -183,6 +196,13 @@ export default function ModularUIBuilder() {
       setSelectedRibbonTab('');
     }
   }, [ribbonTabs, selectedRibbonTab]);
+
+  // Default to header items if active header has no ribbon tabs
+  useEffect(() => {
+    if (ribbonTabs.length === 0) {
+      setHeaderSubView('header');
+    }
+  }, [ribbonTabs.length]);
 
   const handleSelectRibbonTab = useCallback((tabKey) => {
     setSelectedRibbonTab(tabKey);
@@ -277,11 +297,6 @@ export default function ModularUIBuilder() {
         dataElement: itemKey,
       };
 
-      // Exclude ribbon groups from the direct tools list
-      if (comp.type === 'ribbonGroup' || itemKey === 'default-ribbon-group') {
-        continue;
-      }
-
       result.push({
         key: itemKey,
         component: comp,
@@ -307,7 +322,9 @@ export default function ModularUIBuilder() {
     if (defaultConfigRef.current) {
       const restored = JSON.parse(JSON.stringify(defaultConfigRef.current));
       setConfig(restored);
-      const keys = Object.keys(restored.modularHeaders || {});
+      const keys = Object.keys(restored.modularHeaders || {}).filter(
+        (k) => k !== 'tools-header',
+      );
       if (keys.length > 0) setActiveHeader(keys[0]);
       applyConfigToViewer(restored);
     } else if (window.viewerInstance?.UI) {
@@ -342,22 +359,44 @@ export default function ModularUIBuilder() {
     });
   };
 
-  // 4b. Delete Ribbon Tab
+  // 4b. Delete Ribbon Tab (RibbonItem)
   const handleDeleteRibbonTab = (ribbonKey) => {
     setConfig((prev) => {
       const nextComponents = { ...prev.modularComponents };
       const nextHeaders = { ...prev.modularHeaders };
 
       const tabComp = nextComponents[ribbonKey];
+      const associatedGroupedItems =
+        tabComp && Array.isArray(tabComp.groupedItems)
+          ? [...tabComp.groupedItems]
+          : [];
+
       // Clean up groupedItems containers belonging to this ribbon tab
-      if (tabComp && Array.isArray(tabComp.groupedItems)) {
-        for (const groupKey of tabComp.groupedItems) {
-          delete nextComponents[groupKey];
-        }
+      for (const groupKey of associatedGroupedItems) {
+        delete nextComponents[groupKey];
       }
       delete nextComponents[ribbonKey];
 
+      // Clean up tools-header
+      if (
+        nextHeaders['tools-header'] &&
+        Array.isArray(nextHeaders['tools-header'].items)
+      ) {
+        const filteredTh = nextHeaders['tools-header'].items.filter(
+          (k) => !associatedGroupedItems.includes(k),
+        );
+        if (filteredTh.length === 0) {
+          delete nextHeaders['tools-header'];
+        } else {
+          nextHeaders['tools-header'] = {
+            ...nextHeaders['tools-header'],
+            items: filteredTh,
+          };
+        }
+      }
+
       // Remove from any ribbonGroup.items in modularComponents
+      const emptyRibbonGroups = new Set();
       for (const [k, comp] of Object.entries(nextComponents)) {
         if (comp?.type === 'ribbonGroup' && Array.isArray(comp.items)) {
           const filtered = comp.items.filter((item) => {
@@ -366,6 +405,25 @@ export default function ModularUIBuilder() {
           });
           if (filtered.length !== comp.items.length) {
             nextComponents[k] = { ...comp, items: filtered };
+          }
+          if (filtered.length === 0) {
+            emptyRibbonGroups.add(k);
+          }
+        }
+      }
+
+      // Auto-clean empty RibbonGroups
+      for (const emptyGroupKey of emptyRibbonGroups) {
+        delete nextComponents[emptyGroupKey];
+        for (const [hKey, hConfig] of Object.entries(nextHeaders)) {
+          if (
+            Array.isArray(hConfig.items) &&
+            hConfig.items.includes(emptyGroupKey)
+          ) {
+            nextHeaders[hKey] = {
+              ...hConfig,
+              items: hConfig.items.filter((id) => id !== emptyGroupKey),
+            };
           }
         }
       }
@@ -390,13 +448,51 @@ export default function ModularUIBuilder() {
 
   // 5. Add Component to Header or Ribbon Tab
   const handleAddComponent = ({ target, componentType, component }) => {
-    const { headerKey, targetLocationType, ribbonTabKey } = target;
+    const { headerKey, targetLocationType, ribbonTabKey, popupKey } = target;
     const compKey = component.dataElement;
 
     setConfig((prev) => {
       const modularComponents = { ...prev.modularComponents };
       const modularHeaders = { ...prev.modularHeaders };
       const nextFlyouts = { ...prev.flyouts };
+      const nextPopups = { ...prev.popups };
+
+      if (targetLocationType === 'popup' && popupKey) {
+        const currentPopupList = Array.isArray(nextPopups[popupKey])
+          ? [...nextPopups[popupKey]]
+          : (DEFAULT_POPUPS[popupKey] || []).map((i) => ({ ...i }));
+
+        const popupItem =
+          componentType !== 'popupAction'
+            ? { ...component, dataElement: compKey }
+            : { dataElement: compKey };
+
+        currentPopupList.push(popupItem);
+        nextPopups[popupKey] = currentPopupList;
+
+        const nextPanels = { ...prev.panels };
+        if (
+          (componentType === 'toggleButton' ||
+            component.type === 'toggleButton') &&
+          (component.toggleElement || component.element)
+        ) {
+          const panelId = component.toggleElement || component.element;
+          const catalogDef = PANELS_CATALOG.find((p) => p.id === panelId);
+          if (catalogDef && !nextPanels[panelId]) {
+            nextPanels[panelId] = {
+              dataElement: panelId,
+              location: catalogDef?.defaultLocation || 'left',
+              render: catalogDef?.render || panelId,
+            };
+          }
+        }
+
+        return {
+          ...prev,
+          popups: nextPopups,
+          panels: nextPanels,
+        };
+      }
 
       const isFlyoutDivider =
         targetLocationType === 'flyout' &&
@@ -422,7 +518,10 @@ export default function ModularUIBuilder() {
         : [];
 
       if (componentType === 'ribbonItem') {
-        const cleanName = compKey.replace(/^toolbarGroup-/, '');
+        const cleanName = compKey
+          .replace(/RibbonItem$/i, '')
+          .replace(/^toolbarGroup-/, '')
+          .replace(/^ribbon-/, '');
         const groupContainerKey =
           (Array.isArray(component.groupedItems) &&
             component.groupedItems.length > 0 &&
@@ -504,6 +603,9 @@ export default function ModularUIBuilder() {
 
         modularHeaders[headerKey] = headerObj;
         setSelectedRibbonTab(compKey);
+        if (headerKey && headerKey !== activeHeader) {
+          setActiveHeader(headerKey);
+        }
         return { ...prev, modularComponents, modularHeaders };
       }
 
@@ -512,6 +614,10 @@ export default function ModularUIBuilder() {
         ribbonTabKey &&
         modularComponents[ribbonTabKey]
       ) {
+        if (headerKey && headerKey !== activeHeader) {
+          setActiveHeader(headerKey);
+        }
+        setSelectedRibbonTab(ribbonTabKey);
         // Add to active ribbon tab
         const tabComp = { ...modularComponents[ribbonTabKey] };
         let groupContainerKey =
@@ -521,7 +627,10 @@ export default function ModularUIBuilder() {
 
         // Auto-create container if tab does not have one
         if (!groupContainerKey) {
-          const cleanName = ribbonTabKey.replace(/^toolbarGroup-/, '');
+          const cleanName = ribbonTabKey
+            .replace(/RibbonItem$/i, '')
+            .replace(/^toolbarGroup-/, '')
+            .replace(/^ribbon-/, '');
           groupContainerKey = `${cleanName.charAt(0).toLowerCase()}${cleanName.slice(1)}GroupedItems`;
           tabComp.groupedItems = [groupContainerKey];
           modularComponents[ribbonTabKey] = tabComp;
@@ -625,83 +734,218 @@ export default function ModularUIBuilder() {
       const modularHeaders = { ...prev.modularHeaders };
       const nextFlyouts = { ...prev.flyouts };
 
-      // Repeated entries (e.g. several dividers): remove only the clicked
-      // occurrence from its own list and keep the shared component definition.
-      if (targetContext.isDuplicate) {
-        const state = { modularComponents, modularHeaders, nextFlyouts };
-        const applied = updateContextList(
-          state,
-          itemKey,
-          targetContext,
-          (arr) => {
-            const idx = nthIndexOf(arr, itemKey, targetContext.occurrence || 0);
-            if (idx < 0) return null;
-            const list = [...arr];
-            list.splice(idx, 1);
-            return list;
-          },
-        );
-        if (applied) {
-          return {
-            ...prev,
-            modularComponents,
-            modularHeaders,
-            flyouts: nextFlyouts,
-          };
+      const targetComp = modularComponents[itemKey];
+
+      // A. If deleting a RibbonGroup: cascade delete child RibbonItems, their GroupedItems, and clean tools-header
+      if (targetComp?.type === 'ribbonGroup') {
+        const childRibbonKeys = Array.isArray(targetComp.items)
+          ? [...targetComp.items]
+          : [];
+        const allAssociatedGroupedItems = [];
+
+        for (const rKey of childRibbonKeys) {
+          const rComp = modularComponents[rKey];
+          if (rComp && Array.isArray(rComp.groupedItems)) {
+            for (const gKey of rComp.groupedItems) {
+              allAssociatedGroupedItems.push(gKey);
+              delete modularComponents[gKey];
+            }
+          }
+          delete modularComponents[rKey];
         }
+
+        delete modularComponents[itemKey];
+
+        // Clean up headers (including tools-header)
+        for (const [hKey, hConfig] of Object.entries(modularHeaders)) {
+          if (Array.isArray(hConfig?.items)) {
+            modularHeaders[hKey] = {
+              ...hConfig,
+              items: hConfig.items.filter(
+                (k) =>
+                  k !== itemKey &&
+                  !childRibbonKeys.includes(k) &&
+                  !allAssociatedGroupedItems.includes(k),
+              ),
+            };
+          }
+        }
+
+        // Clean up tools-header if empty
+        if (
+          modularHeaders['tools-header'] &&
+          Array.isArray(modularHeaders['tools-header'].items) &&
+          modularHeaders['tools-header'].items.length === 0
+        ) {
+          delete modularHeaders['tools-header'];
+        }
+
+        return {
+          ...prev,
+          modularComponents,
+          modularHeaders,
+          flyouts: nextFlyouts,
+        };
       }
 
-      const targetComp = modularComponents[itemKey];
-      const associatedGroupedItems =
-        targetComp?.type === 'ribbonItem' &&
-        Array.isArray(targetComp?.groupedItems)
+      // B. If deleting a RibbonItem: cascade delete its groupedItems, remove from tools-header and ribbonGroup
+      if (targetComp?.type === 'ribbonItem') {
+        const associatedGroupedItems = Array.isArray(targetComp?.groupedItems)
           ? [...targetComp.groupedItems]
           : [];
 
-      // Delete from modularComponents
-      delete modularComponents[itemKey];
-      for (const gKey of associatedGroupedItems) {
-        delete modularComponents[gKey];
-      }
-
-      // Remove from header items (including tools-header)
-      for (const [hKey, hConfig] of Object.entries(modularHeaders)) {
-        if (Array.isArray(hConfig?.items)) {
-          modularHeaders[hKey] = {
-            ...hConfig,
-            items: hConfig.items.filter(
-              (k) => k !== itemKey && !associatedGroupedItems.includes(k),
-            ),
-          };
+        delete modularComponents[itemKey];
+        for (const gKey of associatedGroupedItems) {
+          delete modularComponents[gKey];
         }
-      }
 
-      // Remove from ribbon tabs and groupedItems
-      for (const [compKey, comp] of Object.entries(modularComponents)) {
-        if (Array.isArray(comp?.items) && comp.items.includes(itemKey)) {
-          modularComponents[compKey] = {
-            ...comp,
-            items: comp.items.filter((k) => k !== itemKey),
-          };
+        // Clean up headers
+        for (const [hKey, hConfig] of Object.entries(modularHeaders)) {
+          if (Array.isArray(hConfig?.items)) {
+            modularHeaders[hKey] = {
+              ...hConfig,
+              items: hConfig.items.filter(
+                (k) => k !== itemKey && !associatedGroupedItems.includes(k),
+              ),
+            };
+          }
         }
+
+        // Remove from parent ribbon groups and auto-clean empty ribbon groups
+        const emptyRibbonGroups = new Set();
+        for (const [compKey, comp] of Object.entries(modularComponents)) {
+          if (comp?.type === 'ribbonGroup' && Array.isArray(comp?.items)) {
+            const filtered = comp.items.filter((k) => k !== itemKey);
+            if (filtered.length !== comp.items.length) {
+              modularComponents[compKey] = { ...comp, items: filtered };
+            }
+            if (filtered.length === 0) {
+              emptyRibbonGroups.add(compKey);
+            }
+          }
+        }
+
+        // Auto-clean empty RibbonGroups
+        for (const emptyGroupKey of emptyRibbonGroups) {
+          delete modularComponents[emptyGroupKey];
+          for (const [hKey, hConfig] of Object.entries(modularHeaders)) {
+            if (
+              Array.isArray(hConfig?.items) &&
+              hConfig.items.includes(emptyGroupKey)
+            ) {
+              modularHeaders[hKey] = {
+                ...hConfig,
+                items: hConfig.items.filter((id) => id !== emptyGroupKey),
+              };
+            }
+          }
+        }
+
+        // Clean up tools-header if empty
         if (
-          Array.isArray(comp?.groupedItems) &&
-          comp.groupedItems.includes(itemKey)
+          modularHeaders['tools-header'] &&
+          Array.isArray(modularHeaders['tools-header'].items) &&
+          modularHeaders['tools-header'].items.length === 0
         ) {
-          modularComponents[compKey] = {
-            ...comp,
-            groupedItems: comp.groupedItems.filter((k) => k !== itemKey),
-          };
+          delete modularHeaders['tools-header'];
         }
+
+        return {
+          ...prev,
+          modularComponents,
+          modularHeaders,
+          flyouts: nextFlyouts,
+        };
       }
 
-      // Remove from flyouts
-      for (const [fKey, fConfig] of Object.entries(nextFlyouts)) {
-        if (Array.isArray(fConfig?.items) && fConfig.items.includes(itemKey)) {
-          nextFlyouts[fKey] = {
-            ...fConfig,
-            items: fConfig.items.filter((k) => k !== itemKey),
-          };
+      // C. Regular component/tool targeted deletion
+      const state = { modularComponents, modularHeaders, nextFlyouts };
+      const applied = updateContextList(
+        state,
+        itemKey,
+        targetContext,
+        (arr) => {
+          const occurrence = targetContext.occurrence || 0;
+          const idx = nthIndexOf(arr, itemKey, occurrence);
+          if (idx < 0) {
+            const firstIdx = arr.indexOf(itemKey);
+            if (firstIdx < 0) return null;
+            const list = [...arr];
+            list.splice(firstIdx, 1);
+            return list;
+          }
+          const list = [...arr];
+          list.splice(idx, 1);
+          return list;
+        },
+      );
+
+      if (!applied) {
+        delete modularComponents[itemKey];
+        for (const [hKey, hConfig] of Object.entries(modularHeaders)) {
+          if (Array.isArray(hConfig?.items)) {
+            modularHeaders[hKey] = {
+              ...hConfig,
+              items: hConfig.items.filter((k) => k !== itemKey),
+            };
+          }
+        }
+        for (const [cKey, comp] of Object.entries(modularComponents)) {
+          if (Array.isArray(comp?.items)) {
+            modularComponents[cKey] = {
+              ...comp,
+              items: comp.items.filter((k) => k !== itemKey),
+            };
+          }
+          if (Array.isArray(comp?.groupedItems)) {
+            modularComponents[cKey] = {
+              ...comp,
+              groupedItems: comp.groupedItems.filter((k) => k !== itemKey),
+            };
+          }
+        }
+        for (const [fKey, fConfig] of Object.entries(nextFlyouts)) {
+          if (Array.isArray(fConfig?.items)) {
+            nextFlyouts[fKey] = {
+              ...fConfig,
+              items: fConfig.items.filter((k) => k !== itemKey),
+            };
+          }
+        }
+      } else {
+        // If the component definition is no longer referenced anywhere, prune it
+        let isReferenced = false;
+        for (const h of Object.values(modularHeaders)) {
+          if (Array.isArray(h?.items) && h.items.includes(itemKey)) {
+            isReferenced = true;
+            break;
+          }
+        }
+        if (!isReferenced) {
+          for (const c of Object.values(modularComponents)) {
+            if (Array.isArray(c?.items) && c.items.includes(itemKey)) {
+              isReferenced = true;
+              break;
+            }
+            if (
+              Array.isArray(c?.groupedItems) &&
+              c.groupedItems.includes(itemKey)
+            ) {
+              isReferenced = true;
+              break;
+            }
+          }
+        }
+        if (!isReferenced) {
+          for (const f of Object.values(nextFlyouts)) {
+            if (Array.isArray(f?.items) && f.items.includes(itemKey)) {
+              isReferenced = true;
+              break;
+            }
+          }
+        }
+        if (!isReferenced && itemKey !== 'divider') {
+          delete modularComponents[itemKey];
         }
       }
 
@@ -878,7 +1122,7 @@ export default function ModularUIBuilder() {
         };
         const headerItems = [...(nextHeaders[headerToUse].items || [])];
         if (!headerItems.includes(toggleKey)) {
-          headerItems.unshift(toggleKey);
+          headerItems.push(toggleKey);
         }
         nextHeaders[headerToUse] = {
           ...nextHeaders[headerToUse],
@@ -893,7 +1137,6 @@ export default function ModularUIBuilder() {
         modularHeaders: nextHeaders,
       };
     });
-    setIsAddModalOpen(false);
   };
 
   const handleAddFlyout = ({
@@ -902,11 +1145,14 @@ export default function ModularUIBuilder() {
     title,
     icon,
     targetHeader,
+    targetLocationType,
+    targetPopup,
   }) => {
     setConfig((prev) => {
       const nextFlyouts = { ...prev.flyouts };
       const nextComponents = { ...prev.modularComponents };
       const nextHeaders = { ...prev.modularHeaders };
+      const nextPopups = { ...prev.popups };
 
       // 1. Register flyout container
       nextFlyouts[dataElement] = {
@@ -916,27 +1162,36 @@ export default function ModularUIBuilder() {
 
       // 2. Register toggle button
       const toggleKey = `${dataElement}Toggle`;
-      nextComponents[toggleKey] = {
+      const toggleButtonObj = {
         type: 'toggleButton',
         dataElement: toggleKey,
         toggleElement: dataElement,
         element: dataElement,
         label: label || 'Flyout',
         title: title || `Toggle ${dataElement}`,
-        img: icon || 'icon-header-more-tools',
+        img: icon || 'icon-tools-more',
       };
 
-      // 3. Add toggle button to destination header
-      const headerToUse = targetHeader || activeHeader;
-      if (headerToUse && nextHeaders[headerToUse]) {
-        const headerItems = [...(nextHeaders[headerToUse].items || [])];
-        if (!headerItems.includes(toggleKey)) {
-          headerItems.push(toggleKey);
+      // 3. Add toggle button to destination (header or popup)
+      if (targetLocationType === 'popup' && targetPopup) {
+        const popupItems = Array.isArray(nextPopups[targetPopup])
+          ? [...nextPopups[targetPopup]]
+          : (DEFAULT_POPUPS[targetPopup] || []).map((i) => ({ ...i }));
+        popupItems.push(toggleButtonObj);
+        nextPopups[targetPopup] = popupItems;
+      } else {
+        nextComponents[toggleKey] = toggleButtonObj;
+        const headerToUse = targetHeader || activeHeader;
+        if (headerToUse && nextHeaders[headerToUse]) {
+          const headerItems = [...(nextHeaders[headerToUse].items || [])];
+          if (!headerItems.includes(toggleKey)) {
+            headerItems.push(toggleKey);
+          }
+          nextHeaders[headerToUse] = {
+            ...nextHeaders[headerToUse],
+            items: headerItems,
+          };
         }
-        nextHeaders[headerToUse] = {
-          ...nextHeaders[headerToUse],
-          items: headerItems,
-        };
       }
 
       return {
@@ -944,10 +1199,10 @@ export default function ModularUIBuilder() {
         flyouts: nextFlyouts,
         modularComponents: nextComponents,
         modularHeaders: nextHeaders,
+        popups: nextPopups,
       };
     });
     setActiveFlyout(dataElement);
-    setIsAddModalOpen(false);
   };
 
   const handleDeleteFlyout = (flyoutId) => {
@@ -1041,11 +1296,20 @@ export default function ModularUIBuilder() {
   const openAddModal = (
     tabName = 'tool',
     targetLocation = null,
-    targetFlyout = null,
+    targetKey = null,
   ) => {
     setModalInitialTab(tabName);
     setModalInitialLocation(targetLocation);
-    setModalInitialFlyout(targetFlyout);
+    if (targetLocation === 'flyout') {
+      setModalInitialFlyout(targetKey);
+      setModalInitialPopup(null);
+    } else if (targetLocation === 'popup') {
+      setModalInitialPopup(targetKey || activePopup || 'annotationPopup');
+      setModalInitialFlyout(null);
+    } else {
+      setModalInitialFlyout(null);
+      setModalInitialPopup(null);
+    }
     setIsAddModalOpen(true);
   };
 
@@ -1097,6 +1361,38 @@ export default function ModularUIBuilder() {
         </div>
       )}
 
+      {/* GLOBAL ELEVATED ADD COMPONENT ACTION */}
+      <div className="global-add-bar" style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          className="central-add-button"
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+          onClick={() => {
+            if (activeSection === 'popups') {
+              openAddModal('tool', 'popup', activePopup || 'annotationPopup');
+            } else if (activeSection === 'flyouts' && activeFlyout) {
+              openAddModal('tool', 'flyout', activeFlyout);
+            } else if (
+              activeSection === 'headers' &&
+              headerSubView === 'ribbon' &&
+              selectedRibbonTab
+            ) {
+              openAddModal('tool', 'ribbon');
+            } else {
+              openAddModal('tool', 'header');
+            }
+          }}
+          title="Add tools, preset buttons, toggles, controls, or containers"
+        >
+          + Add Component
+        </button>
+      </div>
+
       {/* TOP-LEVEL BUILDER SECTION TABS */}
       <div
         className="filter-container"
@@ -1142,6 +1438,7 @@ export default function ModularUIBuilder() {
                 onSelectHeader={setActiveHeader}
                 onAddHeader={handleAddHeader}
                 onDeleteHeader={handleDeleteHeader}
+                onOpenAddModal={openAddModal}
               />
             </section>
 
@@ -1161,6 +1458,8 @@ export default function ModularUIBuilder() {
                   onDeleteTool={handleDeleteTool}
                   onMoveItem={handleMoveItem}
                   onOpenAddModal={openAddModal}
+                  subView={headerSubView}
+                  onSubViewChange={setHeaderSubView}
                 />
               </section>
             )}
@@ -1371,7 +1670,10 @@ export default function ModularUIBuilder() {
             <PopupsManager
               popups={config.popups || {}}
               modularComponents={config.modularComponents || {}}
+              activePopupId={activePopup}
+              onSelectPopup={setActivePopup}
               onUpdatePopup={handleUpdatePopup}
+              onOpenAddModal={openAddModal}
             />
           </section>
         )}
@@ -1424,15 +1726,22 @@ export default function ModularUIBuilder() {
         initialTab={modalInitialTab}
         initialLocation={modalInitialLocation}
         initialFlyout={modalInitialFlyout}
-        headerOptions={Object.keys(config.modularHeaders || {})}
+        initialPopup={modalInitialPopup}
+        headerOptions={Object.keys(config.modularHeaders || {}).filter(
+          (k) => k !== 'tools-header',
+        )}
         activeHeader={activeHeader}
         ribbonTabs={ribbonTabs}
+        getRibbonTabs={getRibbonTabsForHeader}
+        onHeaderChange={setActiveHeader}
         activeRibbonTab={selectedRibbonTab}
         panels={config.panels || {}}
         flyouts={config.flyouts || {}}
+        popups={config.popups || {}}
         onAddComponent={handleAddComponent}
         onAddTabPanel={handleAddTabPanel}
         onAddFlyout={handleAddFlyout}
+        onAddHeader={handleAddHeader}
       />
     </div>
   );

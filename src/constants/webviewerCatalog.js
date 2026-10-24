@@ -798,7 +798,7 @@ export const PRESET_FLYOUTS_CATALOG = [
     id: 'customActionsFlyout',
     name: 'Custom Actions Flyout',
     description: 'Custom dropdown container for modular tools and actions',
-    toggleIcon: 'icon-header-more-tools',
+    toggleIcon: 'icon-tools-more',
     defaultToggleId: 'customActionsToggle',
     toggleLabel: 'More Tools',
     isBuiltIn: false,
@@ -1007,6 +1007,29 @@ export const POPUPS_CATALOG = [
     ],
   },
 ];
+
+export const BUILTIN_POPUP_ITEMS_CATALOG = (() => {
+  const itemsMap = new Map();
+  for (const popup of POPUPS_CATALOG) {
+    for (const item of popup.defaultItems) {
+      if (!itemsMap.has(item.dataElement)) {
+        itemsMap.set(item.dataElement, {
+          dataElement: item.dataElement,
+          label: item.label,
+          context: item.context,
+          isCore: !!item.isCore,
+          popups: [popup.id],
+        });
+      } else {
+        const existing = itemsMap.get(item.dataElement);
+        if (!existing.popups.includes(popup.id)) {
+          existing.popups.push(popup.id);
+        }
+      }
+    }
+  }
+  return Array.from(itemsMap.values());
+})();
 
 export const DEFAULT_POPUPS = Object.fromEntries(
   POPUPS_CATALOG.map((p) => [

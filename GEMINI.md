@@ -15,7 +15,7 @@ This file is automatically loaded by the AI assistant at the start of every chat
 ## 2. Project Overview & Context
 
 - **Project**: WebViewer UI Builder (`webviewer-ui-builder`)
-- **Location**: `vite-react-app/` contains the React + Vite application.
+- **Location**: Root directory (`./`) contains the React + Vite application.
 - **Purpose**: Interactive UI builder using WebViewer (Apryse / PDFTron) Modular UI components to design and customize UI templates.
 - **Key Concepts**:
   - Modular UI ribbon groups, headers, tool buttons, custom buttons, and panels.

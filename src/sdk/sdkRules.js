@@ -68,6 +68,15 @@ export const VALID_POPUP_KEYS = new Set([
   'contextMenuPopup',
 ]);
 
+// Component types allowed when targeting a popup in the Add Component modal.
+export const POPUP_ALLOWED_ITEM_TYPES = new Set([
+  'toolButton',
+  'presetButton',
+  'customButton',
+  'toggleButton',
+  'popupAction',
+]);
+
 // Panel renders the SDK's validatePanels accepts. A non-whitelisted render
 // aborts the entire import.
 export const VALID_PANEL_RENDERS = new Set([

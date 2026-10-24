@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.1.4 - Unify popups and fix edge cases (2026-10-24)
+
+- added popups to component modal
+- updated UI
+- added edge cases
+
 ## v0.1.3 - UI Rework & Added Functions (2026-10-23)
 
 - added flyouts

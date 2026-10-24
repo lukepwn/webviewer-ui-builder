@@ -418,20 +418,28 @@ function normalizePopups(rawConfig, warnings) {
     }
     const cleanList = [];
     for (const entry of list) {
-      if (typeof entry === 'string' && entry.trim()) {
-        cleanList.push({ dataElement: entry.trim() });
-      } else if (
-        entry &&
-        typeof entry === 'object' &&
-        typeof entry.dataElement === 'string' &&
-        entry.dataElement.trim()
-      ) {
-        cleanList.push({ ...entry, dataElement: entry.dataElement.trim() });
-      } else {
+      const dataElement = (
+        typeof entry === 'string' ? entry : entry?.dataElement || ''
+      ).trim();
+      if (!dataElement) {
         warnings.push(
           `Popup '${popupKey}': dropped invalid item (each item must have a 'dataElement').`,
         );
+        continue;
       }
+
+      const rawEntryObj =
+        typeof entry === 'object' && entry !== null ? entry : {};
+      const compDef = rawConfig.modularComponents?.[dataElement];
+
+      // WebViewer's popup renderer reads component properties (type, toolName, img, title, etc.)
+      // directly from the popup item object in config.popups, rather than resolving them from
+      // modularComponents. If the definition exists in modularComponents, merge it in.
+      const hydrated = compDef
+        ? { ...compDef, ...rawEntryObj, dataElement }
+        : { ...rawEntryObj, dataElement };
+
+      cleanList.push(hydrated);
     }
     sanitizedPopups[popupKey] = cleanList;
   }

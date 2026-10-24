@@ -4,10 +4,16 @@ import { POPUPS_CATALOG, DEFAULT_POPUPS } from '../constants/webviewerCatalog';
 export default function PopupsManager({
   popups = {},
   modularComponents = {},
+  activePopupId: propActivePopupId,
+  onSelectPopup,
   onUpdatePopup,
+  onOpenAddModal,
 }) {
-  const [activePopupId, setActivePopupId] = useState(POPUPS_CATALOG[0].id);
-  const [selectedAddItem, setSelectedAddItem] = useState('');
+  const [localActivePopupId, setLocalActivePopupId] = useState(
+    POPUPS_CATALOG[0].id,
+  );
+  const activePopupId = propActivePopupId || localActivePopupId;
+  const setActivePopupId = onSelectPopup || setLocalActivePopupId;
 
   const popupMeta =
     POPUPS_CATALOG.find((p) => p.id === activePopupId) || POPUPS_CATALOG[0];
@@ -42,49 +48,6 @@ export default function PopupsManager({
     }
     return map;
   }, []);
-
-  // Available items to add: built-in items for this popup + buttons/tools in modularComponents
-  const addableOptions = useMemo(() => {
-    const builtIn = popupMeta.defaultItems.map((item) => ({
-      value: item.dataElement,
-      label: `${item.label} (${item.dataElement})${!item.isCore && item.context ? ` — ${item.context}` : ''}`,
-      group: `${popupMeta.name} Built-in Items`,
-    }));
-
-    const builtInSet = new Set(
-      popupMeta.defaultItems.map((i) => i.dataElement),
-    );
-    const custom = [];
-    for (const [key, comp] of Object.entries(modularComponents || {})) {
-      if (!comp || builtInSet.has(key)) continue;
-      if (
-        comp.type === 'toolButton' ||
-        comp.type === 'presetButton' ||
-        comp.type === 'customButton' ||
-        comp.type === 'toggleButton'
-      ) {
-        const name = comp.label || comp.title || comp.toolName || key;
-        custom.push({
-          value: key,
-          label: `${name} (${key})`,
-          group: 'Config Components',
-        });
-      }
-    }
-    return { builtIn, custom };
-  }, [popupMeta, modularComponents]);
-
-  const effectiveSelectedAdd =
-    selectedAddItem ||
-    addableOptions.builtIn[0]?.value ||
-    addableOptions.custom[0]?.value ||
-    '';
-
-  const handleAddItem = () => {
-    if (!effectiveSelectedAdd) return;
-    const next = [...currentItems, { dataElement: effectiveSelectedAdd }];
-    onUpdatePopup(activePopupId, next);
-  };
 
   const handleRemoveIndex = (idx) => {
     const next = [...currentItems];
@@ -136,10 +99,7 @@ export default function PopupsManager({
               key={p.id}
               type="button"
               className={`filter-button ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActivePopupId(p.id);
-                setSelectedAddItem('');
-              }}
+              onClick={() => setActivePopupId(p.id)}
             >
               {p.name} ({defined && list.length === 0 ? 'Off' : list.length})
             </button>
@@ -186,45 +146,20 @@ export default function PopupsManager({
         </div>
       </div>
 
-      {/* Add Item to Popup Row */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          marginBottom: 10,
-          alignItems: 'center',
-        }}
-      >
-        <select
-          className="form-select"
-          style={{ flex: 1, fontSize: 12, padding: '4px 8px' }}
-          value={effectiveSelectedAdd}
-          onChange={(e) => setSelectedAddItem(e.target.value)}
-        >
-          <optgroup label={`${popupMeta.name} Built-in Items`}>
-            {addableOptions.builtIn.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </optgroup>
-          {addableOptions.custom.length > 0 && (
-            <optgroup label="Components in Config">
-              {addableOptions.custom.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+      {/* Centralized Add Component Action */}
+      <div style={{ marginBottom: 10 }}>
         <button
           type="button"
-          className="add-toggle-btn"
-          style={{ fontSize: 12, padding: '4px 10px', whiteSpace: 'nowrap' }}
-          onClick={handleAddItem}
+          className="central-add-button"
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+          onClick={() => onOpenAddModal?.('tool', 'popup', activePopupId)}
         >
-          + Add Item
+          + Add Component to {popupMeta.name}
         </button>
       </div>
 
@@ -242,11 +177,16 @@ export default function PopupsManager({
           currentItems.map((entry, idx) => {
             const key =
               typeof entry === 'string' ? entry : entry?.dataElement || '';
-            const comp = modularComponents?.[key];
+            const entryObj =
+              typeof entry === 'object' && entry !== null ? entry : {};
+            const comp = modularComponents?.[key] || entryObj;
             const itemMeta =
               popupMeta.defaultItems.find((i) => i.dataElement === key) ||
               builtInMetaMap[key];
             const label =
+              entryObj.label ||
+              entryObj.title ||
+              entryObj.toolName ||
               itemMeta?.label ||
               comp?.label ||
               comp?.title ||
