@@ -201,6 +201,80 @@
 
 .radio-group-inline {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.radio-group-inline label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  color: #334155;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.radio-group-inline label:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.radio-group-inline label:has(input:checked) {
+  background-color: #eff6ff;
+  border-color: #007acc;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.radio-group-inline input[type='radio'] {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  accent-color: #007acc;
+  cursor: pointer;
+}
+
+.checkbox-field-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  user-select: none;
+}
+
+.checkbox-field-row input[type='checkbox'] {
+  width: 15px !important;
+  height: 15px !important;
+  margin: 0 !important;
+  accent-color: #007acc;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nested-toggle-fields {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #007acc;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.old-radio-group-unused {
+  display: flex;
   gap: 12px;
   font-size: 13px;
 }
@@ -304,6 +378,7 @@
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+  flex: 1;
 }
 
 .tool-icon-pill {
@@ -315,9 +390,7 @@
   border-radius: 4px;
   border: 1px solid #e2e8f0;
   white-space: nowrap;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .add-tool-button {
@@ -399,6 +472,8 @@
   font-size: 11px;
   color: #64748b;
   font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ITEM TYPE BADGES */
@@ -411,6 +486,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge-tool {
@@ -421,6 +497,11 @@
 .badge-preset {
   background-color: #fef3c7;
   color: #92400e;
+}
+
+.badge-custom {
+  background-color: #ede9fe;
+  color: #6b21a8;
 }
 
 .badge-toggle {
@@ -1612,3 +1693,73 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* SUBMENU STYLES */
+.submenu-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.submenu-expand-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.tool-item-submenu-parent {
+  border-left: 3px solid #8b5cf6 !important;
+}
+
+.submenu-nested-block {
+  margin-left: 20px;
+  margin-top: -4px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background-color: #f8fafc;
+  border-left: 2px dashed #cbd5e1;
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.submenu-empty-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 4px 0;
+  font-style: italic;
+}
+
+.submenu-child-row {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px 8px !important;
+}
+
+.submenu-add-btn {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c3aed;
+  background-color: #ede9fe;
+  border: 1px solid #ddd6fe;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.submenu-add-btn:hover {
+  background-color: #ddd6fe;
+  color: #5b21b6;
+}
+

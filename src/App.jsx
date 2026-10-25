@@ -16,6 +16,7 @@ function App() {
         path: 'lib/webviewer',
         fullAPI: true,
         // licenseKey: 'YOUR_LICENSE_KEY',
+
         initialDoc:
           'https://pdftron.s3.amazonaws.com/downloads/pl/demo-annotated.pdf',
       },
@@ -26,6 +27,8 @@ function App() {
 
       // Expose instance for the builder and debugging
       window.viewerInstance = instance;
+
+      instance.UI.enableFeatures([instance.UI.Feature.Redaction]);
     });
   }, []);
 

@@ -133,6 +133,13 @@ function normalizeComponents(rawConfig, warnings) {
     ) {
       compCopy.img = compCopy.icon;
     }
+    // Normalize non-existent icon-header-menu to WebViewer's native ic-hamburger-menu
+    if (compCopy.img === 'icon-header-menu') {
+      compCopy.img = 'ic-hamburger-menu';
+    }
+    if (compCopy.icon === 'icon-header-menu') {
+      compCopy.icon = 'ic-hamburger-menu';
+    }
     if (compCopy.type === 'customButton' && compCopy.toolName) {
       if (!compCopy.onClick) {
         compCopy.onClick = `${TOOL_ACTION_PREFIX}${compCopy.toolName}`;

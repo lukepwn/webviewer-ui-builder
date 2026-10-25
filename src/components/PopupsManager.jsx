@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { POPUPS_CATALOG, DEFAULT_POPUPS } from '../constants/webviewerCatalog';
+import ComponentItemRow from './ComponentItemRow';
 
 export default function PopupsManager({
   popups = {},
@@ -7,7 +8,8 @@ export default function PopupsManager({
   activePopupId: propActivePopupId,
   onSelectPopup,
   onUpdatePopup,
-  onOpenAddModal,
+  panels = {},
+  onChangePanelLocation,
 }) {
   const [localActivePopupId, setLocalActivePopupId] = useState(
     POPUPS_CATALOG[0].id,
@@ -28,8 +30,6 @@ export default function PopupsManager({
     }
     return DEFAULT_POPUPS[activePopupId] || [];
   }, [popups, activePopupId, isExplicitlyDefined]);
-
-  const isDisabled = isExplicitlyDefined && currentItems.length === 0;
 
   // Lookup map for human-readable labels and context metadata of built-in popup items
   const builtInMetaMap = useMemo(() => {
@@ -64,10 +64,6 @@ export default function PopupsManager({
     onUpdatePopup(activePopupId, next);
   };
 
-  const handleDisablePopup = () => {
-    onUpdatePopup(activePopupId, []);
-  };
-
   const handleRestoreDefault = () => {
     onUpdatePopup(
       activePopupId,
@@ -84,8 +80,8 @@ export default function PopupsManager({
         </span>
       </div>
 
-      {/* Popup Selector Tabs */}
-      <div className="filter-container" style={{ marginBottom: 10 }}>
+      {/* Popup Selector Buttons (Flyouts Style) */}
+      <div className="filter-container" style={{ marginBottom: 12 }}>
         {POPUPS_CATALOG.map((p) => {
           const defined =
             popups && Object.prototype.hasOwnProperty.call(popups, p.id);
@@ -93,7 +89,10 @@ export default function PopupsManager({
             defined && Array.isArray(popups[p.id])
               ? popups[p.id]
               : DEFAULT_POPUPS[p.id] || [];
+          const count = list.length;
+          const isPopupDisabled = defined && count === 0;
           const isActive = p.id === activePopupId;
+
           return (
             <button
               key={p.id}
@@ -101,77 +100,80 @@ export default function PopupsManager({
               className={`filter-button ${isActive ? 'active' : ''}`}
               onClick={() => setActivePopupId(p.id)}
             >
-              {p.name} ({defined && list.length === 0 ? 'Off' : list.length})
+              {p.name} {isPopupDisabled ? '(Disabled)' : `(${count})`}
             </button>
           );
         })}
       </div>
 
-      {/* Active Popup Description & Quick Actions */}
+      {/* Active Popup Subtitle & Quick Actions */}
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 8,
-          flexWrap: 'wrap',
-        }}
+        className="section-header-row"
+        style={{ marginTop: 12, marginBottom: 4 }}
       >
-        <span className="field-hint">{popupMeta.description}</span>
+        <span className="section-subtitle">
+          Items in <strong>{popupMeta.name}</strong>
+          <span className="item-count-badge">({currentItems.length})</span>
+        </span>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             type="button"
-            className="secondary-button"
-            style={{ fontSize: 11, padding: '2px 8px' }}
+            className="small-action-button"
             onClick={handleRestoreDefault}
             title="Restore default items for this popup"
           >
             Restore Default
           </button>
-          <button
-            type="button"
-            className="secondary-button"
-            style={{
-              fontSize: 11,
-              padding: '2px 8px',
-              color: isDisabled ? '#64748b' : '#dc2626',
-            }}
-            onClick={handleDisablePopup}
-            disabled={isDisabled}
-            title="Set popup array to [] to disable it in WebViewer"
-          >
-            Disable Popup ([])
-          </button>
+          {isExplicitlyDefined && currentItems.length === 0 ? (
+            <button
+              type="button"
+              className="small-action-button"
+              style={{ color: '#0369a1', borderColor: '#7dd3fc' }}
+              onClick={handleRestoreDefault}
+              title={`Enable / Restore default items for ${popupMeta.name}`}
+            >
+              Enable
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="secondary-button"
+              style={{
+                fontSize: 11,
+                padding: '3px 8px',
+                color: '#dc2626',
+              }}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Disable ${popupMeta.name}? (Sets items to [] in WebViewer)`,
+                  )
+                ) {
+                  onUpdatePopup(activePopupId, []);
+                }
+              }}
+              title={`Disable ${popupMeta.name}`}
+            >
+              Disable Popup
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Centralized Add Component Action */}
-      <div style={{ marginBottom: 10 }}>
-        <button
-          type="button"
-          className="central-add-button"
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: 12,
-            fontWeight: 600,
-          }}
-          onClick={() => onOpenAddModal?.('tool', 'popup', activePopupId)}
-        >
-          + Add Component to {popupMeta.name}
-        </button>
-      </div>
+      <p className="field-hint" style={{ marginBottom: 10 }}>
+        {popupMeta.description}
+      </p>
 
       {/* Items List */}
       <div
         className="tools-display"
-        style={{ maxHeight: 220, overflowY: 'auto' }}
+        style={{ maxHeight: 240, overflowY: 'auto' }}
       >
         {currentItems.length === 0 ? (
           <p className="no-tools-message">
-            This popup is set to <code>[]</code> (disabled in WebViewer). Add an
-            item or click &quot;Restore Default&quot; to enable it.
+            This popup is set to <code>[]</code> (disabled in WebViewer). Click
+            &quot;+ Add Component&quot; above or &quot;Restore Default&quot; to
+            enable it.
           </p>
         ) : (
           currentItems.map((entry, idx) => {
@@ -183,66 +185,33 @@ export default function PopupsManager({
             const itemMeta =
               popupMeta.defaultItems.find((i) => i.dataElement === key) ||
               builtInMetaMap[key];
-            const label =
-              entryObj.label ||
-              entryObj.title ||
-              entryObj.toolName ||
-              itemMeta?.label ||
-              comp?.label ||
-              comp?.title ||
-              comp?.toolName ||
-              key;
             const conditionalContext =
               itemMeta && !itemMeta.isCore ? itemMeta.context : null;
+
             return (
-              <div key={`${key}-${idx}`} className="tool-item">
-                <div className="tool-info">
-                  <div className="tool-name-container">
-                    <span className="tool-display-name">{label}</span>
-                    {key !== label && (
-                      <span className="tool-subtext">({key})</span>
-                    )}
-                  </div>
-                  {conditionalContext && (
-                    <span
-                      className="tool-icon-pill"
-                      title={`Only shown for: ${conditionalContext}`}
-                    >
-                      {conditionalContext}
-                    </span>
-                  )}
-                </div>
-                <div className="tool-item-actions">
-                  <div className="tool-move-controls">
-                    <button
-                      type="button"
-                      className="move-button"
-                      disabled={idx === 0}
-                      onClick={() => handleMoveIndex(idx, -1)}
-                      title={`Move ${key} up`}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="move-button"
-                      disabled={idx === currentItems.length - 1}
-                      onClick={() => handleMoveIndex(idx, 1)}
-                      title={`Move ${key} down`}
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={() => handleRemoveIndex(idx)}
-                    title={`Remove ${key} from ${popupMeta.name}`}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
+              <ComponentItemRow
+                key={`${key}-${idx}`}
+                item={{
+                  key,
+                  component: {
+                    ...comp,
+                    label: entryObj.label || itemMeta?.label || comp.label,
+                    title: entryObj.title || itemMeta?.label || comp.title,
+                    toolName: entryObj.toolName || comp.toolName,
+                    dataElement: key,
+                  },
+                }}
+                index={idx}
+                totalItems={currentItems.length}
+                onMoveItem={(_, dir) => handleMoveIndex(idx, dir)}
+                onDeleteTool={() => handleRemoveIndex(idx)}
+                panels={panels}
+                onChangePanelLocation={onChangePanelLocation}
+                targetContext={{
+                  type: 'popup',
+                  popupKey: activePopupId,
+                }}
+              />
             );
           })
         )}

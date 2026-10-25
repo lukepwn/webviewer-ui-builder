@@ -10,9 +10,12 @@ import HeaderManager from './components/HeaderManager';
 import AddComponentModal from './components/AddComponentModal';
 import PopupsManager from './components/PopupsManager';
 import ConfigPreview from './components/ConfigPreview';
+import ComponentItemRow from './components/ComponentItemRow';
 import {
   DEFAULT_BLANK_CONFIG,
   DEFAULT_POPUPS,
+  PANELS_CATALOG,
+  resolvePanelTarget,
 } from './constants/webviewerCatalog';
 import { buildFunctionMap, prepareConfigForImport } from './sdk/importConfig';
 
@@ -51,6 +54,7 @@ export default function ModularUIBuilder() {
   const [modalInitialLocation, setModalInitialLocation] = useState(null);
   const [modalInitialFlyout, setModalInitialFlyout] = useState(null);
   const [modalInitialPopup, setModalInitialPopup] = useState(null);
+  const [modalInitialSubmenu, setModalInitialSubmenu] = useState(null);
 
   // Keep a pristine backup of WebViewer's default UI configuration on mount
   const defaultConfigRef = useRef(null);
@@ -87,7 +91,7 @@ export default function ModularUIBuilder() {
       const { config: sanitized, warnings } =
         prepareConfigForImport(cfgToApply);
       const functionMap = buildFunctionMap(sanitized, window.viewerInstance);
-      warnings.forEach((w) => console.warn(`prepareConfigForImport: ${w}`));
+      //warnings.forEach((w) => console.warn(`prepareConfigForImport: ${w}`));
       setImportWarnings(warnings);
       window.viewerInstance.UI.importModularComponents(sanitized, functionMap);
     } catch (err) {
@@ -359,7 +363,169 @@ export default function ModularUIBuilder() {
     });
   };
 
-  // 4b. Delete Ribbon Tab (RibbonItem)
+  // 4a. Update Header properties (placement, gap, justifyContent, stroke)
+  const handleUpdateHeader = (headerKey, updates) => {
+    setConfig((prev) => {
+      const current = prev.modularHeaders?.[headerKey];
+      if (!current) return prev;
+      const nextHeaders = {
+        ...prev.modularHeaders,
+        [headerKey]: {
+          ...current,
+          ...updates,
+        },
+      };
+
+      const nextComponents = { ...prev.modularComponents };
+      // If updating placement, sync any ribbonGroup in this header
+      if (updates.placement && Array.isArray(current.items)) {
+        current.items.forEach((itemKey) => {
+          const comp = nextComponents[itemKey];
+          if (comp?.type === 'ribbonGroup') {
+            nextComponents[itemKey] = {
+              ...comp,
+              placement: updates.placement,
+            };
+          }
+        });
+      }
+
+      // If updating placement and tools-header exists, sync tools-header placement to match (except left/right where only 1 header is supported)
+      if (updates.placement && nextHeaders['tools-header']) {
+        const safePlacement =
+          updates.placement === 'left' || updates.placement === 'right'
+            ? nextHeaders['tools-header'].placement === updates.placement
+              ? 'top'
+              : nextHeaders['tools-header'].placement || 'top'
+            : updates.placement;
+
+        nextHeaders['tools-header'] = {
+          ...nextHeaders['tools-header'],
+          placement: safePlacement,
+        };
+      }
+
+      return {
+        ...prev,
+        modularHeaders: nextHeaders,
+        modularComponents: nextComponents,
+      };
+    });
+  };
+
+  // 4b. Update Tools Header properties
+  const handleUpdateToolsHeader = (updates) => {
+    setConfig((prev) => {
+      const current = prev.modularHeaders?.['tools-header'];
+      if (!current) return prev;
+      return {
+        ...prev,
+        modularHeaders: {
+          ...prev.modularHeaders,
+          'tools-header': {
+            ...current,
+            ...updates,
+          },
+        },
+      };
+    });
+  };
+
+  // 4c. Ribbon Layout Helpers (inline 1-bar vs separate 2-rows)
+  const getRibbonLayoutForHeader = (headerKey) => {
+    const h = config.modularHeaders?.[headerKey];
+    if (!h) return 'separate';
+    const tabs = getRibbonTabsForHeader(headerKey);
+    const allGroupedItems = tabs.flatMap(
+      (t) => t.component?.groupedItems || [],
+    );
+    const inActiveHeader = allGroupedItems.some(
+      (gKey) => Array.isArray(h.items) && h.items.includes(gKey),
+    );
+    return inActiveHeader ? 'inline' : 'separate';
+  };
+
+  const handleSetRibbonLayout = (newLayout) => {
+    setConfig((prev) => {
+      const nextHeaders = { ...prev.modularHeaders };
+      const activeH = nextHeaders[activeHeader];
+      if (!activeH) return prev;
+
+      const tabs = getRibbonTabsForHeader(activeHeader);
+      const allGroupedItems = tabs.flatMap(
+        (t) => t.component?.groupedItems || [],
+      );
+      if (allGroupedItems.length === 0) return prev;
+
+      if (newLayout === 'inline') {
+        const headerItems = [...(activeH.items || [])];
+        allGroupedItems.forEach((gKey) => {
+          if (!headerItems.includes(gKey)) {
+            headerItems.push(gKey);
+          }
+        });
+        nextHeaders[activeHeader] = {
+          ...activeH,
+          items: headerItems,
+        };
+
+        if (nextHeaders['tools-header']) {
+          const toolsItems = (nextHeaders['tools-header'].items || []).filter(
+            (k) => !allGroupedItems.includes(k),
+          );
+          if (toolsItems.length === 0) {
+            delete nextHeaders['tools-header'];
+          } else {
+            nextHeaders['tools-header'] = {
+              ...nextHeaders['tools-header'],
+              items: toolsItems,
+            };
+          }
+        }
+      } else {
+        const headerItems = (activeH.items || []).filter(
+          (k) => !allGroupedItems.includes(k),
+        );
+        nextHeaders[activeHeader] = {
+          ...activeH,
+          items: headerItems,
+        };
+
+        let hostPlacement = activeH.placement || 'top';
+        if (hostPlacement === 'left' || hostPlacement === 'right') {
+          hostPlacement = 'top';
+        }
+
+        const toolsHeader = nextHeaders['tools-header']
+          ? { ...nextHeaders['tools-header'] }
+          : {
+              dataElement: 'tools-header',
+              placement: hostPlacement,
+              gap: 8,
+              justifyContent: 'center',
+              grow: 0,
+              stroke: true,
+              items: [],
+            };
+
+        const toolsItems = [...(toolsHeader.items || [])];
+        allGroupedItems.forEach((gKey) => {
+          if (!toolsItems.includes(gKey)) {
+            toolsItems.push(gKey);
+          }
+        });
+        toolsHeader.items = toolsItems;
+        nextHeaders['tools-header'] = toolsHeader;
+      }
+
+      return {
+        ...prev,
+        modularHeaders: nextHeaders,
+      };
+    });
+  };
+
+  // 4d. Delete Ribbon Tab (RibbonItem)
   const handleDeleteRibbonTab = (ribbonKey) => {
     setConfig((prev) => {
       const nextComponents = { ...prev.modularComponents };
@@ -471,18 +637,22 @@ export default function ModularUIBuilder() {
         nextPopups[popupKey] = currentPopupList;
 
         const nextPanels = { ...prev.panels };
-        if (
-          (componentType === 'toggleButton' ||
-            component.type === 'toggleButton') &&
-          (component.toggleElement || component.element)
-        ) {
-          const panelId = component.toggleElement || component.element;
+        const panelId = resolvePanelTarget(component);
+        if (panelId) {
           const catalogDef = PANELS_CATALOG.find((p) => p.id === panelId);
-          if (catalogDef && !nextPanels[panelId]) {
+          if (!nextPanels[panelId]) {
             nextPanels[panelId] = {
               dataElement: panelId,
-              location: catalogDef?.defaultLocation || 'left',
+              location:
+                component.panelLocation ||
+                catalogDef?.defaultLocation ||
+                'left',
               render: catalogDef?.render || panelId,
+            };
+          } else if (component.panelLocation) {
+            nextPanels[panelId] = {
+              ...nextPanels[panelId],
+              location: component.panelLocation,
             };
           }
         }
@@ -678,6 +848,22 @@ export default function ModularUIBuilder() {
           toolsHeader.items = thItems;
           modularHeaders['tools-header'] = toolsHeader;
         }
+      } else if (targetLocationType === 'submenu' && target.parentKey) {
+        // Add to parent submenu component's children array
+        const parentKey = target.parentKey;
+        const parentComp = modularComponents[parentKey] || {
+          type: 'customButton',
+          dataElement: parentKey,
+          children: [],
+        };
+        const currentChildren = Array.isArray(parentComp.children)
+          ? [...parentComp.children]
+          : [];
+        currentChildren.push(compKey);
+        modularComponents[parentKey] = {
+          ...parentComp,
+          children: currentChildren,
+        };
       } else if (targetLocationType === 'flyout' && target.flyoutKey) {
         // Add to flyout items (use literal 'divider' token for dividers)
         const flyoutKey = target.flyoutKey;
@@ -698,20 +884,22 @@ export default function ModularUIBuilder() {
         headerObj.items.push(compKey);
       }
 
-      // Auto-enable panel in config.panels ONLY if it's a known panel toggle
+      // Auto-enable panel in config.panels if it's a known panel toggle or implicit panel tool
       const nextPanels = { ...prev.panels };
-      if (
-        (componentType === 'toggleButton' ||
-          component.type === 'toggleButton') &&
-        (component.toggleElement || component.element)
-      ) {
-        const panelId = component.toggleElement || component.element;
+      const panelId = resolvePanelTarget(component);
+      if (panelId) {
         const catalogDef = PANELS_CATALOG.find((p) => p.id === panelId);
-        if (catalogDef && !nextPanels[panelId]) {
+        if (!nextPanels[panelId]) {
           nextPanels[panelId] = {
             dataElement: panelId,
-            location: catalogDef?.defaultLocation || 'left',
+            location:
+              component.panelLocation || catalogDef?.defaultLocation || 'left',
             render: catalogDef?.render || panelId,
+          };
+        } else if (component.panelLocation) {
+          nextPanels[panelId] = {
+            ...nextPanels[panelId],
+            location: component.panelLocation,
           };
         }
       }
@@ -974,7 +1162,22 @@ export default function ModularUIBuilder() {
   // state copies. Returns true if a list was found and replaced.
   const updateContextList = (state, itemKey, targetContext, fn) => {
     const { modularComponents, modularHeaders, nextFlyouts } = state;
-    const { type, ribbonKey, headerKey, flyoutKey } = targetContext;
+    const { type, ribbonKey, headerKey, flyoutKey, parentKey } = targetContext;
+
+    if (type === 'submenu' && parentKey && modularComponents[parentKey]) {
+      const parentComp = modularComponents[parentKey];
+      if (Array.isArray(parentComp.children)) {
+        const nextItems = fn(parentComp.children);
+        if (nextItems) {
+          modularComponents[parentKey] = {
+            ...parentComp,
+            children: nextItems,
+          };
+          return true;
+        }
+      }
+      return false;
+    }
 
     if (type === 'flyout' && flyoutKey && nextFlyouts[flyoutKey]) {
       const fObj = nextFlyouts[flyoutKey];
@@ -1139,6 +1342,42 @@ export default function ModularUIBuilder() {
     });
   };
 
+  const handleChangePanelLocation = (panelId, newLocation) => {
+    setConfig((prev) => {
+      const nextPanels = { ...prev.panels };
+      const catalogDef = PANELS_CATALOG.find((p) => p.id === panelId);
+      const targetPanel = nextPanels[panelId] || {
+        dataElement: panelId,
+        render: catalogDef?.render || panelId,
+        location: newLocation,
+      };
+      nextPanels[panelId] = {
+        ...targetPanel,
+        location: newLocation,
+      };
+
+      // If it's a tabPanel, sync the location of all sub-panels in panelsList
+      if (
+        targetPanel.render === 'tabPanel' &&
+        Array.isArray(targetPanel.panelsList)
+      ) {
+        targetPanel.panelsList.forEach((sub) => {
+          if (sub.render && nextPanels[sub.render]) {
+            nextPanels[sub.render] = {
+              ...nextPanels[sub.render],
+              location: newLocation,
+            };
+          }
+        });
+      }
+
+      return {
+        ...prev,
+        panels: nextPanels,
+      };
+    });
+  };
+
   const handleAddFlyout = ({
     dataElement,
     label,
@@ -1208,6 +1447,18 @@ export default function ModularUIBuilder() {
   const handleDeleteFlyout = (flyoutId) => {
     setConfig((prev) => {
       const nextFlyouts = { ...prev.flyouts };
+      // SDK Guardrail: viewControlsFlyout cannot be deleted without triggering WebViewer's
+      // automatic fallback (which re-injects 15 default buttons). Empty its items instead.
+      if (flyoutId === 'viewControlsFlyout') {
+        nextFlyouts[flyoutId] = {
+          ...(nextFlyouts[flyoutId] || { dataElement: flyoutId }),
+          items: [],
+        };
+        return {
+          ...prev,
+          flyouts: nextFlyouts,
+        };
+      }
       delete nextFlyouts[flyoutId];
 
       const nextComponents = { ...prev.modularComponents };
@@ -1303,12 +1554,19 @@ export default function ModularUIBuilder() {
     if (targetLocation === 'flyout') {
       setModalInitialFlyout(targetKey);
       setModalInitialPopup(null);
+      setModalInitialSubmenu(null);
     } else if (targetLocation === 'popup') {
       setModalInitialPopup(targetKey || activePopup || 'annotationPopup');
       setModalInitialFlyout(null);
+      setModalInitialSubmenu(null);
+    } else if (targetLocation === 'submenu') {
+      setModalInitialSubmenu(targetKey);
+      setModalInitialFlyout(null);
+      setModalInitialPopup(null);
     } else {
       setModalInitialFlyout(null);
       setModalInitialPopup(null);
+      setModalInitialSubmenu(null);
     }
     setIsAddModalOpen(true);
   };
@@ -1439,6 +1697,8 @@ export default function ModularUIBuilder() {
                 onAddHeader={handleAddHeader}
                 onDeleteHeader={handleDeleteHeader}
                 onOpenAddModal={openAddModal}
+                onUpdateHeader={handleUpdateHeader}
+                onUpdateToolsHeader={handleUpdateToolsHeader}
               />
             </section>
 
@@ -1460,6 +1720,12 @@ export default function ModularUIBuilder() {
                   onOpenAddModal={openAddModal}
                   subView={headerSubView}
                   onSubViewChange={setHeaderSubView}
+                  ribbonLayout={getRibbonLayoutForHeader(activeHeader)}
+                  onSetRibbonLayout={handleSetRibbonLayout}
+                  toolsHeaderDef={config.modularHeaders?.['tools-header']}
+                  onUpdateToolsHeader={handleUpdateToolsHeader}
+                  panels={config.panels || {}}
+                  onChangePanelLocation={handleChangePanelLocation}
                 />
               </section>
             )}
@@ -1473,19 +1739,11 @@ export default function ModularUIBuilder() {
               <span className="section-title">
                 Flyouts ({Object.keys(config.flyouts || {}).length})
               </span>
-              <button
-                type="button"
-                className="small-action-button"
-                onClick={() => openAddModal('newFlyout')}
-                title="Create a new Flyout container"
-              >
-                + New Flyout
-              </button>
             </div>
 
             {Object.keys(config.flyouts || {}).length === 0 ? (
               <p className="empty-hint">
-                No flyouts defined. Click &quot;+ New Flyout&quot; above to
+                No flyouts defined. Click &quot;+ Add Component&quot; above to
                 create one.
               </p>
             ) : (
@@ -1520,32 +1778,25 @@ export default function ModularUIBuilder() {
                       <span className="section-subtitle">
                         Items in <strong>{activeFlyout}</strong>
                       </span>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          type="button"
-                          className="add-toggle-btn"
-                          style={{ fontSize: 11, padding: '3px 8px' }}
-                          onClick={() =>
-                            openAddModal('tool', 'flyout', activeFlyout)
-                          }
-                          title="Add an item to this flyout"
-                        >
-                          + Add Item
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          style={{
-                            fontSize: 11,
-                            padding: '3px 8px',
-                            color: '#dc2626',
-                          }}
-                          onClick={() => handleDeleteFlyout(activeFlyout)}
-                          title="Delete this flyout and its header toggle button"
-                        >
-                          Delete Flyout
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          color: '#dc2626',
+                        }}
+                        onClick={() => handleDeleteFlyout(activeFlyout)}
+                        title={
+                          activeFlyout === 'viewControlsFlyout'
+                            ? 'Clear all items (built-in flyout cannot be deleted per WebViewer SDK requirement)'
+                            : 'Delete this flyout and its header toggle button'
+                        }
+                      >
+                        {activeFlyout === 'viewControlsFlyout'
+                          ? 'Clear Items'
+                          : 'Delete Flyout'}
+                      </button>
                     </div>
 
                     <div
@@ -1555,8 +1806,8 @@ export default function ModularUIBuilder() {
                       {(config.flyouts[activeFlyout]?.items || []).length ===
                       0 ? (
                         <p className="no-tools-message">
-                          No items in this flyout. Click &quot;+ Add Item&quot;
-                          above to add items.
+                          No items in this flyout. Click &quot;+ Add
+                          Component&quot; above to add items.
                         </p>
                       ) : (
                         (config.flyouts[activeFlyout]?.items || []).map(
@@ -1566,92 +1817,33 @@ export default function ModularUIBuilder() {
                               (itemKey === 'divider'
                                 ? { type: 'divider', dataElement: 'divider' }
                                 : { dataElement: itemKey });
-                            const label =
-                              comp.label ||
-                              comp.title ||
-                              comp.toolName ||
-                              (itemKey === 'divider' ? 'Divider' : itemKey);
-                            const requiresFnMap =
-                              comp.type === 'customButton' &&
-                              typeof comp.onClick === 'string' &&
-                              comp.onClick.length > 0;
                             const occurrence = arr
                               .slice(0, itemIndex)
                               .filter((k) => k === itemKey).length;
 
                             return (
-                              <div
+                              <ComponentItemRow
                                 key={`${itemKey}-${itemIndex}`}
-                                className="tool-item"
-                              >
-                                <div className="tool-info">
-                                  <div className="tool-name-container">
-                                    <span className="tool-display-name">
-                                      {label}
-                                    </span>
-                                    {itemKey !== label && (
-                                      <span className="tool-subtext">
-                                        ({itemKey})
-                                      </span>
-                                    )}
-                                  </div>
-                                  {requiresFnMap && (
-                                    <span
-                                      className="tool-icon-pill"
-                                      title={`Uses customButton (${comp.onClick}) — requires passing functionMap to UI.importModularComponents`}
-                                    >
-                                      functionMap
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="tool-item-actions">
-                                  <div className="tool-move-controls">
-                                    <button
-                                      type="button"
-                                      className="move-button"
-                                      disabled={itemIndex === 0}
-                                      onClick={() =>
-                                        handleMoveItem({ key: itemKey }, -1, {
-                                          type: 'flyout',
-                                          flyoutKey: activeFlyout,
-                                          occurrence,
-                                        })
-                                      }
-                                      title={`Move ${label} up`}
-                                    >
-                                      ↑
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="move-button"
-                                      disabled={itemIndex === arr.length - 1}
-                                      onClick={() =>
-                                        handleMoveItem({ key: itemKey }, 1, {
-                                          type: 'flyout',
-                                          flyoutKey: activeFlyout,
-                                          occurrence,
-                                        })
-                                      }
-                                      title={`Move ${label} down`}
-                                    >
-                                      ↓
-                                    </button>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="delete-button"
-                                    onClick={() =>
-                                      handleRemoveItemFromFlyout(
-                                        activeFlyout,
-                                        itemIndex,
-                                      )
-                                    }
-                                    title={`Remove ${label} from ${activeFlyout}`}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
+                                item={{ key: itemKey, component: comp }}
+                                index={itemIndex}
+                                totalItems={arr.length}
+                                onMoveItem={handleMoveItem}
+                                onDeleteTool={() =>
+                                  handleRemoveItemFromFlyout(
+                                    activeFlyout,
+                                    itemIndex,
+                                  )
+                                }
+                                panels={config.panels || {}}
+                                onChangePanelLocation={
+                                  handleChangePanelLocation
+                                }
+                                targetContext={{
+                                  type: 'flyout',
+                                  flyoutKey: activeFlyout,
+                                  occurrence,
+                                }}
+                              />
                             );
                           },
                         )
@@ -1674,6 +1866,8 @@ export default function ModularUIBuilder() {
               onSelectPopup={setActivePopup}
               onUpdatePopup={handleUpdatePopup}
               onOpenAddModal={openAddModal}
+              panels={config.panels || {}}
+              onChangePanelLocation={handleChangePanelLocation}
             />
           </section>
         )}
@@ -1727,6 +1921,7 @@ export default function ModularUIBuilder() {
         initialLocation={modalInitialLocation}
         initialFlyout={modalInitialFlyout}
         initialPopup={modalInitialPopup}
+        initialSubmenu={modalInitialSubmenu}
         headerOptions={Object.keys(config.modularHeaders || {}).filter(
           (k) => k !== 'tools-header',
         )}
@@ -1738,6 +1933,7 @@ export default function ModularUIBuilder() {
         panels={config.panels || {}}
         flyouts={config.flyouts || {}}
         popups={config.popups || {}}
+        modularComponents={config.modularComponents || {}}
         onAddComponent={handleAddComponent}
         onAddTabPanel={handleAddTabPanel}
         onAddFlyout={handleAddFlyout}

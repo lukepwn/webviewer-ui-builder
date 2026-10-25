@@ -8,15 +8,21 @@ import {
   POPUPS_CATALOG,
   BUILTIN_POPUP_ITEMS_CATALOG,
   DEFAULT_POPUPS,
+  TOOL_TO_PANEL_MAP,
 } from '../constants/webviewerCatalog';
 import { isModalTabAllowedInFlyout } from '../sdk/importConfig';
 import { TOOL_ACTION_PREFIX } from '../sdk/sdkRules';
+import {
+  generateUniqueDataElement,
+  collectAllExistingIds,
+} from '../utils/idUtils';
 
 // Category pills shown above the catalog list.
 const CATEGORY_PILLS = [
   { id: 'all', label: 'All' },
   { id: 'tool', label: 'Tools' },
   { id: 'preset', label: 'Presets' },
+  { id: 'custom', label: 'Custom' },
   { id: 'panel', label: 'Panels' },
   { id: 'popup', label: 'Popups' },
   { id: 'layout', label: 'Controls & Layout' },
@@ -26,6 +32,9 @@ const CATEGORY_PILLS = [
 const KIND_BADGE = {
   tool: 'Tool',
   preset: 'Preset',
+  custom: 'Custom',
+  submenu: 'Submenu',
+  toggle: 'Toggle',
   panel: 'Panel',
   popup: 'Popup',
   control: 'Control',
@@ -37,6 +46,9 @@ const KIND_BADGE = {
 const KIND_CATEGORY = {
   tool: 'tool',
   preset: 'preset',
+  custom: 'custom',
+  toggle: 'custom',
+  submenu: 'container',
   panel: 'panel',
   popup: 'popup',
   control: 'layout',
@@ -49,6 +61,9 @@ const KIND_CATEGORY = {
 const KIND_TO_RULE_TAB = {
   tool: 'tool',
   preset: 'preset',
+  custom: 'custom',
+  toggle: 'toggle',
+  submenu: 'custom',
   panel: 'toggle',
   popup: 'popup',
   control: 'controls',
@@ -75,7 +90,7 @@ const CONTAINER_ITEMS = [
     kind: 'container',
     containerType: 'flyout',
     name: 'Flyout Menu',
-    sub: 'Dropdown container + its toggle button',
+    sub: 'Dropdown container + optional toggle button',
   },
   {
     id: 'container:tabPanel',
@@ -83,6 +98,20 @@ const CONTAINER_ITEMS = [
     containerType: 'tabPanel',
     name: 'Tab Panel',
     sub: 'Dockable multi-tab sidebar container',
+  },
+  {
+    id: 'custom:submenu',
+    kind: 'submenu',
+    name: 'Submenu (Drilldown Menu)',
+    sub: 'Nested menu within a flyout with back navigation',
+    ref: { type: 'customButton', isSubmenu: true },
+    defaults: {
+      dataElement: 'moreToolsSubmenu',
+      label: 'More Options',
+      title: 'More Options',
+      icon: 'icon-header-chevron-right',
+      onClick: '',
+    },
   },
 ];
 
@@ -100,6 +129,7 @@ export default function AddComponentModal({
   initialLocation = null,
   initialFlyout = null,
   initialPopup = null,
+  initialSubmenu = null,
   headerOptions = [],
   activeHeader = '',
   ribbonTabs: propRibbonTabs = [],
@@ -109,6 +139,7 @@ export default function AddComponentModal({
   panels = {},
   flyouts = {},
   popups = {},
+  modularComponents = {},
   onAddComponent,
   onAddTabPanel,
   onAddFlyout,
@@ -198,6 +229,7 @@ export default function AddComponentModal({
           label: '',
           title: '',
           icon: '',
+          onClick: '',
         },
       });
     }
@@ -214,9 +246,41 @@ export default function AddComponentModal({
           label: p.label,
           title: p.label,
           icon: '',
+          onClick: '',
         },
       });
     }
+
+    items.push({
+      id: 'custom:button',
+      kind: 'custom',
+      name: 'Custom Button',
+      sub: 'Action button wired to a functionMap onClick handler',
+      ref: { type: 'customButton' },
+      defaults: {
+        dataElement: 'customButton',
+        label: 'Custom Action',
+        title: 'Custom Action',
+        icon: 'ic-hamburger-menu',
+        onClick: 'handleCustomAction',
+      },
+    });
+
+    items.push({
+      id: 'custom:toggleButton',
+      kind: 'toggle',
+      name: 'Toggle Button',
+      sub: 'Button that toggles an element open or closed',
+      ref: { type: 'toggleButton' },
+      defaults: {
+        dataElement: 'customToggle',
+        label: 'Toggle',
+        title: 'Toggle Element',
+        icon: 'ic-hamburger-menu',
+        toggleElement: 'customActionsFlyout',
+        onClick: '',
+      },
+    });
 
     return [...items, ...CONTAINER_ITEMS];
   }, [panels]);
@@ -230,6 +294,10 @@ export default function AddComponentModal({
     label: '',
     title: '',
     icon: '',
+    onClick: '',
+    location: 'left',
+    shouldToggleVisibility: true,
+    renderArguments: '',
   });
   const [addedMsg, setAddedMsg] = useState('');
 
@@ -238,6 +306,64 @@ export default function AddComponentModal({
   const [selectedHeader, setSelectedHeader] = useState(
     activeHeader || headerOptions[0] || 'default-top-header',
   );
+
+  // Collect all active component, container, header, flyout, and panel IDs
+  const existingIds = useMemo(() => {
+    return collectAllExistingIds(
+      { modularComponents, panels, flyouts },
+      headerOptions,
+    );
+  }, [modularComponents, panels, flyouts, headerOptions]);
+
+  const allSubmenus = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+
+    const traverse = (itemKey, flyoutId, depth, parentLabel) => {
+      if (!itemKey || seen.has(itemKey)) return;
+      const comp = modularComponents?.[itemKey];
+      if (comp && (Array.isArray(comp.children) || comp.isSubmenu)) {
+        seen.add(itemKey);
+        const label = comp.label || comp.title || itemKey;
+        list.push({
+          key: itemKey,
+          label,
+          flyoutId,
+          depth,
+          parentLabel,
+          count: (comp.children || []).length,
+        });
+        (comp.children || []).forEach((childKey) => {
+          traverse(childKey, flyoutId, depth + 1, label);
+        });
+      }
+    };
+
+    for (const [flyoutId, fDef] of Object.entries(flyouts || {})) {
+      (fDef?.items || []).forEach((itemKey) => {
+        traverse(itemKey, flyoutId, 1, flyoutId);
+      });
+    }
+
+    for (const [key, comp] of Object.entries(modularComponents || {})) {
+      if (
+        comp &&
+        (Array.isArray(comp.children) || comp.isSubmenu) &&
+        !seen.has(key)
+      ) {
+        seen.add(key);
+        list.push({
+          key,
+          label: comp.label || comp.title || key,
+          flyoutId: null,
+          depth: 1,
+          parentLabel: 'Unassigned',
+          count: (comp.children || []).length,
+        });
+      }
+    }
+    return list;
+  }, [flyouts, modularComponents]);
 
   const currentRibbonTabs = useMemo(() => {
     if (typeof getRibbonTabs === 'function') {
@@ -277,12 +403,17 @@ export default function AddComponentModal({
   // Container form state
   const [newHeaderId, setNewHeaderId] = useState('');
   const [newHeaderPlacement, setNewHeaderPlacement] = useState('top');
+  const [newHeaderGap, setNewHeaderGap] = useState(8);
+  const [newHeaderJustify, setNewHeaderJustify] = useState('start');
+  const [newHeaderStroke, setNewHeaderStroke] = useState(true);
   const [newTabLabel, setNewTabLabel] = useState('');
+  const [newTabTitle, setNewTabTitle] = useState('');
+  const [newTabIcon, setNewTabIcon] = useState('');
   const [newTabGroupId, setNewTabGroupId] = useState('');
   const [isGroupIdCustomized, setIsGroupIdCustomized] = useState(false);
   const [newFlyoutId, setNewFlyoutId] = useState('customActionsFlyout');
-  const [newFlyoutToggleLabel, setNewFlyoutToggleLabel] =
-    useState('More Tools');
+  const [newFlyoutCreateToggle, setNewFlyoutCreateToggle] = useState(true);
+  const [newFlyoutToggleLabel, setNewFlyoutToggleLabel] = useState('');
   const [newFlyoutToggleTitle, setNewFlyoutToggleTitle] =
     useState('Open flyout menu');
   const [newFlyoutToggleIcon, setNewFlyoutToggleIcon] =
@@ -292,7 +423,12 @@ export default function AddComponentModal({
   const [selectedTabPanelChildren, setSelectedTabPanelChildren] = useState(
     new Set(['thumbnailsPanel', 'outlinesPanel', 'bookmarksPanel']),
   );
-  const [toggleButtonLabel, setToggleButtonLabel] = useState('Sidebar');
+  const [newTabPanelCreateToggle, setNewTabPanelCreateToggle] = useState(true);
+  const [toggleButtonLabel, setToggleButtonLabel] = useState('');
+  const [toggleButtonTitle, setToggleButtonTitle] = useState('Toggle Sidebar');
+  const [toggleButtonIcon, setToggleButtonIcon] = useState(
+    'icon-header-sidebar-line',
+  );
 
   const searchRef = useRef(null);
   const listRef = useRef(null);
@@ -301,8 +437,9 @@ export default function AddComponentModal({
   const isFlyoutTarget =
     targetValue.startsWith('flyout:') &&
     !!flyouts[targetValue.slice('flyout:'.length)];
+  const isSubmenuTarget = targetValue.startsWith('submenu:');
+  const isFlyoutOrSubmenuTarget = isFlyoutTarget || isSubmenuTarget;
   const isPopupTarget = targetValue.startsWith('popup:');
-  const [flyoutToggleTarget, setFlyoutToggleTarget] = useState('header');
 
   // Reset only when the modal opens (or is re-opened for a new context). It must
   // NOT run on every parent render: the modal stays open across multiple adds.
@@ -324,7 +461,16 @@ export default function AddComponentModal({
         ? getRibbonTabs(initialHeader)
         : propRibbonTabs;
 
-    if (initialPopup && POPUPS_CATALOG.some((p) => p.id === initialPopup)) {
+    if (initialSubmenu) {
+      const parentKey =
+        typeof initialSubmenu === 'object'
+          ? initialSubmenu.parentKey
+          : initialSubmenu;
+      setTargetValue(`submenu:${parentKey}`);
+    } else if (
+      initialPopup &&
+      POPUPS_CATALOG.some((p) => p.id === initialPopup)
+    ) {
       setTargetValue(`popup:${initialPopup}`);
     } else if (initialLocation === 'popup') {
       setTargetValue(`popup:${initialPopup || 'annotationPopup'}`);
@@ -342,27 +488,33 @@ export default function AddComponentModal({
     }
 
     if (initialLocation === 'popup' || initialPopup) {
-      setFlyoutToggleTarget(
-        initialPopup ? `popup:${initialPopup}` : 'popup:annotationPopup',
-      );
       if (initialTab === 'popup') {
         setCategory('popup');
       }
-    } else {
-      setFlyoutToggleTarget('header');
     }
 
     setNewHeaderId('');
     setNewHeaderPlacement('top');
+    setNewHeaderGap(8);
+    setNewHeaderJustify('start');
+    setNewHeaderStroke(true);
     setNewTabLabel('');
+    setNewTabTitle('');
+    setNewTabIcon('');
     setNewTabGroupId('');
     setIsGroupIdCustomized(false);
+    setNewFlyoutId('customActionsFlyout');
+    setNewFlyoutCreateToggle(true);
+    setNewTabPanelCreateToggle(true);
     setTabPanelId('tabPanel');
     setTabPanelLocation('left');
     setSelectedTabPanelChildren(
       new Set(['thumbnailsPanel', 'outlinesPanel', 'bookmarksPanel']),
     );
-    setToggleButtonLabel('Sidebar');
+    setNewFlyoutToggleLabel('');
+    setToggleButtonLabel('');
+    setToggleButtonTitle('Toggle Sidebar');
+    setToggleButtonIcon('icon-header-sidebar-line');
   }, [isOpen, initialTab, initialLocation, initialFlyout, initialPopup]);
 
   // Drop a stale destination (e.g. its ribbon tab/flyout was deleted)
@@ -399,7 +551,11 @@ export default function AddComponentModal({
 
   // Flyouts only accept some item types (see sdk/importConfig.js)
   const isBlockedInFlyout = (item) => {
-    if (!isFlyoutTarget || item.kind === 'container') return false;
+    if (!isFlyoutOrSubmenuTarget) return false;
+    // Structural containers: Tab Panel is allowed because its toggle button can be placed inside flyouts
+    if (item.kind === 'container') {
+      return item.containerType !== 'tabPanel';
+    }
     if (!isModalTabAllowedInFlyout(KIND_TO_RULE_TAB[item.kind])) return true;
     // Presets of type toggleButton open flyouts, which crash inside a flyout
     if (item.kind === 'preset' && item.ref?.type === 'toggleButton')
@@ -413,14 +569,11 @@ export default function AddComponentModal({
 
   const isBlockedInPopup = (item) => {
     if (!isPopupTarget) return false;
-    // Structural containers cannot be placed inside popups
-    if (
-      item.kind === 'container' &&
-      (item.containerType === 'header' ||
-        item.containerType === 'ribbonTab' ||
-        item.containerType === 'tabPanel')
-    ) {
-      return true;
+    // Structural containers: tabPanel and flyout can place their toggle button in popups
+    if (item.kind === 'container') {
+      return (
+        item.containerType === 'header' || item.containerType === 'ribbonTab'
+      );
     }
     // Controls and layout elements cannot be placed inside popups
     if (item.kind === 'control' || item.kind === 'layout') return true;
@@ -435,18 +588,24 @@ export default function AddComponentModal({
   };
 
   const isItemBlocked = (item) => {
-    if (isFlyoutTarget) return isBlockedInFlyout(item);
+    if (isFlyoutOrSubmenuTarget) return isBlockedInFlyout(item);
     if (isPopupTarget) return isBlockedInPopup(item);
     return isBlockedInNonPopup(item);
   };
 
   const getBlockedTooltip = (item) => {
-    if (isFlyoutTarget) {
-      return 'Flyouts only accept tools, preset buttons, panel toggles, and dividers.';
+    if (isFlyoutOrSubmenuTarget) {
+      if (item.kind === 'container') {
+        if (item.containerType === 'flyout') {
+          return 'A flyout toggle button cannot be placed inside another flyout (SDK limitation). Use Submenu to create nested menus.';
+        }
+        return 'Headers and Ribbon Tabs cannot be placed inside flyouts.';
+      }
+      return 'Flyouts only accept tools, preset buttons, custom buttons, submenus, panel toggles, and dividers.';
     }
     if (isPopupTarget) {
       if (item.kind === 'container') {
-        return 'Structural containers (headers, ribbons, tab panels) cannot be placed inside popups.';
+        return 'Headers and Ribbon Tabs cannot be placed inside popups.';
       }
       return 'Layout controls and dividers are not supported inside popups.';
     }
@@ -459,10 +618,46 @@ export default function AddComponentModal({
   // Populate the property form with the selected component's defaults
   useEffect(() => {
     if (selectedItem && selectedItem.kind !== 'container') {
-      setForm({ ...selectedItem.defaults });
+      const defaultToggle =
+        selectedItem.defaults?.toggleElement ||
+        Object.keys(flyouts || {})[0] ||
+        Object.keys(panels || {})[0] ||
+        '';
+      const baseDataElement = selectedItem.defaults?.dataElement ?? '';
+      const uniqueDataElement = generateUniqueDataElement(
+        baseDataElement,
+        existingIds,
+      );
+      const mappedPanelId =
+        TOOL_TO_PANEL_MAP[selectedItem.ref?.toolName] ||
+        TOOL_TO_PANEL_MAP[selectedItem.ref?.defaultId];
+      const defaultLocation =
+        (mappedPanelId && panels[mappedPanelId]?.location) ||
+        selectedItem.ref?.defaultLocation ||
+        panels[selectedItem.ref?.id]?.location ||
+        'left';
+      const isTextLabel = selectedItem.ref?.type === 'label';
+      setForm({
+        dataElement: uniqueDataElement,
+        label: isTextLabel ? (selectedItem.defaults?.label ?? '') : '',
+        title: selectedItem.defaults?.title ?? '',
+        icon: selectedItem.defaults?.icon ?? '',
+        onClick: selectedItem.defaults?.onClick ?? '',
+        toggleElement: defaultToggle,
+        location: defaultLocation,
+        shouldToggleVisibility: true,
+        renderArguments: '',
+      });
     }
     setAddedMsg('');
   }, [selectedItemId]);
+
+  const isDuplicateId = useMemo(() => {
+    if (!selectedItem || selectedItem.kind === 'container') return false;
+    const currentId = (form.dataElement || '').trim();
+    if (!currentId || currentId === 'divider') return false;
+    return existingIds.has(currentId);
+  }, [selectedItem, form.dataElement, existingIds]);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -479,17 +674,47 @@ export default function AddComponentModal({
           .toLowerCase();
         if (!hay.includes(q)) return false;
         // While searching, "All" also surfaces containers
-        return category === 'all' || KIND_CATEGORY[item.kind] === category;
+        if (category === 'all') return true;
+        if (category === 'custom') {
+          return (
+            item.kind === 'custom' ||
+            item.kind === 'submenu' ||
+            item.kind === 'toggle'
+          );
+        }
+        if (category === 'container') {
+          return item.kind === 'container' || item.kind === 'submenu';
+        }
+        return KIND_CATEGORY[item.kind] === category;
       }
       if (category === 'all') return item.kind !== 'container';
+      if (category === 'custom') {
+        return (
+          item.kind === 'custom' ||
+          item.kind === 'submenu' ||
+          item.kind === 'toggle'
+        );
+      }
+      if (category === 'container') {
+        return item.kind === 'container' || item.kind === 'submenu';
+      }
       return KIND_CATEGORY[item.kind] === category;
     });
   }, [catalog, search, category]);
 
   const categoryCount = (id) =>
-    catalog.filter((i) =>
-      id === 'all' ? i.kind !== 'container' : KIND_CATEGORY[i.kind] === id,
-    ).length;
+    catalog.filter((i) => {
+      if (id === 'all') return i.kind !== 'container';
+      if (id === 'custom') {
+        return (
+          i.kind === 'custom' || i.kind === 'submenu' || i.kind === 'toggle'
+        );
+      }
+      if (id === 'container') {
+        return i.kind === 'container' || i.kind === 'submenu';
+      }
+      return KIND_CATEGORY[i.kind] === id;
+    }).length;
 
   // Auto-select the first allowed item if the current selection is no longer in filtered items
   useEffect(() => {
@@ -521,9 +746,30 @@ export default function AddComponentModal({
           .join(' ')
           .toLowerCase();
         if (!hay.includes(q)) return false;
-        return catId === 'all' || KIND_CATEGORY[item.kind] === catId;
+        if (catId === 'all') return true;
+        if (catId === 'custom') {
+          return (
+            item.kind === 'custom' ||
+            item.kind === 'submenu' ||
+            item.kind === 'toggle'
+          );
+        }
+        if (catId === 'container') {
+          return item.kind === 'container' || item.kind === 'submenu';
+        }
+        return KIND_CATEGORY[item.kind] === catId;
       }
       if (catId === 'all') return item.kind !== 'container';
+      if (catId === 'custom') {
+        return (
+          item.kind === 'custom' ||
+          item.kind === 'submenu' ||
+          item.kind === 'toggle'
+        );
+      }
+      if (catId === 'container') {
+        return item.kind === 'container' || item.kind === 'submenu';
+      }
       return KIND_CATEGORY[item.kind] === catId;
     });
     const first = itemsInCat.find((i) => !isItemBlocked(i));
@@ -535,11 +781,18 @@ export default function AddComponentModal({
   // If the selected component isn't allowed in the chosen destination, move to a valid one
   useEffect(() => {
     if (!isOpen || !selectedItem) return;
+    if (
+      selectedItem.containerType === 'flyout' &&
+      (targetValue.startsWith('flyout:') || targetValue.startsWith('submenu:'))
+    ) {
+      setTargetValue('header');
+      return;
+    }
     if (isItemBlocked(selectedItem)) {
       const firstAllowed = catalog.find((i) => !isItemBlocked(i));
       if (firstAllowed) setSelectedItemId(firstAllowed.id);
     }
-  }, [isOpen, targetValue, selectedItemId, flyouts]);
+  }, [isOpen, targetValue, selectedItemId, flyouts, selectedItem]);
 
   // Keep the highlighted row in view while arrowing through the list
   useEffect(() => {
@@ -572,6 +825,10 @@ export default function AddComponentModal({
 
   // ---- Destination ---------------------------------------------------------
   const resolveTarget = () => {
+    const isSubmenu = targetValue.startsWith('submenu:');
+    const submenuParentKey = isSubmenu
+      ? targetValue.slice('submenu:'.length)
+      : null;
     const popupKey = isPopupTarget ? targetValue.slice('popup:'.length) : null;
     const flyoutKey = isFlyoutTarget
       ? targetValue.slice('flyout:'.length)
@@ -585,27 +842,32 @@ export default function AddComponentModal({
         : null;
     return {
       headerKey: selectedHeader,
-      targetLocationType: popupKey
-        ? 'popup'
-        : flyoutKey
-          ? 'flyout'
-          : ribbonKey
-            ? 'ribbon'
-            : 'header',
+      targetLocationType: isSubmenu
+        ? 'submenu'
+        : popupKey
+          ? 'popup'
+          : flyoutKey
+            ? 'flyout'
+            : ribbonKey
+              ? 'ribbon'
+              : 'header',
       ribbonTabKey: ribbonKey,
       flyoutKey,
       popupKey,
+      parentKey: submenuParentKey,
     };
   };
 
   const describeTarget = (t) =>
-    t.targetLocationType === 'popup'
-      ? `Popup: ${POPUPS_CATALOG.find((p) => p.id === t.popupKey)?.name || t.popupKey}`
-      : t.targetLocationType === 'flyout'
-        ? `Flyout: ${t.flyoutKey}`
-        : t.targetLocationType === 'ribbon'
-          ? `Ribbon: ${currentRibbonTabs.find((r) => r.key === t.ribbonTabKey)?.label || t.ribbonTabKey}`
-          : `Header: ${t.headerKey}`;
+    t.targetLocationType === 'submenu'
+      ? `Submenu: ${t.parentKey}`
+      : t.targetLocationType === 'popup'
+        ? `Popup: ${POPUPS_CATALOG.find((p) => p.id === t.popupKey)?.name || t.popupKey}`
+        : t.targetLocationType === 'flyout'
+          ? `Flyout: ${t.flyoutKey}`
+          : t.targetLocationType === 'ribbon'
+            ? `Ribbon: ${currentRibbonTabs.find((r) => r.key === t.ribbonTabKey)?.label || t.ribbonTabKey}`
+            : `Header: ${t.headerKey}`;
 
   // After creating a container, return to the catalog so the user can fill it
   const backToCatalog = (nextTargetValue) => {
@@ -625,71 +887,100 @@ export default function AddComponentModal({
         alert('Header ID (dataElement) is required.');
         return;
       }
-      if (id.toLowerCase() === 'tools-header' || headerOptions.includes(id)) {
+      if (
+        id.toLowerCase() === 'tools-header' ||
+        headerOptions.includes(id) ||
+        existingIds.has(id)
+      ) {
         alert(
           id.toLowerCase() === 'tools-header'
             ? '"tools-header" is a reserved system header for ribbon tools.'
-            : `Header "${id}" already exists.`,
+            : `Header or component with ID "${id}" already exists.`,
         );
         return;
       }
       onAddHeader?.({
         dataElement: id,
         placement: newHeaderPlacement,
-        justifyContent: 'start',
-        gap: 8,
+        justifyContent: newHeaderJustify,
+        gap: Number(newHeaderGap) || 8,
+        stroke: newHeaderStroke,
         items: [],
       });
       setSelectedHeader(id);
       setNewHeaderId('');
-      setAddedMsg(`✓ Created header ${id} (${newHeaderPlacement})`);
+      setAddedMsg(
+        `✓ Created header ${id} (${newHeaderPlacement}, ${newHeaderGap}px gap, ${newHeaderJustify})`,
+      );
       backToCatalog('header');
       return;
     }
 
     if (type === 'flyout') {
-      if (!newFlyoutId.trim()) {
+      const id = newFlyoutId.trim();
+      if (!id) {
         alert('Flyout ID (dataElement) is required.');
         return;
       }
-      const id = newFlyoutId.trim();
-      const inPopup = flyoutToggleTarget.startsWith('popup:');
-      const targetPopupKey = inPopup
-        ? flyoutToggleTarget.slice('popup:'.length)
-        : null;
+      if (existingIds.has(id)) {
+        alert(`A flyout or component with ID "${id}" already exists.`);
+        return;
+      }
+      const target = resolveTarget();
       onAddFlyout?.({
         dataElement: id,
+        createToggle: newFlyoutCreateToggle,
         label: newFlyoutToggleLabel.trim() || undefined,
         title: newFlyoutToggleTitle.trim() || undefined,
         icon: newFlyoutToggleIcon.trim() || undefined,
+        target,
         targetHeader: selectedHeader,
-        targetLocationType: inPopup ? 'popup' : 'header',
-        targetPopup: targetPopupKey,
+        targetLocationType: target.targetLocationType,
+        targetPopup: target.popupKey,
       });
+      const destName = describeTarget(target);
       setAddedMsg(
-        inPopup
-          ? `✓ Created flyout ${id} (toggle in ${POPUPS_CATALOG.find((p) => p.id === targetPopupKey)?.name || targetPopupKey}) - now targeting it`
-          : `✓ Created flyout ${id} - now targeting it`,
+        !newFlyoutCreateToggle
+          ? `✓ Created standalone flyout ${id} - now targeting it`
+          : `✓ Created flyout ${id} (toggle in ${destName}) - now targeting it`,
       );
       backToCatalog(`flyout:${id}`);
       return;
     }
 
     if (type === 'tabPanel') {
-      if (!tabPanelId.trim()) {
+      const id = tabPanelId.trim();
+      if (!id) {
         alert('Tab Panel Container ID is required.');
         return;
       }
+      if (existingIds.has(id)) {
+        alert(`A tab panel or component with ID "${id}" already exists.`);
+        return;
+      }
+      const target = resolveTarget();
       onAddTabPanel?.({
-        dataElement: tabPanelId.trim(),
+        dataElement: id,
         location: tabPanelLocation,
         panelsList: Array.from(selectedTabPanelChildren).map((render) => ({
           render,
         })),
+        createToggle: newTabPanelCreateToggle,
         toggleLabel: toggleButtonLabel.trim() || undefined,
+        toggleTitle: toggleButtonTitle.trim() || undefined,
+        toggleIcon: toggleButtonIcon.trim() || undefined,
+        target,
         targetHeader: selectedHeader,
       });
-      setAddedMsg(`✓ Created tab panel ${tabPanelId.trim()}`);
+      const destName = describeTarget(target);
+      setAddedMsg(
+        newTabPanelCreateToggle
+          ? `✓ Created tab panel ${id} (toggle in ${destName})`
+          : `✓ Created standalone tab panel ${id}`,
+      );
+      if (target.flyoutKey) {
+        backToCatalog(`flyout:${target.flyoutKey}`);
+      }
       return;
     }
 
@@ -703,6 +994,10 @@ export default function AddComponentModal({
         ? cleanLabel.charAt(0).toLowerCase() + cleanLabel.slice(1)
         : 'custom';
       const groupId = newTabGroupId.trim() || `${defaultCamel}RibbonItem`;
+      if (existingIds.has(groupId)) {
+        alert(`A ribbon tab or component with ID "${groupId}" already exists.`);
+        return;
+      }
 
       const cleanName = groupId
         .replace(/RibbonItem$/i, '')
@@ -720,7 +1015,8 @@ export default function AddComponentModal({
           type: 'ribbonItem',
           dataElement: groupId,
           label: newTabLabel.trim(),
-          title: newTabLabel.trim(),
+          title: newTabTitle.trim() || newTabLabel.trim(),
+          img: newTabIcon.trim() || undefined,
           toolbarGroup: groupId,
           groupedItems: [groupContainerKey],
           items: [],
@@ -748,9 +1044,17 @@ export default function AddComponentModal({
       alert('Data Element ID is required.');
       return;
     }
+    if (dataElement !== 'divider' && existingIds.has(dataElement)) {
+      alert(
+        `A component with ID "${dataElement}" already exists. Duplicate components must have unique dataElements (e.g. "${generateUniqueDataElement(dataElement, existingIds)}").`,
+      );
+      return;
+    }
 
     const target = resolveTarget();
-    const inFlyout = target.targetLocationType === 'flyout';
+    const inFlyout =
+      target.targetLocationType === 'flyout' ||
+      target.targetLocationType === 'submenu';
     const { kind, ref } = selectedItem;
     let componentType;
     let component;
@@ -766,6 +1070,7 @@ export default function AddComponentModal({
             label: form.label || ref.toolName,
             title: form.title || form.label || ref.toolName,
             img: form.icon || undefined,
+            ...(form.location ? { panelLocation: form.location } : {}),
           }
         : {
             type: 'toolButton',
@@ -774,6 +1079,7 @@ export default function AddComponentModal({
             label: form.label || undefined,
             title: form.title || undefined,
             img: form.icon || undefined,
+            ...(form.location ? { panelLocation: form.location } : {}),
           };
     } else if (kind === 'preset') {
       const isToggle = ref.type === 'toggleButton';
@@ -795,6 +1101,7 @@ export default function AddComponentModal({
         dataElement,
         toggleElement: ref.id,
         element: ref.id,
+        panelLocation: form.location || ref.defaultLocation || 'left',
         label: form.label || undefined,
         title: form.title || undefined,
         img: form.icon || undefined,
@@ -819,6 +1126,47 @@ export default function AddComponentModal({
         label: form.label.trim(),
         title: form.title.trim() || undefined,
       };
+    } else if (kind === 'custom') {
+      const actionName = (form.onClick || '').trim();
+      if (!actionName) {
+        alert('Function Map Action Name (onClick) is required.');
+        return;
+      }
+      componentType = 'customButton';
+      component = {
+        type: 'customButton',
+        dataElement,
+        label: form.label || undefined,
+        title: form.title || form.label || undefined,
+        img: form.icon || undefined,
+        onClick: actionName,
+      };
+    } else if (kind === 'submenu') {
+      componentType = 'customButton';
+      component = {
+        type: 'customButton',
+        dataElement,
+        label: form.label || 'Submenu',
+        title: form.title || form.label || 'Submenu',
+        img: form.icon || 'icon-header-chevron-right',
+        children: [],
+      };
+    } else if (kind === 'toggle') {
+      const toggleTarget = (form.toggleElement || '').trim();
+      if (!toggleTarget) {
+        alert('Toggle Target ID is required.');
+        return;
+      }
+      componentType = 'toggleButton';
+      component = {
+        type: 'toggleButton',
+        dataElement,
+        toggleElement: toggleTarget,
+        element: toggleTarget,
+        label: form.label || undefined,
+        title: form.title || form.label || undefined,
+        img: form.icon || 'ic-hamburger-menu',
+      };
     } else if (kind === 'popup') {
       componentType = 'popupAction';
       component = {
@@ -830,21 +1178,52 @@ export default function AddComponentModal({
     } else {
       componentType = ref.type;
       component = { type: ref.type, dataElement };
+      if (ref.type === 'toolGroupToggleButton') {
+        component.groupedItems = ref.groupedItems;
+        component.shouldToggleVisibility =
+          form.shouldToggleVisibility !== false;
+      } else if (ref.type === 'customElement') {
+        let parsedArgs = undefined;
+        if (form.renderArguments?.trim()) {
+          try {
+            parsedArgs = JSON.parse(form.renderArguments);
+          } catch {
+            parsedArgs = [form.renderArguments.trim()];
+          }
+        }
+        component.render = ref.render || form.onClick || dataElement;
+        component.renderArguments = parsedArgs;
+      }
     }
 
     onAddComponent({ target, componentType, component });
     setAddedMsg(
       `✓ Added ${selectedItem.name} (${dataElement}) to ${describeTarget(target)}`,
     );
+
+    // Auto-advance form.dataElement to the next unique ID so adding another duplicate button is instantaneous
+    const nextIds = new Set(existingIds);
+    nextIds.add(dataElement);
+    const nextSuggested = generateUniqueDataElement(dataElement, nextIds);
+    setForm((prev) => ({
+      ...prev,
+      dataElement: nextSuggested,
+    }));
   };
 
   // ---- Render helpers ------------------------------------------------------
   const isContainer = selectedItem?.kind === 'container';
   const containerType = isContainer ? selectedItem.containerType : null;
 
-  const showLabelField = ['tool', 'preset', 'panel', 'popup'].includes(
-    selectedItem?.kind,
-  );
+  const showLabelField = [
+    'tool',
+    'preset',
+    'custom',
+    'toggle',
+    'submenu',
+    'panel',
+    'popup',
+  ].includes(selectedItem?.kind);
   const isTextLabel = selectedItem?.ref?.type === 'label';
   const showIconField = showLabelField;
 
@@ -888,12 +1267,73 @@ export default function AddComponentModal({
         </div>
 
         <form onSubmit={handleSubmit} className="catalog-form">
-          {/* Target destination (not needed when creating containers) */}
-          {!isContainer && (
+          {/* Target destination bar - unified across regular components and containers */}
+          {selectedItem?.containerType === 'header' ? (
             <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">Add to:</span>
-              {!isFlyoutTarget && !isPopupTarget && headerSelect}
-              {!isFlyoutTarget && !isPopupTarget && (
+              <span className="catalog-dest-label">Placement:</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-color, #333)',
+                  fontWeight: 500,
+                }}
+              >
+                Viewer Screen Edge (Top-level container)
+              </span>
+            </div>
+          ) : selectedItem?.containerType === 'ribbonTab' ? (
+            <div className="catalog-dest-bar">
+              <span className="catalog-dest-label">
+                Add Ribbon Tab to Header:
+              </span>
+              {headerSelect}
+              <span className="catalog-dest-arrow">➔</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-color, #333)',
+                  fontWeight: 500,
+                }}
+              >
+                RibbonGroup
+              </span>
+            </div>
+          ) : selectedItem?.containerType === 'flyout' &&
+            !newFlyoutCreateToggle ? (
+            <div className="catalog-dest-bar">
+              <span className="catalog-dest-label">Placement:</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-color, #333)',
+                  fontWeight: 500,
+                }}
+              >
+                Standalone Flyout Menu (no toggle button)
+              </span>
+            </div>
+          ) : selectedItem?.containerType === 'tabPanel' &&
+            !newTabPanelCreateToggle ? (
+            <div className="catalog-dest-bar">
+              <span className="catalog-dest-label">Placement:</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-color, #333)',
+                  fontWeight: 500,
+                }}
+              >
+                Sidebar Panel (Docked{' '}
+                {tabPanelLocation === 'left' ? 'Left' : 'Right'}, standalone)
+              </span>
+            </div>
+          ) : (
+            <div className="catalog-dest-bar">
+              <span className="catalog-dest-label">
+                {isContainer ? 'Add toggle button to:' : 'Add to:'}
+              </span>
+              {!isFlyoutOrSubmenuTarget && !isPopupTarget && headerSelect}
+              {!isFlyoutOrSubmenuTarget && !isPopupTarget && (
                 <span className="catalog-dest-arrow">➔</span>
               )}
               <select
@@ -901,6 +1341,27 @@ export default function AddComponentModal({
                 onChange={(e) => setTargetValue(e.target.value)}
                 className="form-select"
               >
+                {selectedItem?.containerType !== 'flyout' &&
+                  allSubmenus.length > 0 && (
+                    <optgroup label="Submenus (Drilldown)">
+                      {allSubmenus.map((s) => (
+                        <option key={s.key} value={`submenu:${s.key}`}>
+                          {`${'— '.repeat(s.depth - 1)}Submenu: ${s.key}${s.flyoutId ? ` [${s.flyoutId}]` : ''}`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                {selectedItem?.containerType !== 'flyout' &&
+                  isSubmenuTarget &&
+                  !allSubmenus.some(
+                    (s) => `submenu:${s.key}` === targetValue,
+                  ) && (
+                    <optgroup label="Current Submenu">
+                      <option value={targetValue}>
+                        Submenu: {targetValue.slice('submenu:'.length)}
+                      </option>
+                    </optgroup>
+                  )}
                 <optgroup label="Header">
                   <option value="header">Header Items</option>
                 </optgroup>
@@ -913,7 +1374,7 @@ export default function AddComponentModal({
                     ))}
                   </optgroup>
                 )}
-                {hasFlyouts && (
+                {selectedItem?.containerType !== 'flyout' && hasFlyouts && (
                   <optgroup label="Flyouts">
                     {Object.keys(flyouts).map((id) => (
                       <option key={id} value={`flyout:${id}`}>
@@ -1022,6 +1483,26 @@ export default function AddComponentModal({
                     </div>
                   )}
 
+                  {selectedItem.kind === 'custom' && (
+                    <div
+                      className="import-warnings"
+                      role="note"
+                      style={{
+                        background: '#f5f3ff',
+                        borderColor: '#ddd6fe',
+                        color: '#5b21b6',
+                      }}
+                    >
+                      <strong>Custom Button Action:</strong> Wires to{' '}
+                      <code>
+                        functionMap[&apos;{form.onClick?.trim() || 'actionName'}
+                        &apos;]
+                      </code>
+                      . The exported code snippet will automatically include
+                      this handler.
+                    </div>
+                  )}
+
                   {selectedItem.requirement && (
                     <div className="panel-requirement-box">
                       <span className="requirement-tag">Specialized Panel</span>
@@ -1061,11 +1542,41 @@ export default function AddComponentModal({
                       Data Element ID <span className="required-star">*</span>
                     </label>
                     <input
-                      value={form.dataElement}
+                      value={form.dataElement ?? ''}
                       onChange={setField('dataElement')}
-                      className="form-input monospace"
+                      className={`form-input monospace ${isDuplicateId ? 'input-error' : ''}`}
+                      style={
+                        isDuplicateId
+                          ? {
+                              borderColor: '#ef4444',
+                              backgroundColor: '#fef2f2',
+                            }
+                          : undefined
+                      }
                       required
                     />
+                    {isDuplicateId && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: '#b91c1c',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        ⚠️ A component with ID &quot;
+                        <strong>{form.dataElement.trim()}</strong>&quot; already
+                        exists. Duplicate buttons must have unique dataElements
+                        (e.g.{' '}
+                        <strong>
+                          {generateUniqueDataElement(
+                            form.dataElement.trim(),
+                            existingIds,
+                          )}
+                        </strong>
+                        ).
+                      </div>
+                    )}
                   </div>
 
                   {(showLabelField || isTextLabel) && (
@@ -1077,7 +1588,7 @@ export default function AddComponentModal({
                         )}
                       </label>
                       <input
-                        value={form.label}
+                        value={form.label ?? ''}
                         onChange={setField('label')}
                         placeholder={isTextLabel ? 'e.g. Tools' : undefined}
                         className="form-input"
@@ -1092,7 +1603,7 @@ export default function AddComponentModal({
                         Hover Tooltip (optional)
                       </label>
                       <input
-                        value={form.title}
+                        value={form.title ?? ''}
                         onChange={setField('title')}
                         className="form-input"
                       />
@@ -1103,10 +1614,132 @@ export default function AddComponentModal({
                     <div className="form-group">
                       <label className="form-label">Icon Class</label>
                       <input
-                        value={form.icon}
+                        value={form.icon ?? ''}
                         onChange={setField('icon')}
                         className="form-input monospace"
                       />
+                    </div>
+                  )}
+
+                  {selectedItem.kind === 'custom' && (
+                    <div className="form-group">
+                      <label className="form-label">
+                        Function Map Action Name (onClick){' '}
+                        <span className="required-star">*</span>
+                      </label>
+                      <input
+                        value={form.onClick ?? ''}
+                        onChange={setField('onClick')}
+                        placeholder="e.g. handleCustomAction or switchToSecondFlyout"
+                        className="form-input monospace"
+                        required
+                      />
+                      <p className="field-hint">
+                        Wires to{' '}
+                        <code>
+                          functionMap[&apos;
+                          {form.onClick?.trim() || 'actionName'}&apos;]
+                        </code>{' '}
+                        when importing components.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedItem.kind === 'toggle' && (
+                    <div className="form-group">
+                      <label className="form-label">
+                        Toggle Target ID{' '}
+                        <span className="required-star">*</span>
+                      </label>
+                      <input
+                        value={form.toggleElement ?? ''}
+                        onChange={setField('toggleElement')}
+                        placeholder="e.g. customActionsFlyout, thumbnailsPanel, printModal"
+                        className="form-input monospace"
+                        list="available-toggle-targets"
+                        required
+                      />
+                      <datalist id="available-toggle-targets">
+                        {Object.keys(flyouts || {}).map((f) => (
+                          <option key={f} value={f}>
+                            Flyout: {f}
+                          </option>
+                        ))}
+                        {Object.keys(panels || {}).map((p) => (
+                          <option key={p} value={p}>
+                            Panel: {p}
+                          </option>
+                        ))}
+                      </datalist>
+                      <p className="field-hint">
+                        The dataElement of the element this button toggles.
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedItem.kind === 'panel' ||
+                    (selectedItem.kind === 'tool' &&
+                      Boolean(
+                        TOOL_TO_PANEL_MAP[selectedItem.ref?.toolName] ||
+                        TOOL_TO_PANEL_MAP[selectedItem.ref?.defaultId],
+                      ))) && (
+                    <div className="form-group">
+                      <label className="form-label">Dock Location</label>
+                      <div className="radio-group-inline">
+                        {['left', 'right'].map((side) => (
+                          <label key={side}>
+                            <input
+                              type="radio"
+                              name="panelDockLocation"
+                              value={side}
+                              checked={(form.location || 'left') === side}
+                              onChange={() =>
+                                setForm((f) => ({ ...f, location: side }))
+                              }
+                            />{' '}
+                            {side === 'left' ? 'Left Side' : 'Right Side'}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="field-hint">
+                        Determines which side of the viewer canvas this panel
+                        opens on.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedItem.ref?.type === 'toolGroupToggleButton' && (
+                    <div className="form-group">
+                      <label className="checkbox-field-row">
+                        <input
+                          type="checkbox"
+                          checked={form.shouldToggleVisibility !== false}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              shouldToggleVisibility: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span>Toggle tool group visibility on click</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedItem.ref?.type === 'customElement' && (
+                    <div className="form-group">
+                      <label className="form-label">
+                        Render Arguments (JSON, optional)
+                      </label>
+                      <input
+                        value={form.renderArguments ?? ''}
+                        onChange={setField('renderArguments')}
+                        placeholder='e.g. ["arg1", "arg2"]'
+                        className="form-input monospace"
+                      />
+                      <p className="field-hint">
+                        Arguments passed to customElement.render(...)
+                      </p>
                     </div>
                   )}
 
@@ -1128,7 +1761,7 @@ export default function AddComponentModal({
                       <span className="required-star">*</span>
                     </label>
                     <input
-                      value={newHeaderId}
+                      value={newHeaderId ?? ''}
                       onChange={(e) => setNewHeaderId(e.target.value)}
                       placeholder="e.g. my-bottom-header"
                       className="form-input monospace"
@@ -1152,6 +1785,55 @@ export default function AddComponentModal({
                       ))}
                     </div>
                   </div>
+                  <div className="form-grid-2">
+                    <div className="form-group">
+                      <label className="form-label">
+                        Gap between items (px)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="64"
+                        value={newHeaderGap}
+                        onChange={(e) =>
+                          setNewHeaderGap(
+                            Math.max(0, parseInt(e.target.value, 10) || 0),
+                          )
+                        }
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Justify Content</label>
+                      <select
+                        value={newHeaderJustify}
+                        onChange={(e) => setNewHeaderJustify(e.target.value)}
+                        className="form-select"
+                      >
+                        <option value="start">Start (Left / Top)</option>
+                        <option value="center">Center</option>
+                        <option value="space-between">Space Between</option>
+                        <option value="end">End (Right / Bottom)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="field-hint" style={{ marginTop: -6 }}>
+                    Spacing in pixels between header buttons (default: 8px,
+                    WebViewer demo uses 12px).
+                  </p>
+                  <div className="form-group">
+                    <label
+                      className="checkbox-field-row"
+                      title="Toggle border stroke on this header"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newHeaderStroke}
+                        onChange={(e) => setNewHeaderStroke(e.target.checked)}
+                      />
+                      <span>Show header border (Stroke)</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -1164,15 +1846,11 @@ export default function AddComponentModal({
                     Then target it to add tools.
                   </p>
                   <div className="form-group">
-                    <label className="form-label">Destination Header</label>
-                    {headerSelect}
-                  </div>
-                  <div className="form-group">
                     <label className="form-label">
                       Tab Label <span className="required-star">*</span>
                     </label>
                     <input
-                      value={newTabLabel}
+                      value={newTabLabel ?? ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         setNewTabLabel(val);
@@ -1195,7 +1873,7 @@ export default function AddComponentModal({
                       <span className="required-star">*</span>
                     </label>
                     <input
-                      value={newTabGroupId}
+                      value={newTabGroupId ?? ''}
                       onChange={(e) => {
                         setNewTabGroupId(e.target.value);
                         setIsGroupIdCustomized(true);
@@ -1205,15 +1883,35 @@ export default function AddComponentModal({
                       required
                     />
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">
+                      Hover Tooltip (optional)
+                    </label>
+                    <input
+                      value={newTabTitle ?? ''}
+                      onChange={(e) => setNewTabTitle(e.target.value)}
+                      placeholder="e.g. Review Tools"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Tab Icon (optional)</label>
+                    <input
+                      value={newTabIcon ?? ''}
+                      onChange={(e) => setNewTabIcon(e.target.value)}
+                      placeholder="e.g. icon-header-chat-line"
+                      className="form-input monospace"
+                    />
+                  </div>
                 </div>
               )}
 
               {isContainer && containerType === 'flyout' && (
                 <div className="catalog-props">
                   <p className="tab-description">
-                    Create a custom <strong>Flyout Menu</strong>. A toggle
-                    button is added to the destination header; then choose the
-                    flyout as the target to fill it.
+                    Create a custom <strong>Flyout Menu</strong>. You can attach
+                    a toggle button now, or create it standalone and connect a
+                    Toggle Button later.
                   </p>
                   <div className="form-group">
                     <label className="form-label">
@@ -1221,61 +1919,71 @@ export default function AddComponentModal({
                       <span className="required-star">*</span>
                     </label>
                     <input
-                      value={newFlyoutId}
+                      value={newFlyoutId ?? ''}
                       onChange={(e) => setNewFlyoutId(e.target.value)}
                       className="form-input monospace"
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">
-                      Destination for Toggle Button
+                    <label className="checkbox-field-row">
+                      <input
+                        type="checkbox"
+                        checked={newFlyoutCreateToggle}
+                        onChange={(e) =>
+                          setNewFlyoutCreateToggle(e.target.checked)
+                        }
+                      />
+                      <span>Create a toggle button for this flyout</span>
                     </label>
-                    <select
-                      className="form-select"
-                      value={flyoutToggleTarget}
-                      onChange={(e) => setFlyoutToggleTarget(e.target.value)}
-                    >
-                      <optgroup label="Header">
-                        <option value="header">
-                          Header ({selectedHeader})
-                        </option>
-                      </optgroup>
-                      <optgroup label="Popups">
-                        {POPUPS_CATALOG.map((p) => (
-                          <option key={p.id} value={`popup:${p.id}`}>
-                            Popup: {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Toggle Button Label</label>
-                    <input
-                      value={newFlyoutToggleLabel}
-                      onChange={(e) => setNewFlyoutToggleLabel(e.target.value)}
-                      className="form-input"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Hover Tooltip (optional)
-                    </label>
-                    <input
-                      value={newFlyoutToggleTitle}
-                      onChange={(e) => setNewFlyoutToggleTitle(e.target.value)}
-                      className="form-input"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Toggle Button Icon</label>
-                    <input
-                      value={newFlyoutToggleIcon}
-                      onChange={(e) => setNewFlyoutToggleIcon(e.target.value)}
-                      placeholder="e.g. icon-tools-more, ic-hamburger-menu"
-                      className="form-input monospace"
-                    />
+                    {!newFlyoutCreateToggle && (
+                      <p className="field-hint" style={{ marginTop: 4 }}>
+                        A standalone flyout container will be created. You can
+                        place a Toggle Button separately from the catalog
+                        anytime.
+                      </p>
+                    )}
+                    {newFlyoutCreateToggle && (
+                      <div className="nested-toggle-fields">
+                        <div className="form-group">
+                          <label className="form-label">
+                            Toggle Button Label
+                          </label>
+                          <input
+                            value={newFlyoutToggleLabel ?? ''}
+                            onChange={(e) =>
+                              setNewFlyoutToggleLabel(e.target.value)
+                            }
+                            className="form-input"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">
+                            Hover Tooltip (optional)
+                          </label>
+                          <input
+                            value={newFlyoutToggleTitle ?? ''}
+                            onChange={(e) =>
+                              setNewFlyoutToggleTitle(e.target.value)
+                            }
+                            className="form-input"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">
+                            Toggle Button Icon
+                          </label>
+                          <input
+                            value={newFlyoutToggleIcon ?? ''}
+                            onChange={(e) =>
+                              setNewFlyoutToggleIcon(e.target.value)
+                            }
+                            placeholder="e.g. icon-tools-more, ic-hamburger-menu"
+                            className="form-input monospace"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1284,8 +1992,7 @@ export default function AddComponentModal({
                 <div className="catalog-props">
                   <p className="tab-description">
                     Create a multi-tab sidebar (<strong>TabPanel</strong>)
-                    docked left or right, with a toggle button in the
-                    destination header.
+                    docked left or right, with an optional toggle button.
                   </p>
                   <div className="form-group">
                     <label className="form-label">
@@ -1294,7 +2001,7 @@ export default function AddComponentModal({
                     </label>
                     <input
                       className="form-input monospace"
-                      value={tabPanelId}
+                      value={tabPanelId ?? ''}
                       onChange={(e) => setTabPanelId(e.target.value)}
                       required
                     />
@@ -1317,18 +2024,63 @@ export default function AddComponentModal({
                     </div>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">
-                      Destination Header for Toggle Button
+                    <label className="checkbox-field-row">
+                      <input
+                        type="checkbox"
+                        checked={newTabPanelCreateToggle}
+                        onChange={(e) =>
+                          setNewTabPanelCreateToggle(e.target.checked)
+                        }
+                      />
+                      <span>Create a toggle button for this tab panel</span>
                     </label>
-                    {headerSelect}
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Toggle Button Label</label>
-                    <input
-                      className="form-input"
-                      value={toggleButtonLabel}
-                      onChange={(e) => setToggleButtonLabel(e.target.value)}
-                    />
+                    {!newTabPanelCreateToggle && (
+                      <p className="field-hint" style={{ marginTop: 4 }}>
+                        A standalone tab panel will be created. You can place a
+                        Toggle Button separately from the catalog anytime.
+                      </p>
+                    )}
+                    {newTabPanelCreateToggle && (
+                      <div className="nested-toggle-fields">
+                        <div className="form-group">
+                          <label className="form-label">
+                            Toggle Button Label
+                          </label>
+                          <input
+                            className="form-input"
+                            value={toggleButtonLabel ?? ''}
+                            onChange={(e) =>
+                              setToggleButtonLabel(e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">
+                            Hover Tooltip (optional)
+                          </label>
+                          <input
+                            className="form-input"
+                            value={toggleButtonTitle ?? ''}
+                            onChange={(e) =>
+                              setToggleButtonTitle(e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">
+                            Toggle Button Icon
+                          </label>
+                          <input
+                            className="form-input monospace"
+                            value={toggleButtonIcon ?? ''}
+                            onChange={(e) =>
+                              setToggleButtonIcon(e.target.value)
+                            }
+                            placeholder="e.g. icon-header-sidebar-line"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <div className="catalog-props-split">
@@ -1407,7 +2159,21 @@ export default function AddComponentModal({
               <button type="button" onClick={onClose} className="cancel-button">
                 Close
               </button>
-              <button type="submit" className="submit-button">
+              <button
+                type="submit"
+                className="submit-button"
+                disabled={isDuplicateId}
+                style={
+                  isDuplicateId
+                    ? { opacity: 0.5, cursor: 'not-allowed' }
+                    : undefined
+                }
+                title={
+                  isDuplicateId
+                    ? 'Duplicate dataElement ID must be unique'
+                    : undefined
+                }
+              >
                 {submitLabel}
               </button>
             </div>

@@ -199,10 +199,19 @@ export const TOOLS_CATALOG = [
   },
   {
     key: 'RUBBER_STAMP',
-    toolName: 'AnnotationCreateStamp',
+    toolName: 'AnnotationCreateRubberStamp',
     label: 'Rubber Stamp',
     title: 'Place rubber stamps (Approved, Draft, etc.)',
     icon: 'icon-tool-stamp-line',
+    category: TOOL_CATEGORIES.INSERT_SIGS,
+    defaultId: 'rubberStampToolButton',
+  },
+  {
+    key: 'IMAGE_STAMP',
+    toolName: 'AnnotationCreateStamp',
+    label: 'Image Stamp',
+    title: 'Insert an image as a stamp',
+    icon: 'icon-tool-image-line',
     category: TOOL_CATEGORIES.INSERT_SIGS,
     defaultId: 'stampToolButton',
   },
@@ -1042,10 +1051,53 @@ export const DEFAULT_BLANK_CONFIG = {
   modularHeaders: {},
   modularComponents: {},
   panels: {},
-  flyouts: {},
+  flyouts: {
+    viewControlsFlyout: {
+      dataElement: 'viewControlsFlyout',
+      items: [],
+    },
+  },
   popups: {
     annotationPopup: [],
     textPopup: [],
     contextMenuPopup: [],
   },
+};
+
+/**
+ * Mapping of tools, tool buttons, or action dataElements that automatically open
+ * a side panel in WebViewer without an explicit toggle button.
+ */
+export const TOOL_TO_PANEL_MAP = {
+  AnnotationCreateRubberStamp: 'rubberStampPanel',
+  rubberStampToolButton: 'rubberStampPanel',
+  stampToolButton: 'rubberStampPanel',
+  AnnotationCreateSignature: 'signaturePanel',
+  signatureCreateToolButton: 'signaturePanel',
+  signatureToolButton: 'signaturePanel',
+  AnnotationCreateFileAttachment: 'fileAttachmentPanel',
+  fileAttachmentButton: 'fileAttachmentPanel',
+  AnnotationCreateRedaction: 'redactionPanel',
+  redactionToolButton: 'redactionPanel',
+  redactionButton: 'redactionPanel',
+};
+
+/**
+ * Resolves the target side panel id for a component, whether it is an explicit
+ * toggle button (comp.toggleElement || comp.element) or an implicit tool button
+ * (via TOOL_TO_PANEL_MAP).
+ */
+export const resolvePanelTarget = (comp) => {
+  if (!comp) return null;
+  const isToggle =
+    comp.type === 'toggleButton' || comp.type === 'toggleElementButton';
+  const explicitTarget = comp.toggleElement || comp.element;
+  if (isToggle && explicitTarget) {
+    return explicitTarget;
+  }
+  const implicitTarget =
+    TOOL_TO_PANEL_MAP[comp.toolName] ||
+    TOOL_TO_PANEL_MAP[comp.dataElement] ||
+    TOOL_TO_PANEL_MAP[comp.id];
+  return implicitTarget || (isToggle ? explicitTarget : null);
 };

@@ -23,7 +23,7 @@ main {
 }
 
 /* Builder styles */
-.ModularUIBuilder input,
+.ModularUIBuilder input:not([type='checkbox']):not([type='radio']),
 .ModularUIBuilder textarea,
 .ModularUIBuilder select {
   width: 100%;

@@ -1,38 +1,6 @@
 import React, { useState } from 'react';
+import ComponentItemRow from './ComponentItemRow';
 import './ToolButtonsCategorized.css';
-
-// Helper badge formatter based on component type
-function renderComponentBadge(component = {}) {
-  const type = component.type || '';
-  if (type === 'toolButton') {
-    return <span className="item-badge badge-tool">Tool</span>;
-  }
-  if (type === 'presetButton') {
-    return <span className="item-badge badge-preset">Preset</span>;
-  }
-  if (type === 'toggleButton' || type === 'toggleElementButton') {
-    return <span className="item-badge badge-toggle">Toggle</span>;
-  }
-  if (type === 'ribbonGroup') {
-    return <span className="item-badge badge-preset">RibbonGroup</span>;
-  }
-  if (type === 'ribbonItem') {
-    return <span className="item-badge badge-toggle">RibbonItem</span>;
-  }
-  if (type === 'groupedItems') {
-    return <span className="item-badge badge-controls">GroupedItems</span>;
-  }
-  if (type === 'pageControls' || type === 'zoom' || type === 'viewControls') {
-    return <span className="item-badge badge-controls">Control</span>;
-  }
-  if (type === 'label') {
-    return <span className="item-badge badge-label">Label</span>;
-  }
-  if (type === 'divider' || type === 'spacer') {
-    return <span className="item-badge badge-layout">Layout</span>;
-  }
-  return <span className="item-badge badge-other">{type || 'Item'}</span>;
-}
 
 // Items can repeat in a list (e.g. several dividers). Returns which occurrence
 // of its key this row is, and whether the key repeats, so handlers can act on
@@ -42,71 +10,6 @@ function getOccurrenceInfo(list, index) {
   const occurrence = list.slice(0, index).filter((i) => i.key === key).length;
   const isDuplicate = list.filter((i) => i.key === key).length > 1;
   return { occurrence, isDuplicate };
-}
-
-// Component List item row
-function ComponentItemRow({
-  item,
-  index,
-  totalItems,
-  onMoveItem,
-  onDeleteTool,
-  targetContext,
-}) {
-  const comp = item.component || {};
-  const canMoveUp = index > 0;
-  const canMoveDown = index < totalItems - 1;
-
-  const displayName =
-    comp.label || comp.title || comp.toolName || comp.buttonType || item.key;
-  const subText =
-    comp.dataElement && comp.dataElement !== displayName
-      ? `(${comp.dataElement})`
-      : '';
-
-  return (
-    <div className="tool-item">
-      <div className="tool-info">
-        {renderComponentBadge(comp)}
-        <div className="tool-name-container">
-          <span className="tool-display-name">{displayName}</span>
-          {subText && <span className="tool-subtext">{subText}</span>}
-        </div>
-      </div>
-
-      <div className="tool-item-actions">
-        {onMoveItem && (
-          <div className="tool-move-controls">
-            <button
-              className="move-button"
-              onClick={() => onMoveItem(item, -1, targetContext)}
-              disabled={!canMoveUp}
-              title={`Move ${item.key} up`}
-            >
-              ↑
-            </button>
-            <button
-              className="move-button"
-              onClick={() => onMoveItem(item, 1, targetContext)}
-              disabled={!canMoveDown}
-              title={`Move ${item.key} down`}
-            >
-              ↓
-            </button>
-          </div>
-        )}
-        {onDeleteTool && (
-          <button
-            className="delete-button"
-            onClick={() => onDeleteTool(item.key, targetContext)}
-            title={`Remove ${item.key}`}
-          >
-            ✕
-          </button>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export default function ToolButtonsCategorized({
@@ -123,6 +26,12 @@ export default function ToolButtonsCategorized({
   onOpenAddModal,
   subView = 'header',
   onSubViewChange,
+  ribbonLayout = 'separate',
+  onSetRibbonLayout,
+  toolsHeaderDef = null,
+  onUpdateToolsHeader,
+  panels = {},
+  onChangePanelLocation,
 }) {
   const [internalSubView, setInternalSubView] = useState('header');
   const activeSubView = onSubViewChange ? subView : internalSubView;
@@ -178,6 +87,8 @@ export default function ToolButtonsCategorized({
                   totalItems={directHeaderItems.length}
                   onMoveItem={onMoveItem}
                   onDeleteTool={onDeleteTool}
+                  panels={panels}
+                  onChangePanelLocation={onChangePanelLocation}
                   targetContext={{
                     type: 'header',
                     headerKey: activeHeader,
@@ -191,67 +102,159 @@ export default function ToolButtonsCategorized({
       ) : (
         /* 2. Ribbon Tabs & Tab Tools */
         <>
+          {ribbonTabs.length > 0 && (
+            <div
+              className="ribbon-layout-settings-box"
+              style={{
+                marginBottom: 10,
+                padding: '8px 12px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 6,
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: '#334155',
+                    minWidth: 50,
+                  }}
+                >
+                  Layout:
+                </span>
+                <select
+                  value={ribbonLayout}
+                  onChange={(e) => onSetRibbonLayout?.(e.target.value)}
+                  className="form-select"
+                  style={{ fontSize: 11, padding: '2px 8px', height: 26 }}
+                >
+                  <option value="separate">Separate Headers (2 Rows)</option>
+                  <option value="inline">Inline Header (1 Single Bar)</option>
+                </select>
+              </div>
+
+              {ribbonLayout === 'separate' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    marginTop: 8,
+                    paddingTop: 8,
+                    borderTop: '1px solid #e2e8f0',
+                    fontSize: 11,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span style={{ fontWeight: 600, color: '#475569' }}>
+                      Tools Bar:
+                    </span>
+                    <select
+                      value={
+                        toolsHeaderDef?.placement ||
+                        (headerPlacement === 'left' ||
+                        headerPlacement === 'right'
+                          ? 'top'
+                          : headerPlacement) ||
+                        'top'
+                      }
+                      onChange={(e) =>
+                        onUpdateToolsHeader?.({ placement: e.target.value })
+                      }
+                      className="form-select"
+                      style={{ fontSize: 11, padding: '2px 6px', height: 24 }}
+                    >
+                      <option value="top">Top</option>
+                      <option value="bottom">Bottom</option>
+                      <option
+                        value="left"
+                        disabled={headerPlacement === 'left'}
+                      >
+                        Left{' '}
+                        {headerPlacement === 'left' ? '(1 header limit)' : ''}
+                      </option>
+                      <option
+                        value="right"
+                        disabled={headerPlacement === 'right'}
+                      >
+                        Right{' '}
+                        {headerPlacement === 'right' ? '(1 header limit)' : ''}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span style={{ fontWeight: 600, color: '#475569' }}>
+                      Align:
+                    </span>
+                    <select
+                      value={toolsHeaderDef?.justifyContent || 'center'}
+                      onChange={(e) =>
+                        onUpdateToolsHeader?.({
+                          justifyContent: e.target.value,
+                        })
+                      }
+                      className="form-select"
+                      style={{ fontSize: 11, padding: '2px 6px', height: 24 }}
+                    >
+                      <option value="start">Start</option>
+                      <option value="center">Center</option>
+                      <option value="end">End</option>
+                    </select>
+                  </div>
+
+                  {(headerPlacement === 'left' ||
+                    headerPlacement === 'right') && (
+                    <p
+                      style={{
+                        margin: '6px 0 0 0',
+                        fontSize: 11,
+                        color: '#d97706',
+                        width: '100%',
+                      }}
+                    >
+                      ⚠️ WebViewer only supports 1 full-length{' '}
+                      {headerPlacement === 'left' ? 'Left' : 'Right'} header. To
+                      keep tools on the {headerPlacement} side, switch Tools
+                      Layout to <strong>Inline Header</strong> above.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="ribbon-tabs-section">
             <div className="section-header-row">
               <span className="section-subtitle">Tabs</span>
-              {onOpenAddModal && (
-                <button
-                  type="button"
-                  className="small-action-button"
-                  onClick={() => onOpenAddModal('ribbonTab', 'header')}
-                  title="Add a Ribbon Tab"
-                >
-                  + Add Tab
-                </button>
-              )}
             </div>
 
             {ribbonTabs.length === 0 ? (
               <p className="empty-hint" style={{ marginTop: 8 }}>
-                No ribbon tabs in this header yet. Click &quot;+ Add Tab&quot;
-                above to group tools into tabs (e.g. Annotate, Shapes).
+                No ribbon tabs in this header yet. Click &quot;+ Add
+                Component&quot; above to group tools into tabs (e.g. Annotate,
+                Shapes).
               </p>
             ) : (
-              <div className="filter-container">
+              <div className="filter-container" style={{ marginTop: 8 }}>
                 {ribbonTabs.map((tab) => {
                   const isActive = selectedRibbonTab === tab.key;
                   return (
-                    <div
+                    <button
                       key={tab.key}
+                      type="button"
                       className={`filter-button ${isActive ? 'active' : ''}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        paddingRight: onDeleteRibbonTab ? 6 : 12,
-                      }}
                       onClick={() => onSelectRibbonTab(tab.key)}
                     >
-                      <span>{tab.label || tab.key}</span>
-                      {onDeleteRibbonTab && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteRibbonTab(tab.key);
-                          }}
-                          title={`Remove RibbonItem "${tab.label || tab.key}"`}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: isActive
-                              ? 'rgba(255,255,255,0.85)'
-                              : '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '0 2px',
-                            fontSize: 11,
-                            lineHeight: 1,
-                          }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
+                      {tab.label || tab.key}
+                    </button>
                   );
                 })}
               </div>
@@ -268,8 +271,39 @@ export default function ToolButtonsCategorized({
                     {ribbonTabs.find((t) => t.key === selectedRibbonTab)
                       ?.label || selectedRibbonTab}
                   </strong>
+                  <span className="item-count-badge">
+                    ({ribbonTools.length})
+                  </span>
                 </span>
-                <span className="item-count-badge">({ribbonTools.length})</span>
+                {onDeleteRibbonTab && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      color: '#dc2626',
+                    }}
+                    onClick={() => {
+                      const tabLabel =
+                        ribbonTabs.find((t) => t.key === selectedRibbonTab)
+                          ?.label || selectedRibbonTab;
+                      if (
+                        window.confirm(
+                          `Delete Ribbon tab "${tabLabel}" and remove its tools?`,
+                        )
+                      ) {
+                        onDeleteRibbonTab(selectedRibbonTab);
+                      }
+                    }}
+                    title={`Delete Ribbon tab ${
+                      ribbonTabs.find((t) => t.key === selectedRibbonTab)
+                        ?.label || selectedRibbonTab
+                    }`}
+                  >
+                    Delete Tab
+                  </button>
+                )}
               </div>
 
               <div className="tools-display">
@@ -287,6 +321,8 @@ export default function ToolButtonsCategorized({
                       totalItems={ribbonTools.length}
                       onMoveItem={onMoveItem}
                       onDeleteTool={onDeleteTool}
+                      panels={panels}
+                      onChangePanelLocation={onChangePanelLocation}
                       targetContext={{
                         type: 'ribbon',
                         ribbonKey: selectedRibbonTab,

@@ -33,6 +33,8 @@ export const MODAL_TAB_ITEM_TYPES = {
   tool: ['toolButton', 'customButton'],
   preset: ['presetButton'],
   toggle: ['toggleButton'],
+  custom: ['customButton'],
+  submenu: ['customButton'],
   flyout: [],
   controls: ['viewControls', 'pageControls'],
   layout: ['divider', 'label'],

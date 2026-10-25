@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.1.5 - UI Optimizations (2026-10-24)
+
+- updated builder readability
+- added submenu to components modal
+- unify all UI styling
+
 ## v0.1.4 - Unify popups and fix edge cases (2026-10-24)
 
 - added popups to component modal
