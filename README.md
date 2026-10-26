@@ -4,6 +4,50 @@ An interactive visual UI designer and configuration tool for building custom [Ap
 
 ---
 
+## Architecture & Synchronization Lifecycle
+
+The builder does not manipulate the WebViewer iframe DOM directly or call granular imperative SDK methods (such as `setHeaderItems` or `addCustomButton`). Instead, it is powered entirely by WebViewer's **Declarative Modular UI Engine**:
+
+```mermaid
+flowchart TD
+    WV["WebViewer Instance (iframe)"] -- "1. UI.exportModularComponents()" --> State["React State (config)"]
+    User["Builder Controls (Sidebar)"] -->|"2. Pure JSON edits"| State
+    State -->|"3. useEffect (150ms debounce)"| Sanitize["prepareConfigForImport() & buildFunctionMap()"]
+    Sanitize -->|"4. UI.importModularComponents(sanitized, functionMap)"| WV
+```
+
+### How the Lifecycle Works
+
+1. **Snapshot on Initial Mount (`exportModularComponents`)**:
+   When the builder mounts in `ModularUIBuilder.jsx`, it calls `window.viewerInstance.UI.exportModularComponents()`. This exports WebViewer's default UI configuration as a JSON tree into React state (`config`), establishing the baseline headers, tool buttons, flyouts, and panels.
+
+2. **Reactive State Manipulation**:
+   All user actions in the builder (adding buttons, reordering headers, modifying tabs, binding flyouts) are pure JSON transformations on the `config` state object.
+
+3. **Debounced Auto-Apply (`useEffect`)**:
+   Re-importing the UI into WebViewer tears down and rebuilds header and ribbon component trees. To keep interactions smooth:
+   - An `isInitialMount` ref guard ensures the app does not immediately re-import the configuration it just extracted.
+   - A `useEffect` watching `[config, autoApply]` debounces changes by `150ms` (`setTimeout` / `clearTimeout`). Rapid operations (such as typing labels or dragging items) batch together, executing only when the user pauses.
+
+4. **Sanitization & Guardrails (`prepareConfigForImport`)**:
+   WebViewer validates Modular UI imports strictly and drops entire headers or flyouts if unsupported structures are encountered. Before any configuration is handed to WebViewer, `prepareConfigForImport`:
+   - Enforces container placement limits (e.g. maximum of 2 top headers, 1 left/right header).
+   - Converts illegal flyout items (such as `toolButton` in flyouts) into `customButton` items wired to tool activators.
+   - Expands nested submenu `children` back into inline objects.
+   - Cleans up orphaned or missing toggle targets.
+
+5. **Function Map Generation (`buildFunctionMap`)**:
+   Because JSON configs only store serializable strings, actions such as tool activations (`activateTool:<toolName>`), custom button `onClick` handlers, and custom element renderers are resolved dynamically into a live `functionMap` dictionary.
+
+6. **Live Re-hydration (`importModularComponents`)**:
+   The builder dispatches:
+   ```javascript
+   window.viewerInstance.UI.importModularComponents(sanitized, functionMap);
+   ```
+   WebViewer ingests the schema, updates its internal Redux store, re-renders the UI within the viewer iframe, and binds tool activation modes natively.
+
+---
+
 ## Master Component Capability & Constraints Matrix
 
 Apryse WebViewer's Modular UI enforces strict validation rules across its container hierarchy (`modularHeaders`, `modularComponents`, `flyouts`, `panels`, and `popups`). The table below outlines what each container natively accepts, what is rejected or causes runtime crashes in WebViewer, and the engineering workarounds implemented in this builder.

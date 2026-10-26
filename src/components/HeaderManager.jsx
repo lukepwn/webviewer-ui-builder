@@ -14,51 +14,30 @@ export default function HeaderManager({
     activeHeader && headers[activeHeader] ? headers[activeHeader] : null;
 
   return (
-    <div className="header-manager-box">
-      <div className="section-header-row">
+    <section className="tool-buttons-container">
+      <div
+        className="section-header-row"
+        style={{ marginBottom: 8, alignItems: 'flex-start' }}
+      >
         <span className="section-title">Headers</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {activeHeaderDef && (
-            <button
-              type="button"
-              className="small-action-button"
-              onClick={() => setShowSettings((s) => !s)}
-              title="Toggle placement & gap settings for the selected header"
-            >
-              {(activeHeaderDef.placement || 'top').toUpperCase()} ·{' '}
-              {activeHeaderDef.gap != null ? activeHeaderDef.gap : 8}px gap{' '}
-              {showSettings ? '▲' : '▼'}
-            </button>
-          )}
-          {headerKeys.length > 1 && (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                fontSize: 11,
-                padding: '3px 8px',
-                color: '#dc2626',
-              }}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Delete header "${activeHeader}" and remove its contents?`,
-                  )
-                ) {
-                  onDeleteHeader(activeHeader);
-                }
-              }}
-              title={`Delete active header ${activeHeader}`}
-            >
-              Delete
-            </button>
-          )}
-        </div>
+        {activeHeaderDef && (
+          <button
+            type="button"
+            className={`small-action-button ${showSettings ? 'active' : ''}`}
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setShowSettings((s) => !s)}
+            title="Toggle placement & gap settings for the selected header"
+          >
+            {(activeHeaderDef.placement || 'top').toUpperCase()} ·{' '}
+            {activeHeaderDef.gap != null ? activeHeaderDef.gap : 8}px gap{' '}
+            {showSettings ? '▲' : '▼'}
+          </button>
+        )}
       </div>
 
       {/* Header Selector Buttons (Flyouts Style) */}
       {headerKeys.length === 0 ? (
-        <p className="empty-hint">
+        <p className="no-tools-message">
           No headers defined. Click &quot;+ Add Component&quot; above to create
           one.
         </p>
@@ -80,7 +59,7 @@ export default function HeaderManager({
                 onClick={() => onSelectHeader(hKey)}
                 title={`${hKey} (${itemCount} items, ${hConfig.gap != null ? hConfig.gap : 8}px gap)`}
               >
-                [{placement}] {hKey} ({itemCount})
+                {hKey} ({itemCount})
               </button>
             );
           })}
@@ -145,6 +124,6 @@ export default function HeaderManager({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

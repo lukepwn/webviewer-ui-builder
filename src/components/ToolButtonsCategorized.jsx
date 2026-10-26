@@ -19,6 +19,7 @@ export default function ToolButtonsCategorized({
   selectedRibbonTab = '',
   onSelectRibbonTab,
   onDeleteRibbonTab,
+  onDeleteHeader,
   ribbonTools = [],
   directHeaderItems = [],
   onDeleteTool,
@@ -60,13 +61,33 @@ export default function ToolButtonsCategorized({
       {activeSubView === 'header' ? (
         /* 1. Header Items (Pinned outside ribbon tabs) */
         <div className="direct-header-items-section">
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: 8 }}>
             <span className="section-subtitle">
-              Header Items
-              <span className="item-count-badge">
-                ({directHeaderItems.length})
-              </span>
+              Items in <strong>{activeHeader}</strong>
             </span>
+            {onDeleteHeader && (
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  color: '#dc2626',
+                }}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Delete header "${activeHeader}" and remove its contents?`,
+                    )
+                  ) {
+                    onDeleteHeader(activeHeader);
+                  }
+                }}
+                title={`Delete active header ${activeHeader}`}
+              >
+                Delete Header
+              </button>
+            )}
           </div>
           <p className="field-hint" style={{ marginBottom: 8, marginTop: -4 }}>
             Items here remain pinned to the header bar across all ribbon tabs.
@@ -75,8 +96,8 @@ export default function ToolButtonsCategorized({
           <div className="tools-display">
             {directHeaderItems.length === 0 ? (
               <p className="no-tools-message">
-                No items on this header bar yet. Click &quot;+ Add
-                Component&quot; above to add items to the header.
+                No items on this header. Click &quot;+ Add Component&quot; above
+                to add items to the header.
               </p>
             ) : (
               directHeaderItems.map((item, index) => (
@@ -264,9 +285,9 @@ export default function ToolButtonsCategorized({
           {/* Tools inside Active Ribbon Tab */}
           {selectedRibbonTab && (
             <div className="category-tools-section">
-              <div className="section-header-row">
+              <div className="section-header-row" style={{ marginBottom: 8 }}>
                 <span className="section-subtitle">
-                  Tools in{' '}
+                  Items in{' '}
                   <strong>
                     {ribbonTabs.find((t) => t.key === selectedRibbonTab)
                       ?.label || selectedRibbonTab}
@@ -301,7 +322,7 @@ export default function ToolButtonsCategorized({
                         ?.label || selectedRibbonTab
                     }`}
                   >
-                    Delete Tab
+                    Delete Ribbon
                   </button>
                 )}
               </div>

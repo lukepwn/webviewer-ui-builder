@@ -33,16 +33,17 @@ function App() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <div
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
+          minHeight: 0,
         }}
       >
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: 8, flexShrink: 0 }}>
           <button onClick={() => setShowBuilder((s) => !s)}>
             {showBuilder ? 'Hide UI Builder' : 'Show UI Builder'}
           </button>
@@ -50,7 +51,7 @@ function App() {
         <div
           className="webviewer"
           ref={viewer}
-          style={{ flex: 1, minWidth: 0 }}
+          style={{ flex: 1, minWidth: 0, minHeight: 0 }}
         ></div>
       </div>
       {showBuilder && (
@@ -61,6 +62,7 @@ function App() {
             borderLeft: '1px solid #eee',
             padding: 12,
             overflow: 'auto',
+            boxSizing: 'border-box',
           }}
         >
           <ModularUIBuilder />

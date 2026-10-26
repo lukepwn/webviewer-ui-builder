@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.1.6 - UI update + readme (2026-10-25)
+
+- updated readme to explain app lifecycle
+- updated ui consistency between builder tabs
+
 ## v0.1.5 - UI Optimizations (2026-10-24)
 
 - updated builder readability

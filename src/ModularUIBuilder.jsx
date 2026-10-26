@@ -1713,6 +1713,7 @@ export default function ModularUIBuilder() {
                   selectedRibbonTab={selectedRibbonTab}
                   onSelectRibbonTab={handleSelectRibbonTab}
                   onDeleteRibbonTab={handleDeleteRibbonTab}
+                  onDeleteHeader={handleDeleteHeader}
                   ribbonTools={getToolsInActiveRibbon()}
                   directHeaderItems={getDirectHeaderItems()}
                   onDeleteTool={handleDeleteTool}
@@ -1736,9 +1737,7 @@ export default function ModularUIBuilder() {
         {activeSection === 'flyouts' && (
           <section className="tool-buttons-container">
             <div className="section-header-row" style={{ marginBottom: 8 }}>
-              <span className="section-title">
-                Flyouts ({Object.keys(config.flyouts || {}).length})
-              </span>
+              <span className="section-title">Flyouts</span>
             </div>
 
             {Object.keys(config.flyouts || {}).length === 0 ? (
@@ -1748,7 +1747,7 @@ export default function ModularUIBuilder() {
               </p>
             ) : (
               <>
-                <div className="filter-container" style={{ marginBottom: 10 }}>
+                <div className="filter-container" style={{ marginTop: 13 }}>
                   {Object.entries(config.flyouts || {}).map(
                     ([flyoutId, flyoutDef]) => {
                       const count = Array.isArray(flyoutDef?.items)
@@ -1773,7 +1772,7 @@ export default function ModularUIBuilder() {
                   <div>
                     <div
                       className="section-header-row"
-                      style={{ marginBottom: 8 }}
+                      style={{ marginBottom: 8, marginTop: 12 }}
                     >
                       <span className="section-subtitle">
                         Items in <strong>{activeFlyout}</strong>

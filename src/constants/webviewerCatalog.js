@@ -818,8 +818,7 @@ export const POPUPS_CATALOG = [
   {
     id: 'annotationPopup',
     name: 'Annotation Popup',
-    description:
-      'Opens when an annotation is selected. Core items show on standard annotations; conditional items only appear when their specific annotation type is selected.',
+    description: 'Opens when an annotation is selected.',
     defaultItems: [
       {
         dataElement: 'viewFileButton',
@@ -915,7 +914,7 @@ export const POPUPS_CATALOG = [
   {
     id: 'textPopup',
     name: 'Text Popup',
-    description: 'Opens when text in the document is highlighted/selected.',
+    description: 'Opens when text in the document is selected.',
     defaultItems: [
       {
         dataElement: 'copyTextButton',

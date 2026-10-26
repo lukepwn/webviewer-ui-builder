@@ -64,20 +64,10 @@ export default function PopupsManager({
     onUpdatePopup(activePopupId, next);
   };
 
-  const handleRestoreDefault = () => {
-    onUpdatePopup(
-      activePopupId,
-      (DEFAULT_POPUPS[activePopupId] || []).map((i) => ({ ...i })),
-    );
-  };
-
   return (
     <div className="tool-buttons-container">
-      <div className="section-header-row" style={{ marginBottom: 8 }}>
+      <div className="section-header-row" style={{ marginBottom: 13 }}>
         <span className="section-title">Popups</span>
-        <span className="field-hint">
-          Annotation, Text & Context Menu Popups
-        </span>
       </div>
 
       {/* Popup Selector Buttons (Flyouts Style) */}
@@ -100,7 +90,7 @@ export default function PopupsManager({
               className={`filter-button ${isActive ? 'active' : ''}`}
               onClick={() => setActivePopupId(p.id)}
             >
-              {p.name} {isPopupDisabled ? '(Disabled)' : `(${count})`}
+              {p.name} {`(${count})`}
             </button>
           );
         })}
@@ -113,50 +103,23 @@ export default function PopupsManager({
       >
         <span className="section-subtitle">
           Items in <strong>{popupMeta.name}</strong>
-          <span className="item-count-badge">({currentItems.length})</span>
         </span>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             type="button"
-            className="small-action-button"
-            onClick={handleRestoreDefault}
-            title="Restore default items for this popup"
+            className="secondary-button"
+            style={{
+              fontSize: 11,
+              padding: '3px 8px',
+              color: '#dc2626',
+            }}
+            onClick={() => {
+              onUpdatePopup(activePopupId, []);
+            }}
+            title={`Disable ${popupMeta.name}`}
           >
-            Restore Default
+            Clear Items
           </button>
-          {isExplicitlyDefined && currentItems.length === 0 ? (
-            <button
-              type="button"
-              className="small-action-button"
-              style={{ color: '#0369a1', borderColor: '#7dd3fc' }}
-              onClick={handleRestoreDefault}
-              title={`Enable / Restore default items for ${popupMeta.name}`}
-            >
-              Enable
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                fontSize: 11,
-                padding: '3px 8px',
-                color: '#dc2626',
-              }}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Disable ${popupMeta.name}? (Sets items to [] in WebViewer)`,
-                  )
-                ) {
-                  onUpdatePopup(activePopupId, []);
-                }
-              }}
-              title={`Disable ${popupMeta.name}`}
-            >
-              Disable Popup
-            </button>
-          )}
         </div>
       </div>
 
@@ -171,9 +134,8 @@ export default function PopupsManager({
       >
         {currentItems.length === 0 ? (
           <p className="no-tools-message">
-            This popup is set to <code>[]</code> (disabled in WebViewer). Click
-            &quot;+ Add Component&quot; above or &quot;Restore Default&quot; to
-            enable it.
+            No items in this popup. Click &quot;+ Add Component&quot; above or
+            &quot;Restore Default&quot; to enable it.
           </p>
         ) : (
           currentItems.map((entry, idx) => {
