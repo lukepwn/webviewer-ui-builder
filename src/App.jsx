@@ -5,7 +5,7 @@ import ModularUIBuilder from './ModularUIBuilder';
 
 function App() {
   const viewer = useRef(null);
-  const [showBuilder, setShowBuilder] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
 
   useEffect(() => {
     if (!viewer.current || viewer.current.dataset.webviewerMounted === 'true')
@@ -14,7 +14,7 @@ function App() {
     WebViewer(
       {
         path: 'lib/webviewer',
-        fullAPI: true,
+        // fullAPI: true,
         // licenseKey: 'YOUR_LICENSE_KEY',
 
         initialDoc:
@@ -28,48 +28,18 @@ function App() {
       // Expose instance for the builder and debugging
       window.viewerInstance = instance;
 
-      instance.UI.enableFeatures([instance.UI.Feature.Redaction]);
+      instance.UI.enableFeatures([
+        instance.UI.Feature.Redaction,
+        instance.UI.Feature.MultiViewerMode,
+        instance.UI.Feature.ComparePages,
+        instance.UI.Feature.ContentEdit,
+      ]);
+
+      setViewerReady(true);
     });
   }, []);
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          minHeight: 0,
-        }}
-      >
-        <div style={{ padding: 8, flexShrink: 0 }}>
-          <button onClick={() => setShowBuilder((s) => !s)}>
-            {showBuilder ? 'Hide UI Builder' : 'Show UI Builder'}
-          </button>
-        </div>
-        <div
-          className="webviewer"
-          ref={viewer}
-          style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-        ></div>
-      </div>
-      {showBuilder && (
-        // The aside tag is good for semantic HTML5, indicating a sidebar
-        <aside
-          style={{
-            width: 420,
-            borderLeft: '1px solid #eee',
-            padding: 12,
-            overflow: 'auto',
-            boxSizing: 'border-box',
-          }}
-        >
-          <ModularUIBuilder />
-        </aside>
-      )}
-    </div>
-  );
+  return <ModularUIBuilder viewerRef={viewer} viewerReady={viewerReady} />;
 }
 
 export default App;

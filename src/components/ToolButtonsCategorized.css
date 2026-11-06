@@ -1768,3 +1768,171 @@
   background-color: #ddd6fe;
   color: #5b21b6;
 }
+
+.feature-req-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.feature-req-icon:hover {
+  transform: scale(1.15);
+}
+
+/* ===== STREAMLINED BUILDER LAYOUT ===== */
+.builder-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.builder-title-row h3 {
+  margin: 0;
+  font-size: 15px;
+  flex: 1;
+  min-width: 0;
+}
+
+.auto-apply-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.builder-overflow {
+  position: relative;
+}
+
+.overflow-trigger {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.overflow-trigger:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.builder-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  padding: 4px 0;
+}
+
+.builder-overflow-menu button {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #1e293b;
+}
+
+.builder-overflow-menu button:hover {
+  background: #f1f5f9;
+}
+
+.builder-overflow-menu button.danger {
+  color: #dc2626;
+}
+
+/* Slimmer rows */
+.tool-item {
+  padding: 4px 8px;
+}
+
+/* Hover-revealed row actions (also revealed on keyboard focus) */
+.tool-item .tool-move-controls,
+.tool-item .delete-button {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.tool-item:hover .tool-move-controls,
+.tool-item:hover .delete-button,
+.tool-item:focus-within .tool-move-controls,
+.tool-item:focus-within .delete-button {
+  opacity: 1;
+}
+
+.secondary-button.active {
+  background-color: #e2e8f0;
+}
+
+/* SECTION TAB BAR (TOP TIER NAVIGATION WITH BOTTOM FRAME) */
+.section-tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+  padding-bottom: 0;
+}
+
+.section-tab-btn {
+  position: relative;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.section-tab-btn:hover {
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.section-tab-btn.active {
+  color: #007acc;
+  background-color: rgba(0, 122, 204, 0.08);
+  font-weight: 700;
+}
+
+.section-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #007acc;
+  border-radius: 2px 2px 0 0;
+}

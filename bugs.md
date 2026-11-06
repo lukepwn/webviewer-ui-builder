@@ -43,3 +43,14 @@ For toggle buttons: class ToggleElementButton → schema toggleButton (drops "El
 - **Workaround / Guardrail**:
   1. Updated `TOOLS_CATALOG` to cleanly separate `AnnotationCreateRubberStamp` (`rubberStampToolButton`, Rubber Stamp) from `AnnotationCreateStamp` (`stampToolButton`, Image Stamp).
   2. Created `TOOL_TO_PANEL_MAP` and `resolvePanelTarget` helper so tool buttons that implicitly launch side panels get the inline `[Left | Right]` dock toggle directly on their item pill and dock radio during creation modal, auto-registering their target panel in `config.panels[panelId].location`.
+
+## SDK Limitation: Flyout Panels and Component Schema Rejection
+
+- **Issue**:
+  1. WebViewer Modular UI allows rendering certain panels inside a flyout menu (`stylePanel`, `rubberStampPanel`, `signatureListPanel`), but the internal switch statement in `webviewer-ui.min.js` (`o.render && typeof o.render === 'string'`) strictly supports only those three built-in panels; any other panel string hits `default:` and silently fails to render.
+  2. Top-level `config.panels` only accepts dock locations (`left`, `right`, `top`, `bottom`) and rejects `location: 'flyout'`.
+  3. In `config.modularComponents`, `validateComponents` requires `type: ft.ONE_OF(Object.values(F))`, which does NOT have a panel type. If a flyout panel item is registered in `modularComponents` without an SDK-valid button `type`, `validateComponents` rejects the entire import.
+- **Workaround / Guardrail**:
+  1. In `prepareConfigForImport` (`src/sdk/importConfig.js`), flyout panels (referenced by key or inline) are converted into `{ dataElement, render }` directly within `flyouts[id].items` and deleted from `modularComponents` before passing to `UI.importModularComponents`.
+  2. Any unsupported panel renders (e.g. `thumbnailsPanel`, `notesPanel`) inside a flyout are caught and dropped with descriptive warnings during normalization.
+  3. In `AddComponentModal`, selecting a Flyout target allows the Panels category but disables unsupported panels with a helpful tooltip, and hides the Left/Right dock controls since the panel renders within the flyout dropdown.

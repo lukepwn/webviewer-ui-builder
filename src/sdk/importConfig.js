@@ -11,6 +11,7 @@ import {
   MAX_SUBMENU_DEPTH,
   MODAL_TAB_ITEM_TYPES,
   PANEL_RENDER_ALIASES,
+  SUPPORTED_FLYOUT_PANEL_RENDERS,
   TAB_PANEL_RENDER,
   TOOL_ACTION_PREFIX,
   VALID_PANEL_RENDERS,
@@ -44,9 +45,9 @@ function convertToolButtonForFlyout(comp) {
 
 // Can the Add-Component modal tab create an item that a flyout accepts?
 // Used by the UI so users can't pick items the SDK would reject.
-// The 'layout' tab is allowed because literal 'divider' entries are valid in flyouts.
+// 'layout' is allowed for literal 'divider' entries, and 'panel' is allowed for supported flyout panels.
 export function isModalTabAllowedInFlyout(tab) {
-  if (tab === 'layout') return true;
+  if (tab === 'layout' || tab === 'panel') return true;
   const types = MODAL_TAB_ITEM_TYPES[tab];
   if (!types) return true; // tab does not place an item at a target location
   return types.some(isAllowedFlyoutItemType);
@@ -327,6 +328,33 @@ function normalizeFlyouts(rawConfig, components, warnings) {
         items.push(DIVIDER_ITEM_TOKEN);
         continue;
       }
+
+      // Handle inline object items (e.g. { dataElement: '...', render: 'rubberStampPanel' })
+      if (typeof itemKey === 'object') {
+        const rawRender = itemKey.render;
+        const normalizedRender = normalizePanelRenderName(rawRender);
+        if (
+          normalizedRender &&
+          SUPPORTED_FLYOUT_PANEL_RENDERS.has(normalizedRender)
+        ) {
+          items.push({
+            dataElement: itemKey.dataElement || `${normalizedRender}Item`,
+            render: normalizedRender,
+          });
+          continue;
+        } else if (rawRender) {
+          warnings.push(
+            `Flyout '${key}': dropped panel render '${rawRender}' (only rubberStampPanel, signatureListPanel, and stylePanel can be rendered inside a flyout).`,
+          );
+          continue;
+        } else {
+          warnings.push(
+            `Flyout '${key}': dropped invalid object item without a supported render property.`,
+          );
+          continue;
+        }
+      }
+
       let comp = components[itemKey];
       if (!comp) {
         warnings.push(`Flyout '${key}': dropped unknown item '${itemKey}'.`);
@@ -336,6 +364,30 @@ function normalizeFlyouts(rawConfig, components, warnings) {
         items.push(DIVIDER_ITEM_TOKEN);
         continue;
       }
+
+      // Check if it's a flyout panel component
+      const compRender = normalizePanelRenderName(comp.render);
+      if (
+        comp.type === 'flyoutPanel' ||
+        (compRender && SUPPORTED_FLYOUT_PANEL_RENDERS.has(compRender))
+      ) {
+        if (compRender && SUPPORTED_FLYOUT_PANEL_RENDERS.has(compRender)) {
+          items.push({
+            dataElement: comp.dataElement || itemKey,
+            render: compRender,
+          });
+          // Remove from components map so validateComponents doesn't reject unknown component type 'flyoutPanel'
+          delete components[itemKey];
+          continue;
+        } else {
+          warnings.push(
+            `Flyout '${key}': dropped panel '${itemKey}' with unsupported render '${compRender}' (only rubberStampPanel, signatureListPanel, and stylePanel are supported).`,
+          );
+          delete components[itemKey];
+          continue;
+        }
+      }
+
       // Convert toolButton in flyout to customButton with functionMap action [10, 12]
       if (comp.type === 'toolButton') {
         comp = convertToolButtonForFlyout(comp);

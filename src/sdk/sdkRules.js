@@ -12,6 +12,14 @@ export const FLYOUT_ITEM_TYPES = new Set([
   'customButton',
   'statefulButton',
   'toggleButton',
+  'flyoutPanel',
+]);
+
+// Built-in panels that WebViewer supports rendering directly inside a flyout menu.
+export const SUPPORTED_FLYOUT_PANEL_RENDERS = new Set([
+  'rubberStampPanel',
+  'signatureListPanel',
+  'stylePanel',
 ]);
 
 // Guard against runaway/cyclic submenu nesting when expanding `children` [13, 15].
@@ -35,6 +43,7 @@ export const MODAL_TAB_ITEM_TYPES = {
   toggle: ['toggleButton'],
   custom: ['customButton'],
   submenu: ['customButton'],
+  panel: ['flyoutPanel', 'toggleButton'],
   flyout: [],
   controls: ['viewControls', 'pageControls'],
   layout: ['divider', 'label'],

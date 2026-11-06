@@ -11,12 +11,24 @@ body,
   margin: 0;
   overflow: hidden;
   font-family:
+    'DM Sans',
     system-ui,
     -apple-system,
     'Segoe UI',
     Roboto,
     'Helvetica Neue',
-    Arial;
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .webviewer {
@@ -32,6 +44,14 @@ main {
 }
 
 /* Builder styles */
+.ModularUIBuilder,
+.ModularUIBuilder button,
+.ModularUIBuilder input,
+.ModularUIBuilder select,
+.ModularUIBuilder textarea {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
+
 .ModularUIBuilder input:not([type='checkbox']):not([type='radio']),
 .ModularUIBuilder textarea,
 .ModularUIBuilder select {

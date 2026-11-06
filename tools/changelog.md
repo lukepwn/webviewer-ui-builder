@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.0 - UI 3 Panel refactor (2026-11-06)
+
+- refactored builder to use 3 panel layout
+- uses tree flow to show config for easier representation
+
 ## v0.1.6 - UI update + readme (2026-10-25)
 
 - updated readme to explain app lifecycle

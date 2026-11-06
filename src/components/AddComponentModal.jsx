@@ -11,7 +11,10 @@ import {
   TOOL_TO_PANEL_MAP,
 } from '../constants/webviewerCatalog';
 import { isModalTabAllowedInFlyout } from '../sdk/importConfig';
-import { TOOL_ACTION_PREFIX } from '../sdk/sdkRules';
+import {
+  TOOL_ACTION_PREFIX,
+  SUPPORTED_FLYOUT_PANEL_RENDERS,
+} from '../sdk/sdkRules';
 import {
   generateUniqueDataElement,
   collectAllExistingIds,
@@ -304,7 +307,9 @@ export default function AddComponentModal({
   // Destination: 'header' | `ribbon:<key>` | `flyout:<id>`
   const [targetValue, setTargetValue] = useState('header');
   const [selectedHeader, setSelectedHeader] = useState(
-    activeHeader || headerOptions[0] || 'default-top-header',
+    activeHeader ||
+      headerOptions[0] ||
+      (headerOptions.length > 0 ? 'default-top-header' : ''),
   );
 
   // Collect all active component, container, header, flyout, and panel IDs
@@ -453,7 +458,9 @@ export default function AddComponentModal({
     setSelectedItemId(containerId || 'tool:Pan');
 
     const initialHeader =
-      activeHeader || headerOptions[0] || 'default-top-header';
+      activeHeader ||
+      headerOptions[0] ||
+      (headerOptions.length > 0 ? 'default-top-header' : '');
     setSelectedHeader(initialHeader);
 
     const initialTabs =
@@ -483,14 +490,16 @@ export default function AddComponentModal({
       setTargetValue(`ribbon:${activeRibbonTab}`);
     } else if (initialLocation === 'ribbon' && initialTabs.length > 0) {
       setTargetValue(`ribbon:${initialTabs[0].key}`);
+    } else if (initialTab === 'popup') {
+      setTargetValue(`popup:${initialPopup || 'annotationPopup'}`);
+    } else if (headerOptions.length > 0) {
+      setTargetValue('header');
     } else {
       setTargetValue('header');
     }
 
-    if (initialLocation === 'popup' || initialPopup) {
-      if (initialTab === 'popup') {
-        setCategory('popup');
-      }
+    if (initialLocation === 'popup' || initialPopup || initialTab === 'popup') {
+      setCategory('popup');
     }
 
     setNewHeaderId('');
@@ -556,6 +565,11 @@ export default function AddComponentModal({
     if (item.kind === 'container') {
       return item.containerType !== 'tabPanel';
     }
+    // Panel items in flyout: only rubberStampPanel, signatureListPanel, stylePanel are supported
+    if (item.kind === 'panel') {
+      const render = item.ref?.render || item.ref?.id;
+      return !SUPPORTED_FLYOUT_PANEL_RENDERS.has(render);
+    }
     if (!isModalTabAllowedInFlyout(KIND_TO_RULE_TAB[item.kind])) return true;
     // Presets of type toggleButton open flyouts, which crash inside a flyout
     if (item.kind === 'preset' && item.ref?.type === 'toggleButton')
@@ -581,9 +595,7 @@ export default function AddComponentModal({
   };
 
   const isBlockedInNonPopup = (item) => {
-    if (isPopupTarget || item.kind === 'container') return false;
-    // Built-in popup items require a popup canvas context
-    if (item.kind === 'popup') return true;
+    // Popup items are allowed in catalog; selecting one will auto-target popups
     return false;
   };
 
@@ -601,7 +613,10 @@ export default function AddComponentModal({
         }
         return 'Headers and Ribbon Tabs cannot be placed inside flyouts.';
       }
-      return 'Flyouts only accept tools, preset buttons, custom buttons, submenus, panel toggles, and dividers.';
+      if (item.kind === 'panel') {
+        return 'WebViewer only supports Rubber Stamp, Saved Signatures, and Style panels inside a flyout.';
+      }
+      return 'Flyouts only accept tools, preset buttons, custom buttons, submenus, supported flyout panels, and dividers.';
     }
     if (isPopupTarget) {
       if (item.kind === 'container') {
@@ -730,9 +745,19 @@ export default function AddComponentModal({
     }
   }, [filteredItems, selectedItemId, isOpen, targetValue]);
 
+  const handleSelectItem = (item) => {
+    if (item.kind === 'popup' && !targetValue.startsWith('popup:')) {
+      setTargetValue(`popup:${initialPopup || 'annotationPopup'}`);
+    }
+    setSelectedItemId(item.id);
+  };
+
   // When clicking a category filter, switch category and select its first item
   const handleCategoryClick = (catId) => {
     setCategory(catId);
+    if (catId === 'popup' && !targetValue.startsWith('popup:')) {
+      setTargetValue(`popup:${initialPopup || 'annotationPopup'}`);
+    }
     const q = search.trim().toLowerCase();
     const itemsInCat = catalog.filter((item) => {
       if (q) {
@@ -927,6 +952,17 @@ export default function AddComponentModal({
         return;
       }
       const target = resolveTarget();
+      if (
+        newFlyoutCreateToggle &&
+        (target.targetLocationType === 'header' ||
+          target.targetLocationType === 'ribbon') &&
+        (!target.headerKey || headerOptions.length === 0)
+      ) {
+        alert(
+          'No header is available for the toggle button. Please create a header container first, or uncheck "Create toggle button" / choose a Popup or Flyout as the destination.',
+        );
+        return;
+      }
       onAddFlyout?.({
         dataElement: id,
         createToggle: newFlyoutCreateToggle,
@@ -959,6 +995,17 @@ export default function AddComponentModal({
         return;
       }
       const target = resolveTarget();
+      if (
+        newTabPanelCreateToggle &&
+        (target.targetLocationType === 'header' ||
+          target.targetLocationType === 'ribbon') &&
+        (!target.headerKey || headerOptions.length === 0)
+      ) {
+        alert(
+          'No header is available for the toggle button. Please create a header container first, or uncheck "Create toggle button" / choose a Popup or Flyout as the destination.',
+        );
+        return;
+      }
       onAddTabPanel?.({
         dataElement: id,
         location: tabPanelLocation,
@@ -985,6 +1032,12 @@ export default function AddComponentModal({
     }
 
     if (type === 'ribbonTab') {
+      if (!selectedHeader || headerOptions.length === 0) {
+        alert(
+          'Please create a header container first before adding a Ribbon Tab.',
+        );
+        return;
+      }
       if (!newTabLabel.trim()) {
         alert('Ribbon Tab Label is required.');
         return;
@@ -1052,6 +1105,24 @@ export default function AddComponentModal({
     }
 
     const target = resolveTarget();
+    if (
+      (target.targetLocationType === 'header' ||
+        target.targetLocationType === 'ribbon') &&
+      (!target.headerKey || headerOptions.length === 0)
+    ) {
+      alert(
+        'No header is available. Please create a header container first, or choose a Popup or Flyout as the destination.',
+      );
+      return;
+    }
+
+    if (
+      selectedItem.kind === 'popup' &&
+      target.targetLocationType !== 'popup'
+    ) {
+      target.targetLocationType = 'popup';
+      target.popupKey = initialPopup || 'annotationPopup';
+    }
     const inFlyout =
       target.targetLocationType === 'flyout' ||
       target.targetLocationType === 'submenu';
@@ -1095,17 +1166,27 @@ export default function AddComponentModal({
         img: form.icon || undefined,
       };
     } else if (kind === 'panel') {
-      componentType = 'toggleButton';
-      component = {
-        type: 'toggleButton',
-        dataElement,
-        toggleElement: ref.id,
-        element: ref.id,
-        panelLocation: form.location || ref.defaultLocation || 'left',
-        label: form.label || undefined,
-        title: form.title || undefined,
-        img: form.icon || undefined,
-      };
+      if (inFlyout) {
+        componentType = 'flyoutPanel';
+        component = {
+          type: 'flyoutPanel',
+          dataElement,
+          render: ref.render || ref.id,
+          title: form.title || form.label || selectedItem.name,
+        };
+      } else {
+        componentType = 'toggleButton';
+        component = {
+          type: 'toggleButton',
+          dataElement,
+          toggleElement: ref.id,
+          element: ref.id,
+          panelLocation: form.location || ref.defaultLocation || 'left',
+          label: form.label || undefined,
+          title: form.title || undefined,
+          img: form.icon || undefined,
+        };
+      }
     } else if (ref.type === 'viewControls') {
       componentType = 'viewControls';
       component = {
@@ -1215,15 +1296,18 @@ export default function AddComponentModal({
   const isContainer = selectedItem?.kind === 'container';
   const containerType = isContainer ? selectedItem.containerType : null;
 
-  const showLabelField = [
-    'tool',
-    'preset',
-    'custom',
-    'toggle',
-    'submenu',
-    'panel',
-    'popup',
-  ].includes(selectedItem?.kind);
+  const isFlyoutPanelItem = isFlyoutTarget && selectedItem?.kind === 'panel';
+  const showLabelField =
+    !isFlyoutPanelItem &&
+    [
+      'tool',
+      'preset',
+      'custom',
+      'toggle',
+      'submenu',
+      'panel',
+      'popup',
+    ].includes(selectedItem?.kind);
   const isTextLabel = selectedItem?.ref?.type === 'label';
   const showIconField = showLabelField;
 
@@ -1233,11 +1317,15 @@ export default function AddComponentModal({
       onChange={(e) => handleHeaderChange(e.target.value)}
       className="form-select"
     >
-      {headerOptions.map((h) => (
-        <option key={h} value={h}>
-          {h}
-        </option>
-      ))}
+      {headerOptions.length === 0 ? (
+        <option value="">(No headers created)</option>
+      ) : (
+        headerOptions.map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))
+      )}
     </select>
   );
 
@@ -1268,138 +1356,85 @@ export default function AddComponentModal({
 
         <form onSubmit={handleSubmit} className="catalog-form">
           {/* Target destination bar - unified across regular components and containers */}
-          {selectedItem?.containerType === 'header' ? (
-            <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">Placement:</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-color, #333)',
-                  fontWeight: 500,
-                }}
-              >
-                Viewer Screen Edge (Top-level container)
-              </span>
-            </div>
-          ) : selectedItem?.containerType === 'ribbonTab' ? (
-            <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">
-                Add Ribbon Tab to Header:
-              </span>
-              {headerSelect}
+          <div className="catalog-dest-bar">
+            <span className="catalog-dest-label">
+              {isContainer &&
+              (selectedItem?.containerType === 'flyout' ||
+                selectedItem?.containerType === 'tabPanel')
+                ? 'Add toggle button to:'
+                : 'Add to:'}
+            </span>
+            {!isFlyoutOrSubmenuTarget && !isPopupTarget && headerSelect}
+            {!isFlyoutOrSubmenuTarget && !isPopupTarget && (
               <span className="catalog-dest-arrow">➔</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-color, #333)',
-                  fontWeight: 500,
-                }}
-              >
-                RibbonGroup
-              </span>
-            </div>
-          ) : selectedItem?.containerType === 'flyout' &&
-            !newFlyoutCreateToggle ? (
-            <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">Placement:</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-color, #333)',
-                  fontWeight: 500,
-                }}
-              >
-                Standalone Flyout Menu (no toggle button)
-              </span>
-            </div>
-          ) : selectedItem?.containerType === 'tabPanel' &&
-            !newTabPanelCreateToggle ? (
-            <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">Placement:</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-color, #333)',
-                  fontWeight: 500,
-                }}
-              >
-                Sidebar Panel (Docked{' '}
-                {tabPanelLocation === 'left' ? 'Left' : 'Right'}, standalone)
-              </span>
-            </div>
-          ) : (
-            <div className="catalog-dest-bar">
-              <span className="catalog-dest-label">
-                {isContainer ? 'Add toggle button to:' : 'Add to:'}
-              </span>
-              {!isFlyoutOrSubmenuTarget && !isPopupTarget && headerSelect}
-              {!isFlyoutOrSubmenuTarget && !isPopupTarget && (
-                <span className="catalog-dest-arrow">➔</span>
+            )}
+            <select
+              value={targetValue}
+              onChange={(e) => setTargetValue(e.target.value)}
+              className="form-select"
+            >
+              {selectedItem?.containerType !== 'flyout' &&
+                allSubmenus.length > 0 && (
+                  <optgroup label="Submenus (Drilldown)">
+                    {allSubmenus.map((s) => (
+                      <option key={s.key} value={`submenu:${s.key}`}>
+                        {`${'— '.repeat(s.depth - 1)}Submenu: ${s.key}${s.flyoutId ? ` [${s.flyoutId}]` : ''}`}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              {selectedItem?.containerType !== 'flyout' &&
+                isSubmenuTarget &&
+                !allSubmenus.some(
+                  (s) => `submenu:${s.key}` === targetValue,
+                ) && (
+                  <optgroup label="Current Submenu">
+                    <option value={targetValue}>
+                      Submenu: {targetValue.slice('submenu:'.length)}
+                    </option>
+                  </optgroup>
+                )}
+              <optgroup label="Header">
+                <option value="header">
+                  {headerOptions.length === 0
+                    ? 'Header Items (No headers created)'
+                    : 'Header Items'}
+                </option>
+              </optgroup>
+              {currentRibbonTabs.length > 0 && (
+                <optgroup label="Ribbon Tabs">
+                  {currentRibbonTabs.map((t) => (
+                    <option key={t.key} value={`ribbon:${t.key}`}>
+                      Ribbon: {t.label || t.key}
+                    </option>
+                  ))}
+                </optgroup>
               )}
-              <select
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-                className="form-select"
-              >
-                {selectedItem?.containerType !== 'flyout' &&
-                  allSubmenus.length > 0 && (
-                    <optgroup label="Submenus (Drilldown)">
-                      {allSubmenus.map((s) => (
-                        <option key={s.key} value={`submenu:${s.key}`}>
-                          {`${'— '.repeat(s.depth - 1)}Submenu: ${s.key}${s.flyoutId ? ` [${s.flyoutId}]` : ''}`}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                {selectedItem?.containerType !== 'flyout' &&
-                  isSubmenuTarget &&
-                  !allSubmenus.some(
-                    (s) => `submenu:${s.key}` === targetValue,
-                  ) && (
-                    <optgroup label="Current Submenu">
-                      <option value={targetValue}>
-                        Submenu: {targetValue.slice('submenu:'.length)}
-                      </option>
-                    </optgroup>
-                  )}
-                <optgroup label="Header">
-                  <option value="header">Header Items</option>
+              {selectedItem?.containerType !== 'flyout' && hasFlyouts && (
+                <optgroup label="Flyouts">
+                  {Object.keys(flyouts).map((id) => (
+                    <option key={id} value={`flyout:${id}`}>
+                      Flyout: {id} ({(flyouts[id]?.items || []).length})
+                    </option>
+                  ))}
                 </optgroup>
-                {currentRibbonTabs.length > 0 && (
-                  <optgroup label="Ribbon Tabs">
-                    {currentRibbonTabs.map((t) => (
-                      <option key={t.key} value={`ribbon:${t.key}`}>
-                        Ribbon: {t.label || t.key}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {selectedItem?.containerType !== 'flyout' && hasFlyouts && (
-                  <optgroup label="Flyouts">
-                    {Object.keys(flyouts).map((id) => (
-                      <option key={id} value={`flyout:${id}`}>
-                        Flyout: {id} ({(flyouts[id]?.items || []).length})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Popups">
-                  {POPUPS_CATALOG.map((p) => {
-                    const count = (
-                      popups && Array.isArray(popups[p.id])
-                        ? popups[p.id]
-                        : DEFAULT_POPUPS[p.id] || []
-                    ).length;
-                    return (
-                      <option key={p.id} value={`popup:${p.id}`}>
-                        Popup: {p.name} ({count})
-                      </option>
-                    );
-                  })}
-                </optgroup>
-              </select>
-            </div>
-          )}
+              )}
+              <optgroup label="Popups">
+                {POPUPS_CATALOG.map((p) => {
+                  const count = (
+                    popups && Array.isArray(popups[p.id])
+                      ? popups[p.id]
+                      : DEFAULT_POPUPS[p.id] || []
+                  ).length;
+                  return (
+                    <option key={p.id} value={`popup:${p.id}`}>
+                      Popup: {p.name} ({count})
+                    </option>
+                  );
+                })}
+              </optgroup>
+            </select>
+          </div>
 
           <div className="catalog-body">
             {/* Left: search + list */}
@@ -1438,7 +1473,7 @@ export default function AddComponentModal({
                       key={item.id}
                       type="button"
                       className={`catalog-row ${selectedItemId === item.id ? 'active' : ''}`}
-                      onClick={() => setSelectedItemId(item.id)}
+                      onClick={() => handleSelectItem(item)}
                       disabled={blocked}
                       title={blocked ? getBlockedTooltip(item) : undefined}
                     >
@@ -1597,14 +1632,19 @@ export default function AddComponentModal({
                     </div>
                   )}
 
-                  {(showLabelField || isTextLabel) && (
+                  {(showLabelField || isTextLabel || isFlyoutPanelItem) && (
                     <div className="form-group">
                       <label className="form-label">
-                        Hover Tooltip (optional)
+                        {isFlyoutPanelItem
+                          ? 'Panel Title (optional)'
+                          : 'Hover Tooltip (optional)'}
                       </label>
                       <input
                         value={form.title ?? ''}
                         onChange={setField('title')}
+                        placeholder={
+                          isFlyoutPanelItem ? selectedItem.name : undefined
+                        }
                         className="form-input"
                       />
                     </div>
@@ -1677,35 +1717,51 @@ export default function AddComponentModal({
                     </div>
                   )}
 
-                  {(selectedItem.kind === 'panel' ||
-                    (selectedItem.kind === 'tool' &&
-                      Boolean(
-                        TOOL_TO_PANEL_MAP[selectedItem.ref?.toolName] ||
-                        TOOL_TO_PANEL_MAP[selectedItem.ref?.defaultId],
-                      ))) && (
-                    <div className="form-group">
-                      <label className="form-label">Dock Location</label>
-                      <div className="radio-group-inline">
-                        {['left', 'right'].map((side) => (
-                          <label key={side}>
-                            <input
-                              type="radio"
-                              name="panelDockLocation"
-                              value={side}
-                              checked={(form.location || 'left') === side}
-                              onChange={() =>
-                                setForm((f) => ({ ...f, location: side }))
-                              }
-                            />{' '}
-                            {side === 'left' ? 'Left Side' : 'Right Side'}
-                          </label>
-                        ))}
-                      </div>
-                      <p className="field-hint">
-                        Determines which side of the viewer canvas this panel
-                        opens on.
-                      </p>
+                  {isFlyoutPanelItem ? (
+                    <div
+                      className="import-warnings"
+                      role="note"
+                      style={{
+                        background: '#eff6ff',
+                        borderColor: '#bfdbfe',
+                        color: '#1e40af',
+                      }}
+                    >
+                      <strong>Flyout Panel:</strong> This panel will be rendered
+                      directly inside the flyout menu rather than docked to a
+                      sidebar.
                     </div>
+                  ) : (
+                    (selectedItem.kind === 'panel' ||
+                      (selectedItem.kind === 'tool' &&
+                        Boolean(
+                          TOOL_TO_PANEL_MAP[selectedItem.ref?.toolName] ||
+                          TOOL_TO_PANEL_MAP[selectedItem.ref?.defaultId],
+                        ))) && (
+                      <div className="form-group">
+                        <label className="form-label">Dock Location</label>
+                        <div className="radio-group-inline">
+                          {['left', 'right'].map((side) => (
+                            <label key={side}>
+                              <input
+                                type="radio"
+                                name="panelDockLocation"
+                                value={side}
+                                checked={(form.location || 'left') === side}
+                                onChange={() =>
+                                  setForm((f) => ({ ...f, location: side }))
+                                }
+                              />{' '}
+                              {side === 'left' ? 'Left Side' : 'Right Side'}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="field-hint">
+                          Determines which side of the viewer canvas this panel
+                          opens on.
+                        </p>
+                      </div>
+                    )
                   )}
 
                   {selectedItem.ref?.type === 'toolGroupToggleButton' && (

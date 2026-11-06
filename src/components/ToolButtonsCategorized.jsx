@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ComponentItemRow from './ComponentItemRow';
+import { getItemFeatureRequirement } from '../constants/featureRegistry';
 import './ToolButtonsCategorized.css';
 
 // Items can repeat in a list (e.g. several dividers). Returns which occurrence
@@ -89,9 +90,6 @@ export default function ToolButtonsCategorized({
               </button>
             )}
           </div>
-          <p className="field-hint" style={{ marginBottom: 8, marginTop: -4 }}>
-            Items here remain pinned to the header bar across all ribbon tabs.
-          </p>
 
           <div className="tools-display">
             {directHeaderItems.length === 0 ? (
@@ -267,14 +265,27 @@ export default function ToolButtonsCategorized({
               <div className="filter-container" style={{ marginTop: 8 }}>
                 {ribbonTabs.map((tab) => {
                   const isActive = selectedRibbonTab === tab.key;
+                  const tabReq = getItemFeatureRequirement(
+                    tab.key,
+                    tab.component || tab,
+                  );
                   return (
                     <button
                       key={tab.key}
                       type="button"
                       className={`filter-button ${isActive ? 'active' : ''}`}
                       onClick={() => onSelectRibbonTab(tab.key)}
+                      title={tabReq ? tabReq.tooltip : undefined}
                     >
                       {tab.label || tab.key}
+                      {tabReq && (
+                        <span
+                          className="feature-req-icon"
+                          style={{ marginLeft: 4 }}
+                        >
+                          ⚠️
+                        </span>
+                      )}
                     </button>
                   );
                 })}

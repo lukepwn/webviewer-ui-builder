@@ -4,6 +4,7 @@ import {
   PANELS_CATALOG,
   resolvePanelTarget,
 } from '../constants/webviewerCatalog';
+import { getItemFeatureRequirement } from '../constants/featureRegistry';
 
 export default function ComponentItemRow({
   item,
@@ -23,6 +24,7 @@ export default function ComponentItemRow({
 }) {
   const comp = item.component || item || {};
   const itemKey = item.key || comp.dataElement || '';
+  const featureReq = getItemFeatureRequirement(itemKey, comp);
 
   const canMoveUp = index > 0;
   const canMoveDown = index < totalItems - 1;
@@ -35,7 +37,11 @@ export default function ComponentItemRow({
     typeof comp.onClick === 'string' &&
     comp.onClick.length > 0;
 
-  const targetElement = resolvePanelTarget(comp);
+  const isFlyoutPanel =
+    comp.type === 'flyoutPanel' ||
+    (targetContext?.type === 'flyout' && Boolean(comp.render));
+
+  const targetElement = isFlyoutPanel ? null : resolvePanelTarget(comp);
   const panelDef = targetElement
     ? panels[targetElement] ||
       PANELS_CATALOG.find((p) => p.id === targetElement)
@@ -74,7 +80,31 @@ export default function ComponentItemRow({
             )}
           </div>
 
+          {featureReq && (
+            <span
+              className="feature-req-icon"
+              title={featureReq.tooltip}
+              aria-label={featureReq.tooltip}
+            >
+              ⚠️
+            </span>
+          )}
+
           {extraPill}
+
+          {isFlyoutPanel && (
+            <span
+              className="tool-icon-pill"
+              style={{
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                borderColor: '#bfdbfe',
+              }}
+              title={`Renders ${comp.render || 'panel'} directly inside this flyout`}
+            >
+              Flyout Panel ({comp.render})
+            </span>
+          )}
 
           {requiresFnMap && (
             <span

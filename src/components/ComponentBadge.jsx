@@ -25,6 +25,16 @@ export function getComponentBadgeInfo(component = {}) {
   }
 
   if (
+    type === 'flyoutPanel' ||
+    (component.render &&
+      ['rubberStampPanel', 'signatureListPanel', 'stylePanel'].includes(
+        component.render,
+      ))
+  ) {
+    return { label: 'Panel', className: 'badge-preset' };
+  }
+
+  if (
     type === 'toolButton' ||
     TOOLS_SET.has(dataElement) ||
     TOOLS_SET.has(type) ||
