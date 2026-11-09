@@ -131,6 +131,10 @@ export const ITEM_REQUIREMENTS_MAP = {
     feature: 'ContentEdit',
     tooltip: FEATURE_DESCRIPTIONS.ContentEdit,
   },
+  ContentEditTool: {
+    feature: 'ContentEdit',
+    tooltip: FEATURE_DESCRIPTIONS.ContentEdit,
+  },
   addParagraphToolGroupButton: {
     feature: 'ContentEdit',
     tooltip: FEATURE_DESCRIPTIONS.ContentEdit,
@@ -293,6 +297,14 @@ export const ITEM_REQUIREMENTS_MAP = {
     feature: 'Measurement',
     tooltip: FEATURE_DESCRIPTIONS.Measurement,
   },
+  calibrationMeasurementButton: {
+    feature: 'Measurement',
+    tooltip: FEATURE_DESCRIPTIONS.Measurement,
+  },
+  AnnotationCreateCalibrationMeasurement: {
+    feature: 'Measurement',
+    tooltip: FEATURE_DESCRIPTIONS.Measurement,
+  },
   scaleModalButton: {
     feature: 'Measurement',
     tooltip: `${FEATURE_DESCRIPTIONS.Measurement} — shown in popup when a measurement annotation is selected`,
@@ -405,6 +417,62 @@ export const ITEM_REQUIREMENTS_MAP = {
   formFieldPanel: {
     feature: 'Forms',
     tooltip: 'Requires Form Builder mode with a form field selected',
+  },
+  TextFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  textFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  DatePickerFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  datePickerFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  SignatureFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  signatureFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  CheckBoxFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  checkboxFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  RadioButtonFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  radioFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  ListBoxFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  listBoxFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  ComboBoxFormFieldCreateTool: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
+  },
+  comboBoxFieldButton: {
+    feature: 'Forms',
+    tooltip: 'Requires Form Builder mode',
   },
   soundPlayButton: {
     feature: 'Context',

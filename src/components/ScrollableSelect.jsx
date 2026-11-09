@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { getComponentSvg } from '../constants/webviewerIcons';
 
 /**
  * ScrollableSelect - A compact, accessible dropdown replacement that limits
@@ -159,11 +160,23 @@ export default function ScrollableSelect({
         <span className="scrollable-select-label">
           {selectedOption ? (
             <span className="scrollable-select-value-row">
-              {selectedOption.icon && (
-                <span
-                  className={`select-icon-preview ${selectedOption.icon}`}
-                />
-              )}
+              {selectedOption.icon &&
+                (() => {
+                  const svgMarkup = getComponentSvg(selectedOption.icon);
+                  if (svgMarkup) {
+                    return (
+                      <span
+                        className="select-icon-preview item-badge-icon"
+                        dangerouslySetInnerHTML={{ __html: svgMarkup }}
+                      />
+                    );
+                  }
+                  return (
+                    <span
+                      className={`select-icon-preview ${selectedOption.icon}`}
+                    />
+                  );
+                })()}
               {selectedOption.group && (
                 <span className="select-group-tag">
                   [{selectedOption.group}]
@@ -231,9 +244,23 @@ export default function ScrollableSelect({
                   >
                     <div className="option-content">
                       <div className="option-title-row">
-                        {opt.icon && (
-                          <span className={`option-icon ${opt.icon}`} />
-                        )}
+                        {opt.icon &&
+                          (() => {
+                            const svgMarkup = getComponentSvg(opt.icon);
+                            if (svgMarkup) {
+                              return (
+                                <span
+                                  className="option-icon item-badge-icon"
+                                  dangerouslySetInnerHTML={{
+                                    __html: svgMarkup,
+                                  }}
+                                />
+                              );
+                            }
+                            return (
+                              <span className={`option-icon ${opt.icon}`} />
+                            );
+                          })()}
                         <span className="option-label">{opt.label}</span>
                         {opt.group && (
                           <span className="option-group-badge">

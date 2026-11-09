@@ -16,10 +16,8 @@ export default function LeftStudioPane({
   onCreateRibbonTab,
   onCreateFlyout,
   onCreateTabPanel,
-  onAddComponent,
-  onAddHeader,
-  onAddFlyout,
-  onAddTabPanel,
+  stagedDraft,
+  onStageItem,
   onDeleteHeader,
   onDeleteRibbonTab,
   onDeleteFlyout,
@@ -71,11 +69,8 @@ export default function LeftStudioPane({
           config={config}
           activeTarget={activeTarget}
           onChangeTarget={onChangeTarget}
-          onDone={() => onModeChange('tree')}
-          onAddComponent={onAddComponent}
-          onAddHeader={onAddHeader}
-          onAddFlyout={onAddFlyout}
-          onAddTabPanel={onAddTabPanel}
+          stagedDraft={stagedDraft}
+          onStageItem={onStageItem}
         />
       )}
     </aside>

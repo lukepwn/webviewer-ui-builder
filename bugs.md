@@ -54,3 +54,22 @@ For toggle buttons: class ToggleElementButton → schema toggleButton (drops "El
   1. In `prepareConfigForImport` (`src/sdk/importConfig.js`), flyout panels (referenced by key or inline) are converted into `{ dataElement, render }` directly within `flyouts[id].items` and deleted from `modularComponents` before passing to `UI.importModularComponents`.
   2. Any unsupported panel renders (e.g. `thumbnailsPanel`, `notesPanel`) inside a flyout are caught and dropped with descriptive warnings during normalization.
   3. In `AddComponentModal`, selecting a Flyout target allows the Panels category but disables unsupported panels with a helpful tooltip, and hides the Left/Right dock controls since the panel renders within the flyout dropdown.
+
+## SDK Icon Design Quirk: Un-filled SVGs Inheriting fill="none" Outside WebViewer
+
+- **Issue**: Several WebViewer icon SVGs (notably `icon-header-pan`, `ic-hamburger-menu`, etc.) are bundled with an outer `<g stroke="none" stroke-width="1" fill="none">` and `<path>` elements that lack any explicit `fill` or `stroke` attribute. WebViewer's internal DOM relies on an aggressive stylesheet selector (`.Icon path:not([fill*="#"]):not([fill="none"]) { fill: currentColor; }`) to paint them. When these SVGs are rendered outside WebViewer's `.Icon` scope (such as in an external UI builder, badge, or catalog), the `<path>` inherits `fill="none"` and `stroke="none"`, rendering the icon completely invisible.
+- **Workaround / Guardrail**:
+  1. Add `.item-badge.item-badge-icon svg path:not([fill*="#"]):not([fill="none"]) { fill: currentColor; }` to CSS rules.
+  2. Normalize `icon-header-pan` in `webviewerIconMap.json` to explicitly specify `fill="currentColor"` on the path.
+
+## SDK Asymmetry: Leaked Internal Instance Keys for Dividers (`divider-0.1` ... `divider-1.0`)
+
+- **Issue**:
+  1. WebViewer Modular UI's import API (`UI.importModularComponents`) supports the clean literal token `'divider'` anywhere in `items` arrays (headers, ribbon tabs/groupedItems, flyouts), rendering a stateless vertical separator without needing an entry in `modularComponents`.
+  2. However, WebViewer's internal component factory instantiates each default divider as a discrete component object inside `modularComponents`, auto-indexing them with unique keys (`divider-0.1`, `divider-0.2`, `divider-0.4`, etc.) because JavaScript objects require unique keys.
+  3. When `UI.exportModularComponents()` is called, WebViewer dumps its internal state verbatim, exporting leaked internal keys (`divider-0.x`) into both `modularComponents` and `items` arrays instead of normalizing them back to `'divider'`. This pollutes `modularComponents` with dummy objects and breaks strict key equality checks (`k === 'divider'`) for consumers inspecting or round-tripping configurations.
+- **Workaround / Guardrail**:
+  1. Created a centralized `isDivider(key, comp)` helper in `src/utils/labelUtils.js` that matches the literal `'divider'`, any internal Apryse leaked key matching `/^divider(-.*)?$/`, or any object with `type: 'divider'`.
+  2. Applied `isDivider` across `UIOutlineTree`, `ComponentBadge`, `PropertiesInspector`, and `labelUtils` so that both Apryse internal dividers and user-created literal dividers resolve consistently to type `'divider'`, display the standard vertical separator SVG icon, and format cleanly with label `'Divider'`.
+
+

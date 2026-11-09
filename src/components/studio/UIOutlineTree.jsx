@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ComponentBadge from '../ComponentBadge';
-import { getFriendlyComponentName } from '../../utils/labelUtils';
+import { getFriendlyComponentName, isDivider } from '../../utils/labelUtils';
 import {
   getFlattenedHeaderItems,
   getFlattenedRibbonTabTools,
@@ -30,6 +30,107 @@ export default function UIOutlineTree({
   // Ribbon tabs default to collapsed unless explicitly expanded so 10 tabs don't dump 100 tools at once
   const [expandedTabIds, setExpandedTabIds] = useState(new Set());
   const [dragState, setDragState] = useState(null);
+
+  // When selectedNode changes, ensure its parent containers are uncollapsed and expanded
+  useEffect(() => {
+    if (!selectedNode) return;
+
+    // 1. Expand Ribbon Tab if selected item is a tool or ribbonTab
+    const tabKey =
+      selectedNode.ribbonKey ||
+      selectedNode.targetContext?.ribbonKey ||
+      selectedNode.targetContext?.ribbonTabKey ||
+      (selectedNode.type === 'ribbonTab' ? selectedNode.id : null);
+    if (tabKey) {
+      setExpandedTabIds((prev) => {
+        if (prev.has(tabKey)) return prev;
+        const next = new Set(prev);
+        next.add(tabKey);
+        return next;
+      });
+    }
+
+    // 2. Uncollapse sections and parent containers
+    setCollapsedIds((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+
+      // Section: Headers & specific header
+      const headerKey =
+        selectedNode.headerKey ||
+        selectedNode.targetContext?.headerKey ||
+        (selectedNode.type === 'header' ? selectedNode.id : null);
+      if (headerKey) {
+        if (next.has('section:headers')) {
+          next.delete('section:headers');
+          changed = true;
+        }
+        if (next.has(`header:${headerKey}`)) {
+          next.delete(`header:${headerKey}`);
+          changed = true;
+        }
+        if (next.has(`ribbon-group:${headerKey}`)) {
+          next.delete(`ribbon-group:${headerKey}`);
+          changed = true;
+        }
+      }
+
+      // Section: Flyouts & specific flyout / submenu
+      const flyoutKey =
+        selectedNode.flyoutKey ||
+        selectedNode.targetContext?.flyoutKey ||
+        (selectedNode.type === 'flyout' ? selectedNode.id : null);
+      if (flyoutKey) {
+        if (next.has('section:flyouts')) {
+          next.delete('section:flyouts');
+          changed = true;
+        }
+        if (next.has(`flyout:${flyoutKey}`)) {
+          next.delete(`flyout:${flyoutKey}`);
+          changed = true;
+        }
+      }
+
+      // Section: Panels
+      if (selectedNode.type === 'panel') {
+        if (next.has('section:panels')) {
+          next.delete('section:panels');
+          changed = true;
+        }
+        if (next.has(`panel:${selectedNode.id}`)) {
+          next.delete(`panel:${selectedNode.id}`);
+          changed = true;
+        }
+      }
+
+      // Section: Popups & specific popup
+      const popupKey =
+        selectedNode.popupKey ||
+        selectedNode.targetContext?.popupKey ||
+        (selectedNode.type === 'popup' ? selectedNode.id : null);
+      if (popupKey) {
+        if (next.has('section:popups')) {
+          next.delete('section:popups');
+          changed = true;
+        }
+        if (next.has(`popup:${popupKey}`)) {
+          next.delete(`popup:${popupKey}`);
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+
+    // 3. Scroll selected row into view
+    const timer = setTimeout(() => {
+      const el = document.querySelector('.tree-row.selected');
+      if (el) {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [selectedNode]);
 
   const toggleCollapse = (id, e) => {
     if (e) e.stopPropagation();
@@ -153,8 +254,8 @@ export default function UIOutlineTree({
     const tools = toolKeys.map((k, idx) => {
       const comp =
         config.modularComponents?.[k] ||
-        (k === 'divider'
-          ? { type: 'divider', dataElement: 'divider' }
+        (isDivider(k)
+          ? { type: 'divider', dataElement: k }
           : { type: 'toolButton', dataElement: k, toolName: k });
       return {
         key: k,
@@ -188,8 +289,8 @@ export default function UIOutlineTree({
           ? { type: 'flyoutPanel', ...entry, dataElement: itemKey }
           : entry
         : config.modularComponents?.[itemKey] ||
-          (itemKey === 'divider'
-            ? { type: 'divider', dataElement: 'divider' }
+          (isDivider(itemKey)
+            ? { type: 'divider', dataElement: itemKey }
             : { dataElement: itemKey, type: 'customButton' });
 
       const isSubmenu =
@@ -209,7 +310,8 @@ export default function UIOutlineTree({
       const isSel =
         selectedNode?.type === nodeType &&
         selectedNode?.id === itemKey &&
-        selectedNode?.parentId === (parentSubmenuKey || flyoutKey) &&
+        (selectedNode?.parentId === undefined ||
+          selectedNode?.parentId === (parentSubmenuKey || flyoutKey)) &&
         (selectedNode?.index === undefined || selectedNode?.index === idx);
 
       const collapseKey = `submenu-node:${flyoutKey}:${itemKey}:${idx}`;
@@ -371,7 +473,6 @@ export default function UIOutlineTree({
             >
               {isExpanded ? '▼' : '▶'}
             </span>
-            <ComponentBadge component={{ type: 'ribbonItem' }} />
             <span className="tree-row-label" style={{ fontWeight: 600 }}>
               {tabLabel}
             </span>
@@ -625,17 +726,6 @@ export default function UIOutlineTree({
                           <button
                             type="button"
                             className="tree-action-icon"
-                            title="Create a new Ribbon Tab in this header"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCreateRibbonTab(headerKey);
-                            }}
-                          >
-                            + Tab
-                          </button>
-                          <button
-                            type="button"
-                            className="tree-action-icon"
                             title="Add item directly to this header"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -676,11 +766,9 @@ export default function UIOutlineTree({
                               const comp = config.modularComponents?.[
                                 itemKey
                               ] || {
-                                type:
-                                  itemKey === 'divider' ||
-                                  itemKey.startsWith('divider-')
-                                    ? 'divider'
-                                    : 'toolButton',
+                                type: isDivider(itemKey)
+                                  ? 'divider'
+                                  : 'toolButton',
                                 dataElement: itemKey,
                               };
 
@@ -728,9 +816,6 @@ export default function UIOutlineTree({
                                             ? '▶'
                                             : '▼'}
                                         </span>
-                                        <ComponentBadge
-                                          component={{ type: 'ribbonGroup' }}
-                                        />
                                         <span
                                           className="tree-row-label"
                                           style={{
@@ -1286,8 +1371,10 @@ export default function UIOutlineTree({
                             const isPItemSel =
                               selectedNode?.type === 'popupItem' &&
                               selectedNode?.id === itemKey &&
-                              selectedNode?.parentId === popupKey &&
-                              selectedNode?.index === pIdx;
+                              (selectedNode?.parentId === undefined ||
+                                selectedNode?.parentId === popupKey) &&
+                              (selectedNode?.index === undefined ||
+                                selectedNode?.index === pIdx);
 
                             return (
                               <div

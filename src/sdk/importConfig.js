@@ -17,7 +17,16 @@ import {
   VALID_PANEL_RENDERS,
   VALID_POPUP_KEYS,
 } from './sdkRules.js';
-import { TOOLS_CATALOG } from '../constants/webviewerCatalog.js';
+import {
+  DEFAULT_POPUPS,
+  TOOLS_CATALOG,
+} from '../constants/webviewerCatalog.js';
+
+const BUILTIN_POPUP_DATA_ELEMENTS = new Set(
+  Object.values(DEFAULT_POPUPS || {}).flatMap((list) =>
+    (list || []).map((item) => item.dataElement),
+  ),
+);
 
 // --- helpers -----------------------------------------------------------------
 
@@ -489,6 +498,15 @@ function normalizePopups(rawConfig, warnings) {
 
       const rawEntryObj =
         typeof entry === 'object' && entry !== null ? entry : {};
+      const isBuiltInPopupAction =
+        rawEntryObj.type === 'popupAction' ||
+        (!rawEntryObj.type && BUILTIN_POPUP_DATA_ELEMENTS.has(dataElement));
+
+      if (isBuiltInPopupAction) {
+        cleanList.push({ dataElement });
+        continue;
+      }
+
       const compDef = rawConfig.modularComponents?.[dataElement];
 
       // WebViewer's popup renderer reads component properties (type, toolName, img, title, etc.)
@@ -500,9 +518,22 @@ function normalizePopups(rawConfig, warnings) {
 
       cleanList.push(hydrated);
     }
-    sanitizedPopups[popupKey] = cleanList;
+
+    const defaultList = DEFAULT_POPUPS?.[popupKey];
+    const isUntouchedDefault =
+      Array.isArray(defaultList) &&
+      cleanList.length === defaultList.length &&
+      cleanList.every(
+        (item, idx) =>
+          item.dataElement === defaultList[idx]?.dataElement &&
+          Object.keys(item).length === 1,
+      );
+
+    if (!isUntouchedDefault) {
+      sanitizedPopups[popupKey] = cleanList;
+    }
   }
-  return sanitizedPopups;
+  return Object.keys(sanitizedPopups).length > 0 ? sanitizedPopups : undefined;
 }
 
 // 7. Toggle targets: the SDK accepts dead targets silently [6]. Warn only, since the

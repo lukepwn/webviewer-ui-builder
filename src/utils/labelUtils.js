@@ -48,20 +48,35 @@ LAYOUT_ELEMENTS_CATALOG.forEach((l) => {
   if (l.type) CATALOG_LABEL_MAP.set(l.type, l.name);
 });
 
+POPUPS_CATALOG.forEach((p) => {
+  if (p.id) CATALOG_LABEL_MAP.set(p.id, p.name);
+  (p.defaultItems || []).forEach((item) => {
+    if (item.dataElement && item.label) {
+      CATALOG_LABEL_MAP.set(item.dataElement, item.label);
+    }
+  });
+});
+
 BUILTIN_POPUP_ITEMS_CATALOG.forEach((item) => {
   if (item.dataElement) CATALOG_LABEL_MAP.set(item.dataElement, item.label);
 });
 
-POPUPS_CATALOG.forEach((p) => {
-  if (p.id) CATALOG_LABEL_MAP.set(p.id, p.name);
-});
+/**
+ * Checks whether an identifier or component represents a divider.
+ * Handles both the public literal token 'divider' and Apryse's internal leaked
+ * dictionary keys ('divider-0.1', 'divider-0.4', etc.).
+ */
+export function isDivider(key, comp = {}) {
+  const id = typeof key === 'string' ? key : comp?.dataElement || '';
+  return id === 'divider' || id.startsWith('divider-') || comp?.type === 'divider';
+}
 
 /**
  * Formats a technical camelCase or kebab-case identifier into readable words.
  */
 export function humanizeKey(rawKey = '') {
   if (!rawKey || typeof rawKey !== 'string') return '';
-  if (rawKey === 'divider') return 'Divider';
+  if (rawKey === 'divider' || rawKey.startsWith('divider-')) return 'Divider';
   if (rawKey === 'spacer') return 'Spacer';
 
   const cleaned = rawKey
@@ -86,7 +101,7 @@ export function getFriendlyComponentName(key, comp = {}) {
   if (!key && !comp) return 'Component';
   const id = key || comp?.dataElement || '';
 
-  if (id === 'divider' || comp?.type === 'divider') return 'Divider';
+  if (isDivider(id, comp)) return 'Divider';
   if (id === 'spacer' || comp?.type === 'spacer') return 'Spacer';
 
   // Prefer explicit user-configured label if it isn't an i18n token (contains dots)

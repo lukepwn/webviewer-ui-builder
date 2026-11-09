@@ -18,6 +18,12 @@ import {
   getFlattenedHeaderItems,
   getFlattenedRibbonTabTools,
 } from './utils/headerAndRibbonUtils';
+import {
+  defaultDraftFor,
+  buildCommitFromDraft,
+  resolveTargetContainer,
+  buildAvailableTargets,
+} from './utils/draftBuilders';
 import { highlightElementInViewer } from './utils/domHighlight';
 import './components/ToolButtonsCategorized.css';
 import './components/studio/Studio.css';
@@ -45,6 +51,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   const [leftPaneMode, setLeftPaneMode] = useState('tree'); // 'tree' | 'library'
   const [selectedNode, setSelectedNode] = useState(null);
   const [activeTarget, setActiveTarget] = useState(null);
+  const [stagedDraft, setStagedDraft] = useState(null);
   const [leftPaneWidth, setLeftPaneWidth] = useState(320);
   const [rightPaneWidth, setRightPaneWidth] = useState(310);
   const [resizingSide, setResizingSide] = useState(null); // 'left' | 'right' | null
@@ -249,9 +256,17 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     }
   }, []);
 
+  const handleModeChange = useCallback((nextMode) => {
+    setLeftPaneMode(nextMode);
+    if (nextMode === 'tree') {
+      setStagedDraft(null);
+    }
+  }, []);
+
   // Select a node in the Studio Outline Tree
   const handleSelectNode = useCallback(
     (node) => {
+      setStagedDraft(null);
       setSelectedNode(node);
       if (!node) return;
 
@@ -262,6 +277,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       if (node.type === 'header') {
         setActiveHeader(node.id);
         setActiveTarget({
+          key: `header:${node.id}`,
           type: 'header',
           headerKey: node.id,
           label: `Header: ${node.label || node.id}`,
@@ -269,21 +285,25 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       } else if (node.type === 'ribbonTab') {
         if (node.headerKey) setActiveHeader(node.headerKey);
         activateRibbonTabInViewer(node.id);
+        const hKey = node.headerKey || activeHeader;
         setActiveTarget({
+          key: `ribbon:${hKey}:${node.id}`,
           type: 'ribbon',
-          headerKey: node.headerKey || activeHeader,
+          headerKey: hKey,
           ribbonTabKey: node.id,
           label: `Tab: ${node.label || node.id}`,
         });
       } else if (node.type === 'flyout') {
         setActiveFlyout(node.id);
         setActiveTarget({
+          key: `flyout:${node.id}`,
           type: 'flyout',
           flyoutKey: node.id,
           label: `Flyout: ${node.label || node.id}`,
         });
       } else if (node.type === 'submenu') {
         setActiveTarget({
+          key: `submenu:${node.flyoutKey}:${node.id}`,
           type: 'submenu',
           parentKey: node.id,
           flyoutKey: node.flyoutKey,
@@ -293,6 +313,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         const pKey = node.type === 'popup' ? node.id : node.popupKey;
         setActivePopup(pKey);
         setActiveTarget({
+          key: `popup:${pKey}`,
           type: 'popup',
           popupKey: pKey,
           label: `Popup: ${node.label || pKey}`,
@@ -300,26 +321,37 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       } else if (node.targetContext) {
         const ctx = node.targetContext;
         if (ctx.type === 'ribbon' && ctx.ribbonKey) {
+          const hKey = ctx.headerKey || activeHeader;
           setActiveTarget({
+            key: `ribbon:${hKey}:${ctx.ribbonKey}`,
             type: 'ribbon',
-            headerKey: ctx.headerKey || activeHeader,
+            headerKey: hKey,
             ribbonTabKey: ctx.ribbonKey,
           });
         } else if (ctx.type === 'flyout' && ctx.flyoutKey) {
           setActiveTarget({
+            key: `flyout:${ctx.flyoutKey}`,
             type: 'flyout',
             flyoutKey: ctx.flyoutKey,
           });
         } else if (ctx.type === 'submenu' && ctx.parentKey) {
           setActiveTarget({
+            key: `submenu:${ctx.flyoutKey}:${ctx.parentKey}`,
             type: 'submenu',
             parentKey: ctx.parentKey,
             flyoutKey: ctx.flyoutKey,
           });
         } else if (ctx.type === 'header' && ctx.headerKey) {
           setActiveTarget({
+            key: `header:${ctx.headerKey}`,
             type: 'header',
             headerKey: ctx.headerKey,
+          });
+        } else if (ctx.type === 'popup' && ctx.popupKey) {
+          setActiveTarget({
+            key: `popup:${ctx.popupKey}`,
+            type: 'popup',
+            popupKey: ctx.popupKey,
           });
         }
       }
@@ -328,7 +360,19 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   );
 
   const handleOpenAddForTarget = useCallback((targetSpec) => {
-    setActiveTarget(targetSpec);
+    let key = targetSpec?.key;
+    if (!key && targetSpec) {
+      if (targetSpec.type === 'header') key = `header:${targetSpec.headerKey}`;
+      else if (targetSpec.type === 'ribbon')
+        key = `ribbon:${targetSpec.headerKey}:${targetSpec.ribbonTabKey}`;
+      else if (targetSpec.type === 'flyout')
+        key = `flyout:${targetSpec.flyoutKey}`;
+      else if (targetSpec.type === 'submenu')
+        key = `submenu:${targetSpec.flyoutKey}:${targetSpec.parentKey}`;
+      else if (targetSpec.type === 'popup')
+        key = `popup:${targetSpec.popupKey}`;
+    }
+    setActiveTarget(key ? { ...targetSpec, key } : targetSpec);
     setLeftPaneMode('library');
   }, []);
 
@@ -384,11 +428,21 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       };
       return { ...prev, modularHeaders: nextHeaders };
     });
+    const friendlyLabel = getFriendlyComponentName(
+      headerDef.dataElement,
+      headerDef,
+    );
     setActiveHeader(headerDef.dataElement);
     setSelectedNode({
       type: 'header',
       id: headerDef.dataElement,
-      label: getFriendlyComponentName(headerDef.dataElement, headerDef),
+      label: friendlyLabel,
+    });
+    setActiveTarget({
+      key: `header:${headerDef.dataElement}`,
+      type: 'header',
+      headerKey: headerDef.dataElement,
+      label: `Header: ${friendlyLabel}`,
     });
   };
 
@@ -1007,6 +1061,13 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       groupKey,
       label: 'New Tab',
     });
+    setActiveTarget({
+      key: `ribbon:${hKey}:${dataElement}`,
+      type: 'ribbon',
+      headerKey: hKey,
+      ribbonTabKey: dataElement,
+      label: 'Tab: New Tab',
+    });
   };
 
   // 6. Delete Component
@@ -1474,6 +1535,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     panelId,
     targetMode,
     flyoutKey,
+    sourceFlyoutKey,
   ) => {
     setConfig((prev) => {
       const nextPanels = { ...prev.panels };
@@ -1483,14 +1545,34 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       );
       const renderName = catalogDef?.render || panelId;
 
+      const isPanelMatch = (item) =>
+        typeof item === 'object'
+          ? item?.render === renderName ||
+            item?.dataElement === panelId ||
+            item?.dataElement === renderName
+          : item === panelId || item === renderName;
+
+      // Clean up the panel from other flyouts to prevent duplicates
+      Object.keys(nextFlyouts).forEach((fKey) => {
+        if (targetMode === 'flyout' && fKey === flyoutKey) return;
+        if (Array.isArray(nextFlyouts[fKey]?.items)) {
+          const filtered = nextFlyouts[fKey].items.filter(
+            (item) => !isPanelMatch(item),
+          );
+          if (filtered.length !== nextFlyouts[fKey].items.length) {
+            nextFlyouts[fKey] = {
+              ...nextFlyouts[fKey],
+              items: filtered,
+            };
+          }
+        }
+      });
+
       if (targetMode === 'flyout' && flyoutKey && nextFlyouts[flyoutKey]) {
         delete nextPanels[panelId];
+        delete nextPanels[renderName];
         const fItems = [...(nextFlyouts[flyoutKey].items || [])];
-        const alreadyIn = fItems.some((item) =>
-          typeof item === 'object'
-            ? item?.render === renderName || item?.dataElement === panelId
-            : item === panelId,
-        );
+        const alreadyIn = fItems.some(isPanelMatch);
         if (!alreadyIn) {
           fItems.push({
             dataElement: renderName,
@@ -1503,16 +1585,6 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         };
       } else {
         // Move to sidebar
-        if (flyoutKey && nextFlyouts[flyoutKey]) {
-          nextFlyouts[flyoutKey] = {
-            ...nextFlyouts[flyoutKey],
-            items: (nextFlyouts[flyoutKey].items || []).filter((item) =>
-              typeof item === 'object'
-                ? item?.render !== renderName && item?.dataElement !== panelId
-                : item !== panelId,
-            ),
-          };
-        }
         nextPanels[panelId] = {
           dataElement: panelId,
           render: renderName,
@@ -1531,7 +1603,20 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       prev
         ? {
             ...prev,
+            parentId: targetMode === 'flyout' ? flyoutKey : undefined,
             flyoutKey: targetMode === 'flyout' ? flyoutKey : undefined,
+            targetContext:
+              targetMode === 'flyout'
+                ? {
+                    ...(prev.targetContext || {}),
+                    type: 'flyout',
+                    flyoutKey,
+                  }
+                : {
+                    ...(prev.targetContext || {}),
+                    type: 'panel',
+                    flyoutKey: undefined,
+                  },
           }
         : null,
     );
@@ -1614,6 +1699,12 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       id: dataElement,
       label: label || dataElement,
     });
+    setActiveTarget({
+      key: `flyout:${dataElement}`,
+      type: 'flyout',
+      flyoutKey: dataElement,
+      label: `Flyout: ${label || dataElement}`,
+    });
   };
 
   const handleQuickCreateFlyout = () => {
@@ -1654,6 +1745,18 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         flyouts: nextFlyouts,
         modularComponents: nextComponents,
       };
+    });
+    setActiveFlyout(newFlyoutId);
+    setSelectedNode({
+      type: 'flyout',
+      id: newFlyoutId,
+      label: newFlyoutId,
+    });
+    setActiveTarget({
+      key: `flyout:${newFlyoutId}`,
+      type: 'flyout',
+      flyoutKey: newFlyoutId,
+      label: `Flyout: ${newFlyoutId}`,
     });
   };
 
@@ -1776,6 +1879,59 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     ) {
       setSelectedNode({ type: 'popup', id: popupKey, label: popupKey });
     }
+  };
+
+  const availableTargets = React.useMemo(
+    () => buildAvailableTargets(config),
+    [config],
+  );
+  const resolvedTarget = resolveTargetContainer(
+    activeTarget,
+    config,
+    availableTargets,
+  );
+
+  const handleStageItem = useCallback(
+    (itemSpec, targetOverride) => {
+      const target =
+        targetOverride ||
+        resolveTargetContainer(activeTarget, config, availableTargets);
+      setStagedDraft(defaultDraftFor(itemSpec, config, target));
+      setLeftPaneMode('library');
+    },
+    [activeTarget, config, availableTargets],
+  );
+
+  const handleCommitDraft = () => {
+    if (!stagedDraft) return;
+    const target = resolveTargetContainer(
+      activeTarget,
+      config,
+      availableTargets,
+    );
+    const commit = buildCommitFromDraft(stagedDraft, target, config);
+    if (!commit) return;
+
+    if (commit.actionType === 'addComponent') {
+      handleAddComponent(commit.payload);
+    } else if (commit.actionType === 'addHeader') {
+      handleAddHeader(commit.payload);
+    } else if (commit.actionType === 'addFlyout') {
+      handleAddFlyout(commit.payload);
+    } else if (commit.actionType === 'addTabPanel') {
+      handleAddTabPanel(commit.payload);
+    }
+
+    if (commit.nextTarget) {
+      setActiveTarget(commit.nextTarget);
+    }
+
+    if (commit.createdNode) {
+      setSelectedNode(commit.createdNode);
+    }
+
+    setStagedDraft(null);
+    setLeftPaneMode('tree');
   };
 
   // Export & Import JSON
@@ -1929,21 +2085,30 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
             <LeftStudioPane
               width={leftPaneWidth}
               mode={leftPaneMode}
-              onModeChange={setLeftPaneMode}
+              onModeChange={handleModeChange}
               config={config}
               selectedNode={selectedNode}
               onSelectNode={handleSelectNode}
               activeTarget={activeTarget}
               onChangeTarget={setActiveTarget}
               onOpenAddForTarget={handleOpenAddForTarget}
-              onCreateHeader={handleQuickCreateHeader}
-              onCreateRibbonTab={handleQuickCreateRibbonTab}
-              onCreateFlyout={handleQuickCreateFlyout}
-              onCreateTabPanel={handleQuickCreateTabPanel}
-              onAddComponent={handleAddComponent}
-              onAddHeader={handleAddHeader}
-              onAddFlyout={handleAddFlyout}
-              onAddTabPanel={handleAddTabPanel}
+              onCreateHeader={() => handleStageItem({ kind: 'header' })}
+              onCreateRibbonTab={(headerKey) =>
+                handleStageItem(
+                  { kind: 'ribbonTab' },
+                  headerKey
+                    ? resolveTargetContainer(
+                        { type: 'header', headerKey },
+                        config,
+                        availableTargets,
+                      )
+                    : undefined,
+                )
+              }
+              onCreateFlyout={() => handleStageItem({ kind: 'flyout' })}
+              onCreateTabPanel={() => handleStageItem({ kind: 'tabPanel' })}
+              stagedDraft={stagedDraft}
+              onStageItem={handleStageItem}
               onDeleteHeader={handleDeleteHeader}
               onDeleteRibbonTab={handleDeleteRibbonTab}
               onDeleteFlyout={handleDeleteFlyout}
@@ -1999,7 +2164,12 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
               width={rightPaneWidth}
               config={config}
               selectedNode={selectedNode}
-              onOpenAddForTarget={handleOpenAddForTarget}
+              stagedDraft={stagedDraft}
+              currentTarget={resolvedTarget}
+              availableTargets={availableTargets}
+              onChangeTarget={setActiveTarget}
+              onChangeDraft={setStagedDraft}
+              onCommitDraft={handleCommitDraft}
               onUpdateHeader={handleUpdateHeader}
               onUpdateToolsHeader={handleUpdateToolsHeader}
               getRibbonLayoutForHeader={getRibbonLayoutForHeader}

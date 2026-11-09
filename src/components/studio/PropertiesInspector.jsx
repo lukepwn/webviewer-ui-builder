@@ -11,14 +11,20 @@ import {
   SUPPORTED_FLYOUT_PANEL_RENDERS,
   TOOL_ACTION_PREFIX,
 } from '../../sdk/sdkRules';
-import { getFriendlyComponentName } from '../../utils/labelUtils';
+import { getFriendlyComponentName, isDivider } from '../../utils/labelUtils';
 import { getItemFeatureRequirement } from '../../constants/featureRegistry';
+import StagingInspector from './StagingInspector';
 
 export default function PropertiesInspector({
   width,
   config,
   selectedNode,
-  onOpenAddForTarget,
+  stagedDraft,
+  currentTarget,
+  availableTargets,
+  onChangeTarget,
+  onChangeDraft,
+  onCommitDraft,
   onUpdateHeader,
   onUpdateToolsHeader,
   getRibbonLayoutForHeader,
@@ -39,6 +45,21 @@ export default function PropertiesInspector({
 }) {
   const paneStyle = width ? { width } : undefined;
 
+  if (stagedDraft) {
+    return (
+      <StagingInspector
+        width={width}
+        config={config}
+        draft={stagedDraft}
+        currentTarget={currentTarget}
+        availableTargets={availableTargets}
+        onChangeTarget={onChangeTarget}
+        onChangeDraft={onChangeDraft}
+        onCommitDraft={onCommitDraft}
+      />
+    );
+  }
+
   if (!selectedNode) {
     return (
       <aside className="studio-right-pane" style={paneStyle}>
@@ -46,8 +67,8 @@ export default function PropertiesInspector({
           <span className="inspector-title">Properties</span>
         </div>
         <div className="inspector-empty">
-          Select any header, tab, tool, flyout, panel, or popup in the Outline
-          to inspect and edit its properties.
+          Select any item in the Outline to inspect and edit its properties, or
+          pick a component in Add Components to configure and add it.
         </div>
       </aside>
     );
@@ -191,20 +212,6 @@ export default function PropertiesInspector({
 
           <button
             type="button"
-            className="studio-btn primary"
-            onClick={() =>
-              onOpenAddForTarget({
-                type: 'header',
-                headerKey: id,
-                label: `Header: ${getFriendlyComponentName(id, headerDef)}`,
-              })
-            }
-          >
-            + Add Component to Header
-          </button>
-
-          <button
-            type="button"
             className="studio-btn danger"
             onClick={() => onDeleteHeader(id)}
           >
@@ -323,21 +330,6 @@ export default function PropertiesInspector({
           )}
 
           <div className="inspector-divider" />
-
-          <button
-            type="button"
-            className="studio-btn primary"
-            onClick={() =>
-              onOpenAddForTarget({
-                type: 'ribbon',
-                headerKey,
-                ribbonTabKey: id,
-                label: `Tab: ${getFriendlyComponentName(id, tabComp)}`,
-              })
-            }
-          >
-            + Add Tool to Tab
-          </button>
 
           <button
             type="button"
@@ -600,11 +592,34 @@ export default function PropertiesInspector({
             ) : (
               <div className="inspector-field">
                 <label className="inspector-label">Host Flyout</label>
-                <input
-                  className="inspector-input"
-                  value={selectedNode.flyoutKey}
-                  disabled
-                />
+                <select
+                  className="inspector-select"
+                  value={selectedNode.flyoutKey || flyoutKeys[0] || ''}
+                  onChange={(e) =>
+                    onMovePanelBetweenSidebarAndFlyout(
+                      id,
+                      'flyout',
+                      e.target.value,
+                      selectedNode.flyoutKey,
+                    )
+                  }
+                >
+                  {selectedNode.flyoutKey &&
+                    !flyoutKeys.includes(selectedNode.flyoutKey) && (
+                      <option value={selectedNode.flyoutKey}>
+                        Flyout: {selectedNode.flyoutKey}
+                      </option>
+                    )}
+                  {flyoutKeys.map((fKey) => {
+                    const fDef = config.flyouts?.[fKey];
+                    const fName = getFriendlyComponentName(fKey, fDef);
+                    return (
+                      <option key={fKey} value={fKey}>
+                        Flyout: {fName} ({fKey})
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
             )}
           </div>
@@ -731,20 +746,6 @@ export default function PropertiesInspector({
 
           <button
             type="button"
-            className="studio-btn primary"
-            onClick={() =>
-              onOpenAddForTarget({
-                type: 'flyout',
-                flyoutKey: id,
-                label: `Flyout: ${getFriendlyComponentName(id, flyoutDef)}`,
-              })
-            }
-          >
-            + Add Item to Flyout
-          </button>
-
-          <button
-            type="button"
             className="studio-btn danger"
             onClick={() => onDeleteFlyout(id)}
           >
@@ -800,21 +801,6 @@ export default function PropertiesInspector({
 
           <button
             type="button"
-            className="studio-btn primary"
-            onClick={() =>
-              onOpenAddForTarget({
-                type: 'submenu',
-                parentKey: id,
-                flyoutKey: selectedNode.flyoutKey,
-                label: `Submenu: ${getFriendlyComponentName(id, comp)}`,
-              })
-            }
-          >
-            + Add Item to Submenu
-          </button>
-
-          <button
-            type="button"
             className="studio-btn danger"
             onClick={() => onDeleteTool(id, selectedNode.targetContext || {})}
           >
@@ -853,38 +839,70 @@ export default function PropertiesInspector({
             <div className="inspector-hint">{popupMeta.description}</div>
           )}
 
-          {type === 'popupItem' && (
-            <div className="inspector-section-card">
-              <span className="inspector-section-title">Selected Item</span>
-              <div className="inspector-field">
-                <label className="inspector-label">Item ID (dataElement)</label>
-                <input className="inspector-input" value={id} disabled />
-              </div>
-              <button
-                type="button"
-                className="studio-btn danger"
-                onClick={() => onRemovePopupItem(popupKey, selectedNode.index)}
-              >
-                Remove from Popup
-              </button>
-            </div>
-          )}
+          {type === 'popupItem' &&
+            (() => {
+              const popupList =
+                config.popups?.[popupKey] || DEFAULT_POPUPS[popupKey] || [];
+              const rawItem =
+                (selectedNode.index != null
+                  ? popupList[selectedNode.index]
+                  : null) ||
+                popupList.find(
+                  (i) => (typeof i === 'string' ? i : i?.dataElement) === id,
+                );
+              const itemObj =
+                typeof rawItem === 'object' && rawItem !== null ? rawItem : {};
+              const comp = config.modularComponents?.[id] || itemObj;
+              const displayLabel =
+                itemObj.label ||
+                comp.label ||
+                getFriendlyComponentName(id, comp);
+              const toolName = itemObj.toolName || comp.toolName;
+
+              return (
+                <div className="inspector-section-card">
+                  <span className="inspector-section-title">Selected Item</span>
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      Item ID (dataElement)
+                    </label>
+                    <input className="inspector-input" value={id} disabled />
+                  </div>
+                  {displayLabel && (
+                    <div className="inspector-field">
+                      <label className="inspector-label">Label</label>
+                      <input
+                        className="inspector-input"
+                        value={displayLabel}
+                        disabled
+                      />
+                    </div>
+                  )}
+                  {toolName && (
+                    <div className="inspector-field">
+                      <label className="inspector-label">Tool Action</label>
+                      <input
+                        className="inspector-input"
+                        value={toolName}
+                        disabled
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="studio-btn danger"
+                    style={{ marginTop: 8 }}
+                    onClick={() =>
+                      onRemovePopupItem(popupKey, selectedNode.index)
+                    }
+                  >
+                    Remove from Popup
+                  </button>
+                </div>
+              );
+            })()}
 
           <div className="inspector-divider" />
-
-          <button
-            type="button"
-            className="studio-btn primary"
-            onClick={() =>
-              onOpenAddForTarget({
-                type: 'popup',
-                popupKey,
-                label: popupMeta?.name || popupKey,
-              })
-            }
-          >
-            + Add Action to Popup
-          </button>
 
           <button
             type="button"
@@ -913,7 +931,7 @@ export default function PropertiesInspector({
 
   // --- 8. STANDARD COMPONENT INSPECTOR (TOOL, PRESET, CUSTOM, CONTROL, LAYOUT) ---
   const comp = config.modularComponents?.[id] || {
-    type: id === 'divider' ? 'divider' : 'toolButton',
+    type: isDivider(id) ? 'divider' : 'toolButton',
     dataElement: id,
   };
   const compType = comp.type || 'component';
@@ -927,7 +945,11 @@ export default function PropertiesInspector({
     <aside className="studio-right-pane" style={paneStyle}>
       <div className="inspector-header">
         <span className="inspector-title">Properties</span>
-        <span className="inspector-type-badge">{compType}</span>
+        <span className="inspector-type-badge">
+          {compType === 'customButton' && comp.toolName
+            ? 'toolButton'
+            : compType}
+        </span>
       </div>
 
       <div className="inspector-body">

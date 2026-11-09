@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.1 - Studio Polish (2026-11-08)
+
+- updated component icons
+- added missing components
+- streamline workflow and design of adding components
+- update custom button function
+
 ## v0.2.0 - UI 3 Panel refactor (2026-11-06)
 
 - refactored builder to use 3 panel layout

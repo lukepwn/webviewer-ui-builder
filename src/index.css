@@ -1,3 +1,13 @@
+@font-face {
+  font-family: 'Noto Sans Mono';
+  src: url('./assets/fonts/NotoSansMono-VariableFont_wdth,wght.ttf')
+    format('truetype');
+  font-weight: 100 900;
+  font-stretch: 62.5% 100%;
+  font-style: normal;
+  font-display: swap;
+}
+
 *,
 *::before,
 *::after {
@@ -11,7 +21,8 @@ body,
   margin: 0;
   overflow: hidden;
   font-family:
-    'DM Sans',
+    'Noto Sans Mono',
+    monospace,
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -27,7 +38,9 @@ button,
 input,
 optgroup,
 select,
-textarea {
+textarea,
+code,
+pre {
   font-family: inherit;
 }
 
@@ -49,7 +62,12 @@ main {
 .ModularUIBuilder input,
 .ModularUIBuilder select,
 .ModularUIBuilder textarea {
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Noto Sans Mono',
+    monospace,
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .ModularUIBuilder input:not([type='checkbox']):not([type='radio']),

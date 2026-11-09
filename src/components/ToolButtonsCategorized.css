@@ -389,7 +389,7 @@
 
 .tool-icon-pill {
   font-size: 10px;
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
   background-color: #f1f5f9;
   color: #475569;
   padding: 2px 6px;
@@ -477,7 +477,7 @@
 .tool-subtext {
   font-size: 11px;
   color: #64748b;
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -505,6 +505,27 @@
   color: #92400e;
 }
 
+.badge-ribbon-group {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
+.badge-header,
+.badge-container {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.badge-panel {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+
+.badge-submenu {
+  background-color: #fae8ff;
+  color: #86198f;
+}
+
 .badge-custom {
   background-color: #ede9fe;
   color: #6b21a8;
@@ -515,7 +536,9 @@
   color: #6b21a8;
 }
 
-.badge-controls {
+.badge-group,
+.badge-controls,
+.badge-control {
   background-color: #dcfce7;
   color: #15803d;
 }
@@ -538,6 +561,44 @@
 .badge-other {
   background-color: #f1f5f9;
   color: #334155;
+}
+
+/* COMPACT ICON BADGE */
+.item-badge.item-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.item-badge.item-badge-icon svg {
+  width: 14px;
+  height: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  display: block;
+}
+
+.item-badge.item-badge-icon svg path,
+.item-badge.item-badge-icon svg g,
+.item-badge.item-badge-icon svg rect,
+.item-badge.item-badge-icon svg circle,
+.item-badge.item-badge-icon svg polygon {
+  vector-effect: non-scaling-stroke;
+}
+
+.item-badge.item-badge-icon svg path:not([fill*='#']):not([fill='none']),
+.item-badge.item-badge-icon svg circle:not([fill*='#']):not([fill='none']),
+.item-badge.item-badge-icon svg rect:not([fill*='#']):not([fill='none']),
+.item-badge.item-badge-icon svg polygon:not([fill*='#']):not([fill='none']) {
+  fill: currentColor;
 }
 
 /* ACTIONS (MOVE UP/DOWN, DELETE) */
@@ -660,7 +721,7 @@
 .panel-subtext {
   font-size: 10px;
   color: #64748b;
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
   margin-left: 20px;
 }
 
@@ -890,7 +951,7 @@
 }
 
 .form-input.monospace {
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
   font-size: 12px;
 }
 
@@ -1235,7 +1296,7 @@
 .tab-card-id {
   font-size: 10px;
   color: #64748b;
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
 }
 
 .text-link-btn {
@@ -1455,7 +1516,7 @@
 .option-subtext {
   font-size: 11px;
   color: #64748b;
-  font-family: monospace;
+  font-family: 'Noto Sans Mono', monospace;
 }
 
 .option-requirement-text {

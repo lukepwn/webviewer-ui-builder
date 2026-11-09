@@ -377,6 +377,41 @@
   flex: 1;
 }
 
+/* TREE ROW: Unboxed, quiet icons */
+.tree-row .item-badge.item-badge-icon {
+  background-color: transparent !important;
+  color: #64748b !important;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.tree-row .item-badge.item-badge-icon svg {
+  width: 14px;
+  height: 14px;
+  max-width: 14px;
+  max-height: 14px;
+}
+
+.tree-row:hover .item-badge.item-badge-icon {
+  color: #334155 !important;
+}
+
+.tree-row.selected .item-badge.item-badge-icon {
+  color: #1e40af !important;
+}
+
+.tree-divider-label {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
 .tree-Caret {
   font-size: 10px;
   color: #94a3b8;
@@ -447,39 +482,6 @@
 }
 
 /* COMPONENT LIBRARY IN LEFT PANE */
-.library-target-banner {
-  padding: 8px 10px;
-  background-color: #eff6ff;
-  border-bottom: 1px solid #bfdbfe;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.library-target-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #1d4ed8;
-}
-
-.library-target-select {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 5px;
-  border: 1px solid #93c5fd;
-  background-color: #ffffff;
-  color: #1e3a8a;
-  outline: none;
-}
-
 .library-categories {
   display: flex;
   flex-wrap: wrap;
@@ -525,17 +527,33 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   border: 1px solid #e2e8f0;
   background-color: #ffffff;
   transition: all 0.12s ease;
-  gap: 8px;
+  gap: 10px;
+  min-height: 34px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.library-card-icon-col {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .library-card:hover {
   border-color: #93c5fd;
   background-color: #f8fafc;
+}
+
+.library-card.staged {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
 }
 
 .library-card-info {
@@ -550,6 +568,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .library-card-sub {
