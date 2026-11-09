@@ -233,6 +233,7 @@ export function defaultDraftFor(itemSpec, config, currentTarget) {
     }
 
     case 'panel': {
+      const isRootFlyout = currentTarget?.type === 'flyout';
       const canEmbedInFlyout = SUPPORTED_FLYOUT_PANEL_RENDERS.has(meta.render);
       const baseId = `${meta.id}Toggle`;
       return {
@@ -243,8 +244,8 @@ export function defaultDraftFor(itemSpec, config, currentTarget) {
         panelId: meta.id,
         render: meta.render,
         canEmbedInFlyout,
-        mode: isFlyoutTarget && canEmbedInFlyout ? 'embed' : 'toggle',
-        embedFlyoutKey: isFlyoutTarget
+        mode: isRootFlyout && canEmbedInFlyout ? 'embed' : 'toggle',
+        embedFlyoutKey: isRootFlyout
           ? currentTarget.flyoutKey
           : flyoutKeys[0] || '',
         baseId,
@@ -350,7 +351,9 @@ export function defaultDraftFor(itemSpec, config, currentTarget) {
         title: 'Custom Menu',
         img: 'icon-tools-more',
         createToggle: true,
+        targetLocationType: 'header',
         targetHeader: defaultHeaderKey,
+        targetPopup: 'annotationPopup',
       };
     }
 
@@ -605,10 +608,19 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
         panelLocation: draft.panelLocation || 'left',
       };
 
+      const safeTargetPayload =
+        targetPayload.targetLocationType === 'flyout' ||
+        targetPayload.targetLocationType === 'submenu'
+          ? {
+              headerKey: defaultHeaderKey,
+              targetLocationType: 'header',
+            }
+          : targetPayload;
+
       return {
         actionType: 'addComponent',
         payload: {
-          target: targetPayload,
+          target: safeTargetPayload,
           componentType: 'toggleButton',
           component,
         },
@@ -668,10 +680,19 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
         img: draft.img || 'icon-header-sidebar-line',
         ...(draft.panelLocation ? { panelLocation: draft.panelLocation } : {}),
       };
+      const safeTargetPayload =
+        targetPayload.targetLocationType === 'flyout' ||
+        targetPayload.targetLocationType === 'submenu'
+          ? {
+              headerKey: defaultHeaderKey,
+              targetLocationType: 'header',
+            }
+          : targetPayload;
+
       return {
         actionType: 'addComponent',
         payload: {
-          target: targetPayload,
+          target: safeTargetPayload,
           componentType: 'toggleButton',
           component,
         },
@@ -686,8 +707,14 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
     }
 
     case 'submenu': {
+      const effectiveTarget =
+        currentTarget?.type === 'flyout' || currentTarget?.type === 'submenu'
+          ? currentTarget
+          : availableTargets.find(
+              (t) => t.type === 'flyout' || t.type === 'submenu',
+            );
       const flyoutKey =
-        draft.flyoutKey || currentTarget?.flyoutKey || flyoutKeys[0];
+        effectiveTarget?.flyoutKey || draft.flyoutKey || flyoutKeys[0];
       if (!flyoutKey) return null;
       const dataElement = ensureUniqueId(draft.dataElement, draft.baseId);
       const label = draft.label || 'Submenu';
@@ -701,8 +728,8 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
         children: [],
       };
       const isNestedInCurrentSubmenu =
-        currentTarget?.type === 'submenu' &&
-        currentTarget?.flyoutKey === flyoutKey;
+        effectiveTarget?.type === 'submenu' &&
+        effectiveTarget?.flyoutKey === flyoutKey;
 
       return {
         actionType: 'addComponent',
@@ -712,7 +739,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
             targetLocationType: isNestedInCurrentSubmenu ? 'submenu' : 'flyout',
             flyoutKey,
             parentKey: isNestedInCurrentSubmenu
-              ? currentTarget.parentKey
+              ? effectiveTarget.parentKey
               : undefined,
           },
           componentType: 'customButton',
@@ -723,11 +750,11 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           id: dataElement,
           label,
           parentId: isNestedInCurrentSubmenu
-            ? currentTarget.parentKey
+            ? effectiveTarget.parentKey
             : flyoutKey,
           flyoutKey,
           parentSubmenuKey: isNestedInCurrentSubmenu
-            ? currentTarget.parentKey
+            ? effectiveTarget.parentKey
             : undefined,
           isSubmenu: true,
           component,
@@ -736,7 +763,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
             targetLocationType: isNestedInCurrentSubmenu ? 'submenu' : 'flyout',
             flyoutKey,
             parentKey: isNestedInCurrentSubmenu
-              ? currentTarget.parentKey
+              ? effectiveTarget.parentKey
               : undefined,
           },
         },
@@ -838,7 +865,9 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
       const clean = flyoutName.trim().replace(/[^a-zA-Z0-9]/g, '') || 'custom';
       const baseId = `${clean.charAt(0).toLowerCase()}${clean.slice(1)}Flyout`;
       const dataElement = ensureUniqueId(draft.dataElement, baseId);
+      const isPopup = draft.targetLocationType === 'popup';
       const targetHeader = draft.targetHeader || defaultHeaderKey;
+      const targetPopup = draft.targetPopup || 'annotationPopup';
 
       return {
         actionType: 'addFlyout',
@@ -847,8 +876,10 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           label: flyoutName,
           title: draft.title || flyoutName,
           icon: draft.img || 'icon-tools-more',
-          targetHeader: draft.createToggle !== false ? targetHeader : null,
-          targetLocationType: 'header',
+          createToggle: true,
+          targetLocationType: isPopup ? 'popup' : 'header',
+          targetHeader: isPopup ? null : targetHeader,
+          targetPopup: isPopup ? targetPopup : null,
         },
         createdNode: {
           type: 'flyout',

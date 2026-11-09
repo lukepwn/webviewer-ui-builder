@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.2 - JSON update + workflow clean up (2026-11-09)
+
+- disallow toggle buttons inside flyouts/submenu
+- update outline to add componet workflows
+- update json viewer
+- fix tools-header justify
+
 ## v0.2.1 - Studio Polish (2026-11-08)
 
 - updated component icons

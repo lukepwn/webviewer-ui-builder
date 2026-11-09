@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import ConfigPreview from './components/ConfigPreview';
 import LeftStudioPane from './components/studio/LeftStudioPane';
 import PropertiesInspector from './components/studio/PropertiesInspector';
@@ -90,8 +96,28 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   const [activePopup, setActivePopup] = useState('annotationPopup');
   const [autoApply, setAutoApply] = useState(true);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [jsonCopied, setJsonCopied] = useState(false);
   // Items the SDK guardrails removed/adjusted on the last apply (from prepareConfigForImport)
   const [importWarnings, setImportWarnings] = useState([]);
+
+  const configJsonString = useMemo(
+    () => JSON.stringify(config, null, 2),
+    [config],
+  );
+  const configLineCount = useMemo(
+    () => configJsonString.split('\n').length,
+    [configJsonString],
+  );
+
+  const handleCopyJSON = () => {
+    try {
+      navigator.clipboard?.writeText(configJsonString);
+      setJsonCopied(true);
+      setTimeout(() => setJsonCopied(false), 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Keep a pristine backup of WebViewer's default UI configuration on mount
   const defaultConfigRef = useRef(null);
@@ -1641,6 +1667,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     targetHeader,
     targetLocationType,
     targetPopup,
+    createToggle = true,
   }) => {
     setConfig((prev) => {
       const nextFlyouts = { ...prev.flyouts };
@@ -1653,35 +1680,38 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         items: [],
       };
 
-      const toggleKey = `${dataElement}Toggle`;
-      const toggleButtonObj = {
-        type: 'toggleButton',
-        dataElement: toggleKey,
-        toggleElement: dataElement,
-        element: dataElement,
-        label: label || 'Flyout',
-        title: title || `Toggle ${dataElement}`,
-        img: icon || 'icon-tools-more',
-      };
+      if (createToggle) {
+        const toggleKey = `${dataElement}Toggle`;
+        const toggleButtonObj = {
+          type: 'toggleButton',
+          dataElement: toggleKey,
+          toggleElement: dataElement,
+          element: dataElement,
+          label: label || 'Flyout',
+          title: title || `Toggle ${dataElement}`,
+          img: icon || 'icon-tools-more',
+        };
 
-      if (targetLocationType === 'popup' && targetPopup) {
-        const popupItems = Array.isArray(nextPopups[targetPopup])
-          ? [...nextPopups[targetPopup]]
-          : (DEFAULT_POPUPS[targetPopup] || []).map((i) => ({ ...i }));
-        popupItems.push(toggleButtonObj);
-        nextPopups[targetPopup] = popupItems;
-      } else {
         nextComponents[toggleKey] = toggleButtonObj;
-        const headerToUse = targetHeader || activeHeader;
-        if (headerToUse && nextHeaders[headerToUse]) {
-          const headerItems = [...(nextHeaders[headerToUse].items || [])];
-          if (!headerItems.includes(toggleKey)) {
-            headerItems.push(toggleKey);
+
+        if (targetLocationType === 'popup' && targetPopup) {
+          const popupItems = Array.isArray(nextPopups[targetPopup])
+            ? [...nextPopups[targetPopup]]
+            : (DEFAULT_POPUPS[targetPopup] || []).map((i) => ({ ...i }));
+          popupItems.push(toggleButtonObj);
+          nextPopups[targetPopup] = popupItems;
+        } else {
+          const headerToUse = targetHeader || activeHeader;
+          if (headerToUse && nextHeaders[headerToUse]) {
+            const headerItems = [...(nextHeaders[headerToUse].items || [])];
+            if (!headerItems.includes(toggleKey)) {
+              headerItems.push(toggleKey);
+            }
+            nextHeaders[headerToUse] = {
+              ...nextHeaders[headerToUse],
+              items: headerItems,
+            };
           }
-          nextHeaders[headerToUse] = {
-            ...nextHeaders[headerToUse],
-            items: headerItems,
-          };
         }
       }
 
@@ -1717,87 +1747,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       icon: 'icon-tools-more',
       targetHeader: activeHeader,
       targetLocationType: 'header',
-    });
-  };
-
-  const handleCreateFlyoutAndLinkToggle = (toggleId) => {
-    const existingIds = collectAllExistingIds(config);
-    const newFlyoutId = generateUniqueDataElement('customFlyout', existingIds);
-
-    setConfig((prev) => {
-      const nextFlyouts = {
-        ...prev.flyouts,
-        [newFlyoutId]: {
-          dataElement: newFlyoutId,
-          items: [],
-        },
-      };
-      const nextComponents = { ...prev.modularComponents };
-      if (nextComponents[toggleId]) {
-        nextComponents[toggleId] = {
-          ...nextComponents[toggleId],
-          toggleElement: newFlyoutId,
-          element: newFlyoutId,
-        };
-      }
-      return {
-        ...prev,
-        flyouts: nextFlyouts,
-        modularComponents: nextComponents,
-      };
-    });
-    setActiveFlyout(newFlyoutId);
-    setSelectedNode({
-      type: 'flyout',
-      id: newFlyoutId,
-      label: newFlyoutId,
-    });
-    setActiveTarget({
-      key: `flyout:${newFlyoutId}`,
-      type: 'flyout',
-      flyoutKey: newFlyoutId,
-      label: `Flyout: ${newFlyoutId}`,
-    });
-  };
-
-  const handleCreateToggleForFlyout = (flyoutId) => {
-    const existingIds = collectAllExistingIds(config);
-    const toggleKey = generateUniqueDataElement(
-      `${flyoutId}Toggle`,
-      existingIds,
-    );
-    const hKey =
-      activeHeader ||
-      Object.keys(config.modularHeaders || {}).find(
-        (k) => k !== 'tools-header',
-      ) ||
-      'default-top-header';
-
-    setConfig((prev) => {
-      const nextComponents = {
-        ...prev.modularComponents,
-        [toggleKey]: {
-          type: 'toggleButton',
-          dataElement: toggleKey,
-          toggleElement: flyoutId,
-          element: flyoutId,
-          label: getFriendlyComponentName(flyoutId),
-          title: `Toggle ${flyoutId}`,
-          img: 'icon-tools-more',
-        },
-      };
-      const nextHeaders = { ...prev.modularHeaders };
-      if (nextHeaders[hKey]) {
-        nextHeaders[hKey] = {
-          ...nextHeaders[hKey],
-          items: [...(nextHeaders[hKey].items || []), toggleKey],
-        };
-      }
-      return {
-        ...prev,
-        modularComponents: nextComponents,
-        modularHeaders: nextHeaders,
-      };
+      createToggle: true,
     });
   };
 
@@ -2136,14 +2086,28 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           {isPreviewOpen && (
             <div className="studio-json-drawer">
               <div className="studio-json-header">
-                <span>Configuration JSON Preview</span>
-                <button
-                  type="button"
-                  className="studio-btn"
-                  onClick={() => setIsPreviewOpen(false)}
-                >
-                  Close
-                </button>
+                <div className="studio-json-header-title">
+                  <span>Configuration JSON Preview</span>
+                  <span className="studio-json-badge">
+                    {configLineCount} lines
+                  </span>
+                </div>
+                <div className="studio-json-header-actions">
+                  <button
+                    type="button"
+                    className="studio-btn studio-json-copy-btn"
+                    onClick={handleCopyJSON}
+                  >
+                    {jsonCopied ? '✓ Copied' : 'Copy JSON'}
+                  </button>
+                  <button
+                    type="button"
+                    className="studio-btn"
+                    onClick={() => setIsPreviewOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
               <div className="studio-json-body">
                 <ConfigPreview config={config} />
@@ -2175,8 +2139,6 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
               getRibbonLayoutForHeader={getRibbonLayoutForHeader}
               onSetRibbonLayout={handleSetRibbonLayout}
               onUpdateComponent={handleUpdateComponent}
-              onCreateFlyoutAndLinkToggle={handleCreateFlyoutAndLinkToggle}
-              onCreateToggleForFlyout={handleCreateToggleForFlyout}
               onChangePanelLocation={handleChangePanelLocation}
               onMovePanelBetweenSidebarAndFlyout={
                 handleMovePanelBetweenSidebarAndFlyout

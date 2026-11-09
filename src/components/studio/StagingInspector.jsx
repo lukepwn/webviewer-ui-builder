@@ -164,6 +164,35 @@ export default function StagingInspector({
                     </option>
                   ))}
                 </select>
+              ) : draft.kind === 'submenu' ? (
+                <select
+                  className="inspector-select"
+                  value={
+                    availableTargets
+                      .filter(
+                        (t) => t.type === 'flyout' || t.type === 'submenu',
+                      )
+                      .some((t) => t.key === currentTarget?.key)
+                      ? currentTarget?.key
+                      : availableTargets.find(
+                          (t) => t.type === 'flyout' || t.type === 'submenu',
+                        )?.key || ''
+                  }
+                  onChange={(e) => {
+                    const next = availableTargets.find(
+                      (t) => t.key === e.target.value,
+                    );
+                    if (next && onChangeTarget) onChangeTarget(next);
+                  }}
+                >
+                  {availableTargets
+                    .filter((t) => t.type === 'flyout' || t.type === 'submenu')
+                    .map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
+                </select>
               ) : draft.kind === 'panel' && draft.mode === 'embed' ? (
                 <select
                   className="inspector-select"
@@ -188,6 +217,36 @@ export default function StagingInspector({
                       {getFriendlyComponentName(fKey, config.flyouts[fKey])}
                     </option>
                   ))}
+                </select>
+              ) : draft.kind === 'toggleButton' ||
+                (draft.kind === 'panel' && draft.mode !== 'embed') ? (
+                <select
+                  className="inspector-select"
+                  value={
+                    availableTargets
+                      .filter(
+                        (t) => t.type !== 'flyout' && t.type !== 'submenu',
+                      )
+                      .some((t) => t.key === currentTarget?.key)
+                      ? currentTarget?.key
+                      : availableTargets.find(
+                          (t) => t.type !== 'flyout' && t.type !== 'submenu',
+                        )?.key || ''
+                  }
+                  onChange={(e) => {
+                    const next = availableTargets.find(
+                      (t) => t.key === e.target.value,
+                    );
+                    if (next && onChangeTarget) onChangeTarget(next);
+                  }}
+                >
+                  {availableTargets
+                    .filter((t) => t.type !== 'flyout' && t.type !== 'submenu')
+                    .map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
                 </select>
               ) : (
                 <select
@@ -402,7 +461,21 @@ export default function StagingInspector({
                         type="radio"
                         name="draftPanelMode"
                         checked={draft.mode !== 'embed'}
-                        onChange={() => update({ mode: 'toggle' })}
+                        onChange={() => {
+                          update({ mode: 'toggle' });
+                          if (
+                            currentTarget?.type === 'flyout' ||
+                            currentTarget?.type === 'submenu'
+                          ) {
+                            const headerTarget = availableTargets.find(
+                              (t) =>
+                                t.type !== 'flyout' && t.type !== 'submenu',
+                            );
+                            if (headerTarget && onChangeTarget) {
+                              onChangeTarget(headerTarget);
+                            }
+                          }
+                        }}
                       />
                       <span>Add Sidebar Toggle Button</span>
                     </label>
@@ -411,16 +484,25 @@ export default function StagingInspector({
                         type="radio"
                         name="draftPanelMode"
                         checked={draft.mode === 'embed'}
-                        onChange={() =>
+                        onChange={() => {
+                          const targetFlyoutKey =
+                            draft.embedFlyoutKey ||
+                            (currentTarget?.type === 'flyout'
+                              ? currentTarget.flyoutKey
+                              : flyoutKeys[0] || '');
                           update({
                             mode: 'embed',
-                            embedFlyoutKey:
-                              draft.embedFlyoutKey ||
-                              (isFlyoutTarget
-                                ? currentTarget.flyoutKey
-                                : flyoutKeys[0] || ''),
-                          })
-                        }
+                            embedFlyoutKey: targetFlyoutKey,
+                          });
+                          const flyoutTarget = availableTargets.find(
+                            (t) =>
+                              t.type === 'flyout' &&
+                              t.flyoutKey === targetFlyoutKey,
+                          );
+                          if (flyoutTarget && onChangeTarget) {
+                            onChangeTarget(flyoutTarget);
+                          }
+                        }}
                       />
                       <span>Embed Panel Inside Flyout</span>
                     </label>
@@ -437,29 +519,6 @@ export default function StagingInspector({
                     value={draft.render || ''}
                     disabled
                   />
-                </div>
-                <div className="inspector-field">
-                  <label className="inspector-label">Destination Flyout</label>
-                  <select
-                    className="inspector-select"
-                    value={
-                      draft.embedFlyoutKey ||
-                      currentTarget?.flyoutKey ||
-                      flyoutKeys[0] ||
-                      ''
-                    }
-                    onChange={(e) => update({ embedFlyoutKey: e.target.value })}
-                  >
-                    {flyoutKeys.map((fKey) => {
-                      const fDef = config?.flyouts?.[fKey];
-                      const fName = getFriendlyComponentName(fKey, fDef);
-                      return (
-                        <option key={fKey} value={fKey}>
-                          Flyout: {fName} ({fKey})
-                        </option>
-                      );
-                    })}
-                  </select>
                 </div>
               </>
             ) : (
@@ -697,25 +756,6 @@ export default function StagingInspector({
                 onChange={(e) => update({ img: e.target.value })}
               />
             </div>
-
-            {!isFlyoutTarget && flyoutKeys.length > 0 && (
-              <div className="inspector-field">
-                <label className="inspector-label">Parent Flyout</label>
-                <select
-                  className="inspector-select"
-                  value={draft.flyoutKey || flyoutKeys[0] || ''}
-                  onChange={(e) => update({ flyoutKey: e.target.value })}
-                >
-                  {flyoutKeys.map((fKey) => (
-                    <option key={fKey} value={fKey}>
-                      Flyout:{' '}
-                      {getFriendlyComponentName(fKey, config.flyouts?.[fKey])} (
-                      {fKey})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </>
         )}
 
@@ -888,35 +928,53 @@ export default function StagingInspector({
               />
             </div>
 
-            <label className="inspector-checkbox-row">
-              <input
-                type="checkbox"
-                checked={draft.createToggle !== false}
-                onChange={(e) => update({ createToggle: e.target.checked })}
-              />
-              <span>Also create toggle button in header</span>
-            </label>
-
-            {draft.createToggle !== false && userHeaderKeys.length > 0 && (
-              <div className="inspector-field">
-                <label className="inspector-label">Toggle Button Header</label>
-                <select
-                  className="inspector-select"
-                  value={draft.targetHeader || userHeaderKeys[0]}
-                  onChange={(e) => update({ targetHeader: e.target.value })}
-                >
-                  {userHeaderKeys.map((hKey) => (
-                    <option key={hKey} value={hKey}>
-                      {getFriendlyComponentName(
-                        hKey,
-                        config.modularHeaders?.[hKey],
-                      )}{' '}
-                      ({hKey})
+            <div className="inspector-field">
+              <label className="inspector-label">
+                Toggle Button Destination
+              </label>
+              <select
+                className="inspector-select"
+                value={
+                  draft.targetLocationType === 'popup'
+                    ? `popup:${draft.targetPopup || POPUPS_CATALOG[0]?.id || 'annotationPopup'}`
+                    : `header:${draft.targetHeader || userHeaderKeys[0] || 'default-top-header'}`
+                }
+                onChange={(e) => {
+                  const [type, key] = e.target.value.split(':');
+                  if (type === 'popup') {
+                    update({ targetLocationType: 'popup', targetPopup: key });
+                  } else {
+                    update({ targetLocationType: 'header', targetHeader: key });
+                  }
+                }}
+              >
+                {userHeaderKeys.length > 0 && (
+                  <optgroup label="Headers">
+                    {userHeaderKeys.map((hKey) => (
+                      <option key={`header:${hKey}`} value={`header:${hKey}`}>
+                        Header:{' '}
+                        {getFriendlyComponentName(
+                          hKey,
+                          config.modularHeaders?.[hKey],
+                        )}{' '}
+                        ({hKey})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Popups">
+                  {POPUPS_CATALOG.map((p) => (
+                    <option key={`popup:${p.id}`} value={`popup:${p.id}`}>
+                      Popup: {p.name} ({p.id})
                     </option>
                   ))}
-                </select>
-              </div>
-            )}
+                </optgroup>
+              </select>
+              <p className="inspector-hint" style={{ marginTop: 4 }}>
+                To nest menus inside another Flyout, use a{' '}
+                <strong>Submenu</strong> component instead.
+              </p>
+            </div>
           </>
         )}
 

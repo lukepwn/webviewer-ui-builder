@@ -11,7 +11,6 @@ export const FLYOUT_ITEM_TYPES = new Set([
   'presetButton',
   'customButton',
   'statefulButton',
-  'toggleButton',
   'flyoutPanel',
 ]);
 
@@ -40,10 +39,10 @@ export const TOOL_ACTION_PREFIX = 'activateTool:';
 export const MODAL_TAB_ITEM_TYPES = {
   tool: ['toolButton', 'customButton'],
   preset: ['presetButton'],
-  toggle: ['toggleButton'],
+  toggle: [], // toggle buttons are only supported in headers and ribbon tabs
   custom: ['customButton'],
   submenu: ['customButton'],
-  panel: ['flyoutPanel', 'toggleButton'],
+  panel: ['flyoutPanel'],
   flyout: [],
   controls: ['viewControls', 'pageControls'],
   layout: ['divider', 'label'],

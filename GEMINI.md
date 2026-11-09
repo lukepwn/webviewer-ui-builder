@@ -35,3 +35,4 @@ This file is automatically loaded by the AI assistant at the start of every chat
 - stop using bugs.md or TODO.md as context. these are my personal files.
 - if there's an sdk flaw design that you had to create a guardrail or specific workaround for, add a quick summary to bugs.md about it
 - don't update changelog.md - this is my personal file
+- if there's something the sdk does not allow and we are using workaround, please inform me before making any changes

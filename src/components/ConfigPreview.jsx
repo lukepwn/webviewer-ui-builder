@@ -1,9 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { getRequiredFunctionMapInfo } from '../sdk/importConfig';
+
+function highlightJson(jsonString) {
+  const tokenRegex =
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}[\],])/g;
+
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tokenRegex.exec(jsonString)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        text: jsonString.slice(lastIndex, match.index),
+        type: 'whitespace',
+      });
+    }
+
+    const token = match[0];
+    if (/^"/.test(token)) {
+      if (/:$/.test(token)) {
+        const colonIndex = token.lastIndexOf(':');
+        const keyText = token.slice(0, colonIndex);
+        const colonSpacing = token.slice(colonIndex);
+        parts.push({ text: keyText, type: 'key' });
+        parts.push({ text: colonSpacing, type: 'punctuation' });
+      } else {
+        parts.push({ text: token, type: 'string' });
+      }
+    } else if (/^(true|false)$/.test(token)) {
+      parts.push({ text: token, type: 'boolean' });
+    } else if (token === 'null') {
+      parts.push({ text: token, type: 'null' });
+    } else if (/^-?\d/.test(token)) {
+      parts.push({ text: token, type: 'number' });
+    } else {
+      parts.push({ text: token, type: 'punctuation' });
+    }
+
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < jsonString.length) {
+    parts.push({ text: jsonString.slice(lastIndex), type: 'whitespace' });
+  }
+
+  return parts;
+}
 
 export default function ConfigPreview({ config }) {
   const [copied, setCopied] = useState(false);
   const { entries, snippet } = getRequiredFunctionMapInfo(config);
+
+  const formattedJson = useMemo(() => {
+    try {
+      return JSON.stringify(config, null, 2);
+    } catch {
+      return '';
+    }
+  }, [config]);
+
+  const tokens = useMemo(() => highlightJson(formattedJson), [formattedJson]);
 
   const handleCopySnippet = () => {
     if (!snippet) return;
@@ -13,62 +70,39 @@ export default function ConfigPreview({ config }) {
   };
 
   return (
-    <div>
+    <div className="studio-json-container">
       {entries.length > 0 && (
-        <div className="import-warnings" style={{ marginBottom: 8 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
+        <div className="studio-json-warning" role="note">
+          <div className="studio-json-warning-header">
             <strong>
               ⚠ Requires <code>functionMap</code> ({entries.length}{' '}
               {entries.length === 1 ? 'action' : 'actions'})
             </strong>
             <button
               type="button"
-              className="secondary-button"
-              style={{ padding: '2px 8px', fontSize: 11 }}
+              className="studio-btn studio-json-snippet-btn"
               onClick={handleCopySnippet}
             >
-              {copied ? 'Copied!' : 'Copy JS Snippet'}
+              {copied ? '✓ Copied!' : 'Copy JS Snippet'}
             </button>
           </div>
-          <div style={{ marginTop: 4 }}>
+          <div className="studio-json-warning-desc">
             Pass this second argument to{' '}
             <code>UI.importModularComponents(config, functionMap)</code> when
             loading the exported JSON:
           </div>
-          <pre
-            style={{
-              marginTop: 6,
-              marginBottom: 0,
-              maxHeight: 140,
-              overflow: 'auto',
-              background: '#fff',
-              border: '1px solid #fcd34d',
-              borderRadius: 4,
-              padding: 6,
-              fontSize: 11,
-            }}
-          >
-            {snippet}
-          </pre>
+          <pre className="studio-json-snippet-code">{snippet}</pre>
         </div>
       )}
-      <pre
-        style={{
-          maxHeight: 220,
-          overflow: 'auto',
-          background: '#fff',
-          border: '1px solid #eee',
-          padding: 8,
-        }}
-      >
-        {JSON.stringify(config, null, 2)}
+
+      <pre className="studio-json-code">
+        <code>
+          {tokens.map((token, idx) => (
+            <span key={idx} className={`json-${token.type}`}>
+              {token.text}
+            </span>
+          ))}
+        </code>
       </pre>
     </div>
   );

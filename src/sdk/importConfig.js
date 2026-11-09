@@ -411,6 +411,13 @@ function normalizeFlyouts(rawConfig, components, warnings) {
           `Flyout '${key}': '${itemKey}' uses customButton action '${comp.onClick}' (WebViewer rejects toolButton in flyouts). Pass functionMap to UI.importModularComponents(config, functionMap) when using exported JSON.`,
         );
       }
+      // WebViewer flyout renderer does not support toggleElement
+      if (comp.type === 'toggleButton' || comp.type === 'toggleElementButton') {
+        warnings.push(
+          `Flyout '${key}': dropped toggle button '${itemKey}' (toggle buttons are only supported in headers and ribbon tabs; WebViewer does not support toggleElement inside flyouts).`,
+        );
+        continue;
+      }
       if (!isAllowedFlyoutItemType(comp.type)) {
         warnings.push(
           `Flyout '${key}': dropped '${itemKey}' (type '${comp.type}' is not allowed in flyouts).`,
@@ -442,6 +449,12 @@ function normalizeSubmenus(components, flyoutKeys, warnings) {
           c.type === 'toolButton' ? convertToolButtonForFlyout(c) : c,
         )
         .filter((c) => {
+          if (c.type === 'toggleButton' || c.type === 'toggleElementButton') {
+            warnings.push(
+              `Component '${key}': dropped submenu child '${c.dataElement}' (toggle buttons are only supported in headers and ribbon tabs; WebViewer does not support toggleElement inside submenus).`,
+            );
+            return false;
+          }
           const ok =
             isAllowedFlyoutItemType(c.type) && !flyoutKeys.has(toggleTarget(c));
           if (!ok) {

@@ -561,17 +561,26 @@ export default function AddComponentModal({
   // Flyouts only accept some item types (see sdk/importConfig.js)
   const isBlockedInFlyout = (item) => {
     if (!isFlyoutOrSubmenuTarget) return false;
-    // Structural containers: Tab Panel is allowed because its toggle button can be placed inside flyouts
+    // Structural containers cannot be placed inside flyouts or submenus
     if (item.kind === 'container') {
-      return item.containerType !== 'tabPanel';
+      return true;
     }
-    // Panel items in flyout: only rubberStampPanel, signatureListPanel, stylePanel are supported
+    // Toggle buttons cannot be placed inside flyouts or submenus (SDK limitation)
+    if (
+      item.kind === 'toggle' ||
+      item.ref?.type === 'toggleButton' ||
+      item.ref?.type === 'toolGroupToggleButton'
+    ) {
+      return true;
+    }
+    // Panel items in flyout: only rubberStampPanel, signatureListPanel, stylePanel are supported, and only in root flyout
     if (item.kind === 'panel') {
+      if (isSubmenuTarget) return true;
       const render = item.ref?.render || item.ref?.id;
       return !SUPPORTED_FLYOUT_PANEL_RENDERS.has(render);
     }
     if (!isModalTabAllowedInFlyout(KIND_TO_RULE_TAB[item.kind])) return true;
-    // Presets of type toggleButton open flyouts, which crash inside a flyout
+    // Presets of type toggleButton open flyouts or panels, which are unsupported in flyouts/submenus
     if (item.kind === 'preset' && item.ref?.type === 'toggleButton')
       return true;
     // Only literal dividers are valid layout items in a flyout
@@ -607,13 +616,24 @@ export default function AddComponentModal({
 
   const getBlockedTooltip = (item) => {
     if (isFlyoutOrSubmenuTarget) {
+      if (
+        item.kind === 'toggle' ||
+        item.ref?.type === 'toggleButton' ||
+        item.ref?.type === 'toolGroupToggleButton' ||
+        (item.kind === 'preset' && item.ref?.type === 'toggleButton')
+      ) {
+        return 'Toggle buttons cannot be placed inside flyouts or submenus (SDK limitation). Use Headers or Ribbon Tabs.';
+      }
       if (item.kind === 'container') {
         if (item.containerType === 'flyout') {
           return 'A flyout toggle button cannot be placed inside another flyout (SDK limitation). Use Submenu to create nested menus.';
         }
-        return 'Headers and Ribbon Tabs cannot be placed inside flyouts.';
+        return 'Headers, Ribbon Tabs, and Tab Panels cannot be placed inside flyouts.';
       }
       if (item.kind === 'panel') {
+        if (isSubmenuTarget) {
+          return 'Panels cannot be placed inside a submenu. Use a root Flyout or a Header/Ribbon Tab.';
+        }
         return 'WebViewer only supports Rubber Stamp, Saved Signatures, and Style panels inside a flyout.';
       }
       return 'Flyouts only accept tools, preset buttons, custom buttons, submenus, supported flyout panels, and dividers.';

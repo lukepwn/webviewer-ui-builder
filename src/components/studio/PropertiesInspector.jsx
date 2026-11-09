@@ -30,8 +30,6 @@ export default function PropertiesInspector({
   getRibbonLayoutForHeader,
   onSetRibbonLayout,
   onUpdateComponent,
-  onCreateFlyoutAndLinkToggle,
-  onCreateToggleForFlyout,
   onChangePanelLocation,
   onMovePanelBetweenSidebarAndFlyout,
   onUpdateTabPanelChildren,
@@ -180,31 +178,53 @@ export default function PropertiesInspector({
             </div>
 
             {ribbonLayout === 'separate' && (
-              <div className="inspector-field">
-                <label className="inspector-label">Tools Bar Placement</label>
-                <select
-                  className="inspector-select"
-                  value={
-                    toolsHeaderDef?.placement ||
-                    (headerPlacement === 'left' || headerPlacement === 'right'
-                      ? 'top'
-                      : headerPlacement)
-                  }
-                  onChange={(e) =>
-                    onUpdateToolsHeader({ placement: e.target.value })
-                  }
-                >
-                  <option value="top">Top</option>
-                  <option value="bottom">Bottom</option>
-                  <option value="left" disabled={headerPlacement === 'left'}>
-                    Left {headerPlacement === 'left' ? '(1 header limit)' : ''}
-                  </option>
-                  <option value="right" disabled={headerPlacement === 'right'}>
-                    Right{' '}
-                    {headerPlacement === 'right' ? '(1 header limit)' : ''}
-                  </option>
-                </select>
-              </div>
+              <>
+                <div className="inspector-field">
+                  <label className="inspector-label">Tools Bar Placement</label>
+                  <select
+                    className="inspector-select"
+                    value={
+                      toolsHeaderDef?.placement ||
+                      (headerPlacement === 'left' || headerPlacement === 'right'
+                        ? 'top'
+                        : headerPlacement)
+                    }
+                    onChange={(e) =>
+                      onUpdateToolsHeader({ placement: e.target.value })
+                    }
+                  >
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                    <option value="left" disabled={headerPlacement === 'left'}>
+                      Left{' '}
+                      {headerPlacement === 'left' ? '(1 header limit)' : ''}
+                    </option>
+                    <option
+                      value="right"
+                      disabled={headerPlacement === 'right'}
+                    >
+                      Right{' '}
+                      {headerPlacement === 'right' ? '(1 header limit)' : ''}
+                    </option>
+                  </select>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">Tools Bar Alignment</label>
+                  <select
+                    className="inspector-select"
+                    value={toolsHeaderDef?.justifyContent || 'center'}
+                    onChange={(e) =>
+                      onUpdateToolsHeader({ justifyContent: e.target.value })
+                    }
+                  >
+                    <option value="start">Start (Left)</option>
+                    <option value="center">Center</option>
+                    <option value="end">End (Right)</option>
+                    <option value="space-between">Space Between</option>
+                  </select>
+                </div>
+              </>
             )}
           </div>
 
@@ -229,6 +249,9 @@ export default function PropertiesInspector({
       Array.isArray(tabComp.groupedItems) && tabComp.groupedItems[0];
     const groupComp = groupKey ? config.modularComponents?.[groupKey] : null;
     const headerKey = selectedNode.headerKey || 'default-top-header';
+    const toolsHeaderDef = config.modularHeaders?.['tools-header'];
+    const currentJustify =
+      toolsHeaderDef?.justifyContent || groupComp?.justifyContent || 'center';
 
     return (
       <aside className="studio-right-pane" style={paneStyle}>
@@ -290,27 +313,39 @@ export default function PropertiesInspector({
                   max="48"
                   className="inspector-input"
                   value={groupComp.gap ?? 12}
-                  onChange={(e) =>
-                    onUpdateComponent(groupKey, {
-                      gap: Number(e.target.value) || 0,
-                    })
-                  }
+                  onChange={(e) => {
+                    const nextGap = Number(e.target.value) || 0;
+                    onUpdateComponent(groupKey, { gap: nextGap });
+                    // Propagate gap to any nested groupedItems that contain the tools
+                    if (Array.isArray(groupComp.items)) {
+                      for (const childKey of groupComp.items) {
+                        const childComp = config.modularComponents?.[childKey];
+                        if (childComp?.type === 'groupedItems') {
+                          onUpdateComponent(childKey, { gap: nextGap });
+                        }
+                      }
+                    }
+                  }}
                 />
               </div>
               <div className="inspector-field">
                 <label className="inspector-label">Justify Tools</label>
                 <select
                   className="inspector-select"
-                  value={groupComp.justifyContent || 'center'}
-                  onChange={(e) =>
+                  value={currentJustify}
+                  onChange={(e) => {
+                    const nextJustify = e.target.value;
+                    if (toolsHeaderDef && onUpdateToolsHeader) {
+                      onUpdateToolsHeader({ justifyContent: nextJustify });
+                    }
                     onUpdateComponent(groupKey, {
-                      justifyContent: e.target.value,
-                    })
-                  }
+                      justifyContent: nextJustify,
+                    });
+                  }}
                 >
-                  <option value="start">Start</option>
+                  <option value="start">Start (Left)</option>
                   <option value="center">Center</option>
-                  <option value="end">End</option>
+                  <option value="end">End (Right)</option>
                   <option value="space-between">Space Between</option>
                 </select>
               </div>
@@ -347,7 +382,9 @@ export default function PropertiesInspector({
   if (type === 'toggle') {
     const comp = config.modularComponents?.[id] || {};
     const currentTarget = comp.toggleElement || comp.element || '';
-    const isFlyoutContext = selectedNode.targetContext?.type === 'flyout';
+    const isFlyoutContext =
+      selectedNode.targetContext?.type === 'flyout' ||
+      selectedNode.targetContext?.type === 'submenu';
     const panelTarget = resolvePanelTarget(comp);
     const panelDef = panelTarget
       ? config.panels?.[panelTarget] ||
@@ -453,16 +490,6 @@ export default function PropertiesInspector({
                 </optgroup>
               </select>
             </div>
-
-            {!isFlyoutContext && (
-              <button
-                type="button"
-                className="studio-btn primary"
-                onClick={() => onCreateFlyoutAndLinkToggle(id)}
-              >
-                + Create New Flyout &amp; Link
-              </button>
-            )}
 
             {panelDef && (
               <div className="inspector-field" style={{ marginTop: 4 }}>
@@ -733,13 +760,6 @@ export default function PropertiesInspector({
                 </div>
               ))
             )}
-            <button
-              type="button"
-              className="studio-btn"
-              onClick={() => onCreateToggleForFlyout(id)}
-            >
-              + Add Toggle Button to Header
-            </button>
           </div>
 
           <div className="inspector-divider" />
@@ -936,8 +956,16 @@ export default function PropertiesInspector({
   };
   const compType = comp.type || 'component';
   const isDividerOrSpacer = compType === 'divider' || compType === 'spacer';
-  const isToolOrCustom =
-    compType === 'toolButton' || compType === 'customButton';
+  const isCustomButton = compType === 'customButton';
+  const isToolButton = compType === 'toolButton';
+  const catalogTool = isToolButton
+    ? TOOLS_CATALOG.find(
+        (t) =>
+          t.key === id ||
+          t.toolName === comp.toolName ||
+          (comp.dataElement && t.dataElement === comp.dataElement),
+      )
+    : null;
   const featureReq = getItemFeatureRequirement(id, comp);
   const implicitPanelId = resolvePanelTarget(comp);
 
@@ -1016,7 +1044,22 @@ export default function PropertiesInspector({
           </>
         )}
 
-        {isToolOrCustom && (
+        {isToolButton && (catalogTool || comp.toolName) && (
+          <div className="inspector-field">
+            <label className="inspector-label">Built-in Tool Action</label>
+            <input
+              className="inspector-input"
+              value={
+                catalogTool
+                  ? `${catalogTool.label} (${catalogTool.toolName})`
+                  : comp.toolName
+              }
+              disabled
+            />
+          </div>
+        )}
+
+        {isCustomButton && (
           <div className="inspector-section-card">
             <span className="inspector-section-title">Tool Activation</span>
             <div className="inspector-field">
@@ -1028,13 +1071,13 @@ export default function PropertiesInspector({
                   const nextTool = e.target.value;
                   onUpdateComponent(id, {
                     toolName: nextTool,
-                    ...(compType === 'customButton' && nextTool
+                    ...(nextTool
                       ? { onClick: `${TOOL_ACTION_PREFIX}${nextTool}` }
-                      : {}),
+                      : { onClick: undefined }),
                   });
                 }}
               >
-                <option value="">(Default / Built-in)</option>
+                <option value="">None (Standard Button)</option>
                 {TOOLS_CATALOG.map((t) => (
                   <option key={t.key} value={t.toolName}>
                     {t.label} ({t.toolName})
