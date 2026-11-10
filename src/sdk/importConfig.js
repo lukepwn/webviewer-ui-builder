@@ -122,8 +122,9 @@ function normalizeComponents(rawConfig, warnings) {
       compCopy.type === 'toggleButton'
     ) {
       compCopy.type = 'toggleButton';
-      compCopy.element = compCopy.element || compCopy.toggleElement;
-      compCopy.toggleElement = compCopy.toggleElement || compCopy.element;
+      if (!compCopy.toggleElement && compCopy.element) {
+        compCopy.toggleElement = compCopy.element;
+      }
     }
     if (compCopy.type === 'button') {
       compCopy.type = 'customButton';
@@ -173,9 +174,6 @@ function normalizeComponents(rawConfig, warnings) {
     if (compCopy.type === 'ribbonItem') {
       if (!Array.isArray(compCopy.groupedItems)) {
         compCopy.groupedItems = [];
-      }
-      if (!Array.isArray(compCopy.items)) {
-        compCopy.items = [];
       }
       if (!compCopy.title) {
         compCopy.title = compCopy.label || key;
@@ -249,7 +247,8 @@ function normalizePanels(rawConfig, warnings) {
   for (const [key, value] of Object.entries(rawConfig.panels || {})) {
     if (!value || typeof value !== 'object') continue;
     const rawLoc = String(value.location || '').toLowerCase();
-    const location = rawLoc === 'right' || rawLoc === 'end' ? 'right' : 'left';
+    const validLocations = new Set(['left', 'right', 'start', 'end']);
+    const location = validLocations.has(rawLoc) ? rawLoc : 'left';
     const rawRender = value.render || key;
     const render = normalizePanelRenderName(rawRender);
 
@@ -532,19 +531,7 @@ function normalizePopups(rawConfig, warnings) {
       cleanList.push(hydrated);
     }
 
-    const defaultList = DEFAULT_POPUPS?.[popupKey];
-    const isUntouchedDefault =
-      Array.isArray(defaultList) &&
-      cleanList.length === defaultList.length &&
-      cleanList.every(
-        (item, idx) =>
-          item.dataElement === defaultList[idx]?.dataElement &&
-          Object.keys(item).length === 1,
-      );
-
-    if (!isUntouchedDefault) {
-      sanitizedPopups[popupKey] = cleanList;
-    }
+    sanitizedPopups[popupKey] = cleanList;
   }
   return Object.keys(sanitizedPopups).length > 0 ? sanitizedPopups : undefined;
 }
@@ -568,9 +555,117 @@ function warnDeadToggleTargets(config, warnings) {
   }
 }
 
+/**
+ * Disambiguates duplicate item references in containers for WebViewer's React renderer.
+ * WebViewer SDK's GroupedItems.js uses `key={`${dataElement}-${itemProps.dataElement}`}`
+ * without an index, so if a container (header, groupedItems, flyout) contains duplicate
+ * references to the same component definition (e.g. two `divider-0.3` entries), React
+ * collides on the duplicate key and shifts them adjacent in the DOM.
+ *
+ * This function clones duplicate occurrences with a unique SDK runtime key (e.g. divider-0.3__sdk_dup_1)
+ * solely for the live WebViewer instance, leaving the user's master config/JSON clean.
+ */
+function disambiguateDuplicateContainerItems(config) {
+  if (!config || typeof config !== 'object') return;
+  const modularComponents = config.modularComponents || {};
+
+  // 1. Check all components with `items` (e.g. groupedItems, ribbonGroup, etc.)
+  for (const comp of Object.values(modularComponents)) {
+    if (Array.isArray(comp?.items)) {
+      const seen = new Set();
+      comp.items = comp.items.map((itemKey) => {
+        if (!seen.has(itemKey)) {
+          seen.add(itemKey);
+          return itemKey;
+        }
+        const orig = modularComponents[itemKey];
+        if (orig) {
+          let copyIdx = 1;
+          let dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          while (modularComponents[dupKey]) {
+            copyIdx++;
+            dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          }
+          modularComponents[dupKey] = {
+            ...orig,
+            dataElement: dupKey,
+          };
+          return dupKey;
+        }
+        return itemKey;
+      });
+    }
+  }
+
+  // 2. Check all modularHeaders
+  const modularHeaders = config.modularHeaders || {};
+  for (const header of Object.values(modularHeaders)) {
+    if (Array.isArray(header?.items)) {
+      const seen = new Set();
+      header.items = header.items.map((itemKey) => {
+        if (!seen.has(itemKey)) {
+          seen.add(itemKey);
+          return itemKey;
+        }
+        const orig = modularComponents[itemKey];
+        if (orig) {
+          let copyIdx = 1;
+          let dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          while (modularComponents[dupKey]) {
+            copyIdx++;
+            dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          }
+          modularComponents[dupKey] = {
+            ...orig,
+            dataElement: dupKey,
+          };
+          return dupKey;
+        }
+        return itemKey;
+      });
+    }
+  }
+
+  // 3. Check all flyouts
+  const flyouts = config.flyouts || {};
+  for (const flyout of Object.values(flyouts)) {
+    if (Array.isArray(flyout?.items)) {
+      const seen = new Set();
+      flyout.items = flyout.items.map((item) => {
+        const itemKey = typeof item === 'string' ? item : item?.dataElement;
+        if (!itemKey) return item;
+        if (!seen.has(itemKey)) {
+          seen.add(itemKey);
+          return item;
+        }
+        const orig = modularComponents[itemKey];
+        if (orig) {
+          let copyIdx = 1;
+          let dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          while (modularComponents[dupKey]) {
+            copyIdx++;
+            dupKey = `${itemKey}__sdk_dup_${copyIdx}`;
+          }
+          modularComponents[dupKey] = {
+            ...orig,
+            dataElement: dupKey,
+          };
+          return typeof item === 'string'
+            ? dupKey
+            : { ...item, dataElement: dupKey };
+        }
+        return item;
+      });
+    }
+  }
+}
+
 // --- entry point -------------------------------------------------------------
 
-export function prepareConfigForImport(rawConfig = {}) {
+export function prepareConfigForImport(
+  rawConfig = {},
+  { forViewer = false } = {},
+) {
   const warnings = [];
   const baseComponents = normalizeComponents(rawConfig, warnings);
   const modularHeaders = normalizeHeaders(rawConfig, baseComponents);
@@ -599,6 +694,9 @@ export function prepareConfigForImport(rawConfig = {}) {
     delete config.popups;
   }
   warnDeadToggleTargets(config, warnings);
+  if (forViewer) {
+    disambiguateDuplicateContainerItems(config);
+  }
   return { config, warnings };
 }
 

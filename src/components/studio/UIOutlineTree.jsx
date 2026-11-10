@@ -31,6 +31,13 @@ export default function UIOutlineTree({
   const [expandedTabIds, setExpandedTabIds] = useState(new Set());
   const [dragState, setDragState] = useState(null);
 
+  const handleSelectNode = (node, e) => {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    onSelectNode(node);
+  };
+
   // When selectedNode changes, ensure its parent containers are uncollapsed and expanded
   useEffect(() => {
     if (!selectedNode) return;
@@ -55,7 +62,7 @@ export default function UIOutlineTree({
       let changed = false;
       const next = new Set(prev);
 
-      // Section: Headers & specific header
+      // Section: Headers, specific header, and any Ribbon Tabs group inside that header
       const headerKey =
         selectedNode.headerKey ||
         selectedNode.targetContext?.headerKey ||
@@ -69,13 +76,16 @@ export default function UIOutlineTree({
           next.delete(`header:${headerKey}`);
           changed = true;
         }
-        if (next.has(`ribbon-group:${headerKey}`)) {
-          next.delete(`ribbon-group:${headerKey}`);
-          changed = true;
+        const rgPrefix = `ribbongroup:${headerKey}:`;
+        for (const id of next) {
+          if (id.startsWith(rgPrefix)) {
+            next.delete(id);
+            changed = true;
+          }
         }
       }
 
-      // Section: Flyouts & specific flyout / submenu
+      // Section: Flyouts, specific flyout, and any nested submenus inside that flyout
       const flyoutKey =
         selectedNode.flyoutKey ||
         selectedNode.targetContext?.flyoutKey ||
@@ -88,6 +98,19 @@ export default function UIOutlineTree({
         if (next.has(`flyout:${flyoutKey}`)) {
           next.delete(`flyout:${flyoutKey}`);
           changed = true;
+        }
+        const submenuKey =
+          selectedNode.parentSubmenuKey ||
+          selectedNode.parentKey ||
+          selectedNode.targetContext?.parentKey;
+        if (submenuKey) {
+          const smPrefix = `submenu-node:${flyoutKey}:`;
+          for (const id of next) {
+            if (id.startsWith(smPrefix)) {
+              next.delete(id);
+              changed = true;
+            }
+          }
         }
       }
 
@@ -121,15 +144,6 @@ export default function UIOutlineTree({
 
       return changed ? next : prev;
     });
-
-    // 3. Scroll selected row into view
-    const timer = setTimeout(() => {
-      const el = document.querySelector('.tree-row.selected');
-      if (el) {
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }, 60);
-    return () => clearTimeout(timer);
   }, [selectedNode]);
 
   const toggleCollapse = (id, e) => {
@@ -326,16 +340,18 @@ export default function UIOutlineTree({
             onDrop={(e) => handleDrop(e, listId, idx)}
             onDragEnd={handleDragEnd}
             onClick={(e) => {
-              e.stopPropagation();
-              onSelectNode({
-                type: nodeType,
-                id: itemKey,
-                parentId: parentSubmenuKey || flyoutKey,
-                flyoutKey,
-                index: idx,
-                label,
-                targetContext: contextPayload,
-              });
+              handleSelectNode(
+                {
+                  type: nodeType,
+                  id: itemKey,
+                  parentId: parentSubmenuKey || flyoutKey,
+                  flyoutKey,
+                  index: idx,
+                  label,
+                  targetContext: contextPayload,
+                },
+                e,
+              );
             }}
           >
             <div className="tree-row-left">
@@ -448,19 +464,21 @@ export default function UIOutlineTree({
           onDrop={(e) => handleDrop(e, tabsListId, tabIdx)}
           onDragEnd={handleDragEnd}
           onClick={(e) => {
-            e.stopPropagation();
             // Clicking a ribbon tab selects/activates it AND expands its tools
             if (!isTabExpanded(tabKey)) {
               setExpandedTabIds((prev) => new Set(prev).add(tabKey));
             }
-            onSelectNode({
-              type: 'ribbonTab',
-              id: tabKey,
-              parentId: headerKey,
-              headerKey,
-              groupKey,
-              label: tabLabel,
-            });
+            handleSelectNode(
+              {
+                type: 'ribbonTab',
+                id: tabKey,
+                parentId: headerKey,
+                headerKey,
+                groupKey,
+                label: tabLabel,
+              },
+              e,
+            );
           }}
         >
           <div className="tree-row-left">
@@ -564,22 +582,24 @@ export default function UIOutlineTree({
                     onDrop={(e) => handleDrop(e, toolsListId, toolIdx)}
                     onDragEnd={handleDragEnd}
                     onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectNode({
-                        type: tNodeType,
-                        id: tool.key,
-                        parentId: tabKey,
-                        headerKey,
-                        ribbonKey: tabKey,
-                        index: toolIdx,
-                        label: tool.label,
-                        targetContext: {
-                          type: 'ribbon',
-                          ribbonKey: tabKey,
+                      handleSelectNode(
+                        {
+                          type: tNodeType,
+                          id: tool.key,
+                          parentId: tabKey,
                           headerKey,
+                          ribbonKey: tabKey,
                           index: toolIdx,
+                          label: tool.label,
+                          targetContext: {
+                            type: 'ribbon',
+                            ribbonKey: tabKey,
+                            headerKey,
+                            index: toolIdx,
+                          },
                         },
-                      });
+                        e,
+                      );
                     }}
                   >
                     <div className="tree-row-left">
@@ -697,12 +717,15 @@ export default function UIOutlineTree({
                       {/* HEADER NODE */}
                       <div
                         className={`tree-row ${isHeaderSelected ? 'selected' : ''}`}
-                        onClick={() =>
-                          onSelectNode({
-                            type: 'header',
-                            id: headerKey,
-                            label: getFriendlyComponentName(headerKey, hDef),
-                          })
+                        onClick={(e) =>
+                          handleSelectNode(
+                            {
+                              type: 'header',
+                              id: headerKey,
+                              label: getFriendlyComponentName(headerKey, hDef),
+                            },
+                            e,
+                          )
                         }
                       >
                         <div className="tree-row-left">
@@ -935,20 +958,22 @@ export default function UIOutlineTree({
                                   }
                                   onDragEnd={handleDragEnd}
                                   onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSelectNode({
-                                      type: nodeType,
-                                      id: itemKey,
-                                      parentId: headerKey,
-                                      headerKey,
-                                      index: idx,
-                                      label,
-                                      targetContext: {
-                                        type: 'header',
+                                    handleSelectNode(
+                                      {
+                                        type: nodeType,
+                                        id: itemKey,
+                                        parentId: headerKey,
                                         headerKey,
                                         index: idx,
+                                        label,
+                                        targetContext: {
+                                          type: 'header',
+                                          headerKey,
+                                          index: idx,
+                                        },
                                       },
-                                    });
+                                      e,
+                                    );
                                   }}
                                 >
                                   <div className="tree-row-left">
@@ -1052,12 +1077,15 @@ export default function UIOutlineTree({
                       <div key={flyoutKey}>
                         <div
                           className={`tree-row ${isFlyoutSel ? 'selected' : ''}`}
-                          onClick={() =>
-                            onSelectNode({
-                              type: 'flyout',
-                              id: flyoutKey,
-                              label: fLabel,
-                            })
+                          onClick={(e) =>
+                            handleSelectNode(
+                              {
+                                type: 'flyout',
+                                id: flyoutKey,
+                                label: fLabel,
+                              },
+                              e,
+                            )
                           }
                         >
                           <div className="tree-row-left">
@@ -1181,12 +1209,15 @@ export default function UIOutlineTree({
                       <div key={panelId}>
                         <div
                           className={`tree-row ${isPanelSel ? 'selected' : ''}`}
-                          onClick={() =>
-                            onSelectNode({
-                              type: 'panel',
-                              id: panelId,
-                              label: pLabel,
-                            })
+                          onClick={(e) =>
+                            handleSelectNode(
+                              {
+                                type: 'panel',
+                                id: panelId,
+                                label: pLabel,
+                              },
+                              e,
+                            )
                           }
                         >
                           <div className="tree-row-left">
@@ -1237,12 +1268,15 @@ export default function UIOutlineTree({
                                   <div
                                     key={`${spKey}-${spIdx}`}
                                     className="tree-row"
-                                    onClick={() =>
-                                      onSelectNode({
-                                        type: 'panel',
-                                        id: panelId,
-                                        label: pLabel,
-                                      })
+                                    onClick={(e) =>
+                                      handleSelectNode(
+                                        {
+                                          type: 'panel',
+                                          id: panelId,
+                                          label: pLabel,
+                                        },
+                                        e,
+                                      )
                                     }
                                   >
                                     <div className="tree-row-left">
@@ -1296,12 +1330,15 @@ export default function UIOutlineTree({
                   <div key={popupKey}>
                     <div
                       className={`tree-row ${isPopupSel ? 'selected' : ''}`}
-                      onClick={() =>
-                        onSelectNode({
-                          type: 'popup',
-                          id: popupKey,
-                          label: popupMeta.name,
-                        })
+                      onClick={(e) =>
+                        handleSelectNode(
+                          {
+                            type: 'popup',
+                            id: popupKey,
+                            label: popupMeta.name,
+                          },
+                          e,
+                        )
                       }
                     >
                       <div className="tree-row-left">
@@ -1393,16 +1430,18 @@ export default function UIOutlineTree({
                                 onDrop={(e) => handleDrop(e, popupListId, pIdx)}
                                 onDragEnd={handleDragEnd}
                                 onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectNode({
-                                    type: 'popupItem',
-                                    id: itemKey,
-                                    parentId: popupKey,
-                                    popupKey,
-                                    index: pIdx,
-                                    label: pLabel,
-                                    component: comp,
-                                  });
+                                  handleSelectNode(
+                                    {
+                                      type: 'popupItem',
+                                      id: itemKey,
+                                      parentId: popupKey,
+                                      popupKey,
+                                      index: pIdx,
+                                      label: pLabel,
+                                      component: comp,
+                                    },
+                                    e,
+                                  );
                                 }}
                               >
                                 <div className="tree-row-left">

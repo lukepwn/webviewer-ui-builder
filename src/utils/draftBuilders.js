@@ -353,6 +353,7 @@ export function defaultDraftFor(itemSpec, config, currentTarget) {
         createToggle: true,
         targetLocationType: 'header',
         targetHeader: defaultHeaderKey,
+        targetRibbonTab: null,
         targetPopup: 'annotationPopup',
       };
     }
@@ -421,28 +422,55 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
   };
 
   const makeItemNode = (type, id, label, extra = {}) => {
+    const effectiveTargetType =
+      extra.targetContext?.targetLocationType || currentTarget?.type;
     let parentId = undefined;
-    if (currentTarget?.type === 'ribbon') parentId = currentTarget.ribbonTabKey;
-    else if (currentTarget?.type === 'submenu')
-      parentId = currentTarget.parentKey;
-    else if (currentTarget?.type === 'flyout')
-      parentId = currentTarget.flyoutKey;
-    else if (currentTarget?.type === 'popup') parentId = currentTarget.popupKey;
-    else if (currentTarget?.type === 'header')
-      parentId = currentTarget.headerKey;
+    if (effectiveTargetType === 'ribbon')
+      parentId = currentTarget?.ribbonTabKey;
+    else if (effectiveTargetType === 'submenu')
+      parentId = currentTarget?.parentKey;
+    else if (effectiveTargetType === 'flyout')
+      parentId = currentTarget?.flyoutKey;
+    else if (effectiveTargetType === 'popup')
+      parentId = currentTarget?.popupKey;
+    else if (effectiveTargetType === 'header')
+      parentId = currentTarget?.headerKey || defaultHeaderKey;
     else parentId = defaultHeaderKey;
 
+    const normalizedType =
+      effectiveTargetType === 'popup'
+        ? 'popupItem'
+        : type === 'toggleButton' ||
+            type === 'toggleElementButton' ||
+            type === 'toggle' ||
+            Boolean(extra?.component?.toggleElement)
+          ? 'toggle'
+          : 'component';
+
     return {
-      type: currentTarget?.type === 'popup' ? 'popupItem' : type,
+      type: normalizedType,
       id,
       label,
       parentId,
       headerKey: defaultHeaderKey,
-      ribbonKey: currentTarget?.ribbonTabKey,
-      flyoutKey: currentTarget?.flyoutKey,
-      parentSubmenuKey: currentTarget?.parentKey,
-      parentKey: currentTarget?.parentKey,
-      popupKey: currentTarget?.popupKey,
+      ribbonKey:
+        effectiveTargetType === 'ribbon'
+          ? currentTarget?.ribbonTabKey
+          : undefined,
+      flyoutKey:
+        effectiveTargetType === 'flyout' || effectiveTargetType === 'submenu'
+          ? currentTarget?.flyoutKey
+          : undefined,
+      parentSubmenuKey:
+        effectiveTargetType === 'submenu'
+          ? currentTarget?.parentKey
+          : undefined,
+      parentKey:
+        effectiveTargetType === 'submenu'
+          ? currentTarget?.parentKey
+          : undefined,
+      popupKey:
+        effectiveTargetType === 'popup' ? currentTarget?.popupKey : undefined,
       targetContext: targetPayload,
       ...extra,
     };
@@ -580,9 +608,9 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
             component,
           },
           createdNode: {
-            type: 'flyoutPanel',
+            type: 'panel',
             id: draft.render,
-            label: draft.name || draft.render,
+            label: draft.titleText || draft.name || draft.render,
             parentId: targetFlyout,
             flyoutKey: targetFlyout,
             component,
@@ -628,7 +656,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           'toggleButton',
           dataElement,
           draft.label || draft.titleText,
-          { component },
+          { component, targetContext: safeTargetPayload },
         ),
         nextDataElement: computeNextDraftId(dataElement, draft.baseId),
       };
@@ -700,7 +728,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           'toggleButton',
           dataElement,
           draft.label || 'Toggle',
-          { component },
+          { component, targetContext: safeTargetPayload },
         ),
         nextDataElement: computeNextDraftId(dataElement, draft.baseId),
       };
@@ -746,7 +774,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           component,
         },
         createdNode: {
-          type: 'customButton',
+          type: 'submenu',
           id: dataElement,
           label,
           parentId: isNestedInCurrentSubmenu
@@ -866,8 +894,11 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
       const baseId = `${clean.charAt(0).toLowerCase()}${clean.slice(1)}Flyout`;
       const dataElement = ensureUniqueId(draft.dataElement, baseId);
       const isPopup = draft.targetLocationType === 'popup';
+      const isRibbon = draft.targetLocationType === 'ribbon';
       const targetHeader = draft.targetHeader || defaultHeaderKey;
       const targetPopup = draft.targetPopup || 'annotationPopup';
+      const targetRibbonTab = draft.targetRibbonTab || draft.ribbonTabKey;
+      const createToggle = draft.createToggle !== false;
 
       return {
         actionType: 'addFlyout',
@@ -876,9 +907,14 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           label: flyoutName,
           title: draft.title || flyoutName,
           icon: draft.img || 'icon-tools-more',
-          createToggle: true,
-          targetLocationType: isPopup ? 'popup' : 'header',
-          targetHeader: isPopup ? null : targetHeader,
+          createToggle,
+          targetLocationType: isPopup
+            ? 'popup'
+            : isRibbon
+              ? 'ribbon'
+              : 'header',
+          targetHeader: isPopup || isRibbon ? null : targetHeader,
+          targetRibbonTab: isRibbon ? targetRibbonTab : null,
           targetPopup: isPopup ? targetPopup : null,
         },
         createdNode: {

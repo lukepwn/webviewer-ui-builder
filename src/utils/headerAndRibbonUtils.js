@@ -128,3 +128,49 @@ export function getFlattenedRibbonTabTools(tabKey, modularComponents = {}) {
   const toolKeys = unwrapGroupedItemsArray(rawList, modularComponents);
   return { toolKeys, primaryGroupKey };
 }
+
+/**
+ * Resolves the specific container key where new tools should be appended
+ * for a given ribbon tab. If the tab's primary groupedItems container
+ * has a nested groupedItems that holds tools (e.g. `signToolsGroupedItems`
+ * inside `signGroupedItems`, or `annotateToolsGroupedItems` inside `annotateGroupedItems`),
+ * this returns the nested tool container so the hierarchy is preserved.
+ * Otherwise, it returns the primary groupedItems container key (or tabKey if items are directly on tab).
+ */
+export function findRibbonTabToolContainer(tabKey, modularComponents = {}) {
+  const tabComp = modularComponents?.[tabKey];
+  if (!tabComp) return null;
+
+  if (Array.isArray(tabComp.groupedItems) && tabComp.groupedItems.length > 0) {
+    for (const gk of tabComp.groupedItems) {
+      const gComp = modularComponents?.[gk];
+      if (!gComp) continue;
+
+      if (Array.isArray(gComp.items)) {
+        for (const itemKey of gComp.items) {
+          const subComp = modularComponents?.[itemKey];
+          if (
+            subComp?.type === 'groupedItems' &&
+            Array.isArray(subComp.items)
+          ) {
+            const hasTools = subComp.items.some((k) => {
+              const c = modularComponents?.[k];
+              return c?.type === 'toolButton' || c?.type === 'customButton';
+            });
+            if (hasTools || /tools/i.test(itemKey)) {
+              return itemKey;
+            }
+          }
+        }
+        return gk;
+      }
+    }
+    return tabComp.groupedItems[0];
+  }
+
+  if (Array.isArray(tabComp.items)) {
+    return tabKey;
+  }
+
+  return null;
+}

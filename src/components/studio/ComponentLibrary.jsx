@@ -119,7 +119,14 @@ export default function ComponentLibrary({
 
   const handleStage = (itemSpec) => {
     if (onStageItem) {
-      onStageItem(itemSpec, currentTarget);
+      let targetToUse = currentTarget;
+      if (itemSpec.kind === 'toggleButton' && isFlyoutTarget) {
+        targetToUse =
+          availableTargets.find(
+            (t) => t.type !== 'flyout' && t.type !== 'submenu',
+          ) || currentTarget;
+      }
+      onStageItem(itemSpec, targetToUse);
     }
   };
 
@@ -168,21 +175,11 @@ export default function ComponentLibrary({
                 'Opens a Flyout menu or Sidebar Panel',
               ) && (
                 <div
-                  className={`library-card ${isFlyoutTarget ? 'disabled' : ''} ${stagedKey === 'interactive:toggleButton' ? 'staged' : ''}`}
-                  title={
-                    isFlyoutTarget
-                      ? 'Toggle buttons can only be placed in Headers or Ribbon Tabs (SDK limitation)'
-                      : 'Toggle Button • Opens a Flyout dropdown or Sidebar panel'
-                  }
+                  className={`library-card ${stagedKey === 'interactive:toggleButton' ? 'staged' : ''}`}
+                  title="Toggle Button • Opens a Flyout dropdown or Sidebar panel"
                   onClick={() => {
-                    if (isFlyoutTarget) return;
                     handleStage({ kind: 'toggleButton' });
                   }}
-                  style={
-                    isFlyoutTarget
-                      ? { opacity: 0.45, cursor: 'not-allowed' }
-                      : undefined
-                  }
                 >
                   <div className="library-card-icon-col">
                     <ComponentBadge

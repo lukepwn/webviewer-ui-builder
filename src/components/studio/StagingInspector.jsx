@@ -27,6 +27,12 @@ export default function StagingInspector({
   const userHeaderKeys = Object.keys(config?.modularHeaders || {}).filter(
     (k) => k !== 'tools-header',
   );
+  const ribbonTabs = Object.entries(config?.modularComponents || {})
+    .filter(([, c]) => c?.type === 'ribbonItem')
+    .map(([key, comp]) => ({
+      key,
+      label: getFriendlyComponentName(key, comp) || comp?.label || key,
+    }));
   const flyoutKeys = Object.keys(config?.flyouts || {});
   const isFlyoutTarget =
     currentTarget?.type === 'flyout' || currentTarget?.type === 'submenu';
@@ -918,63 +924,122 @@ export default function StagingInspector({
               />
             </div>
 
-            <div className="inspector-field">
-              <label className="inspector-label">Toggle Icon (img)</label>
+            <label
+              className="inspector-checkbox-row"
+              style={{ marginTop: 4, marginBottom: 8 }}
+            >
               <input
-                className="inspector-input"
-                value={draft.img || ''}
-                onChange={(e) => update({ img: e.target.value })}
-                placeholder="icon-tools-more"
+                type="checkbox"
+                checked={draft.createToggle !== false}
+                onChange={(e) => update({ createToggle: e.target.checked })}
               />
-            </div>
-
-            <div className="inspector-field">
-              <label className="inspector-label">
-                Toggle Button Destination
-              </label>
-              <select
-                className="inspector-select"
-                value={
-                  draft.targetLocationType === 'popup'
-                    ? `popup:${draft.targetPopup || POPUPS_CATALOG[0]?.id || 'annotationPopup'}`
-                    : `header:${draft.targetHeader || userHeaderKeys[0] || 'default-top-header'}`
-                }
-                onChange={(e) => {
-                  const [type, key] = e.target.value.split(':');
-                  if (type === 'popup') {
-                    update({ targetLocationType: 'popup', targetPopup: key });
-                  } else {
-                    update({ targetLocationType: 'header', targetHeader: key });
-                  }
-                }}
+              <span>Create toggle button</span>
+            </label>
+            {draft.createToggle === false && (
+              <p
+                className="inspector-hint"
+                style={{ marginTop: -4, marginBottom: 8 }}
               >
-                {userHeaderKeys.length > 0 && (
-                  <optgroup label="Headers">
-                    {userHeaderKeys.map((hKey) => (
-                      <option key={`header:${hKey}`} value={`header:${hKey}`}>
-                        Header:{' '}
-                        {getFriendlyComponentName(
-                          hKey,
-                          config.modularHeaders?.[hKey],
-                        )}{' '}
-                        ({hKey})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Popups">
-                  {POPUPS_CATALOG.map((p) => (
-                    <option key={`popup:${p.id}`} value={`popup:${p.id}`}>
-                      Popup: {p.name} ({p.id})
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              <p className="inspector-hint" style={{ marginTop: 4 }}>
-                To nest menus inside another Flyout, use a{' '}
-                <strong>Submenu</strong> component instead.
+                Creates a standalone flyout container without an auto-generated
+                toggle button.
               </p>
-            </div>
+            )}
+
+            {draft.createToggle !== false && (
+              <>
+                <div className="inspector-field">
+                  <label className="inspector-label">Toggle Icon (img)</label>
+                  <input
+                    className="inspector-input"
+                    value={draft.img || ''}
+                    onChange={(e) => update({ img: e.target.value })}
+                    placeholder="icon-tools-more"
+                  />
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    Toggle Button Destination
+                  </label>
+                  <select
+                    className="inspector-select"
+                    value={
+                      draft.targetLocationType === 'popup'
+                        ? `popup:${draft.targetPopup || POPUPS_CATALOG[0]?.id || 'annotationPopup'}`
+                        : draft.targetLocationType === 'ribbon'
+                          ? `ribbon:${draft.targetRibbonTab || ribbonTabs[0]?.key || ''}`
+                          : `header:${draft.targetHeader || userHeaderKeys[0] || 'default-top-header'}`
+                    }
+                    onChange={(e) => {
+                      const [type, key] = e.target.value.split(':');
+                      if (type === 'popup') {
+                        update({
+                          targetLocationType: 'popup',
+                          targetPopup: key,
+                          targetHeader: null,
+                          targetRibbonTab: null,
+                        });
+                      } else if (type === 'ribbon') {
+                        update({
+                          targetLocationType: 'ribbon',
+                          targetRibbonTab: key,
+                          targetHeader: null,
+                          targetPopup: null,
+                        });
+                      } else {
+                        update({
+                          targetLocationType: 'header',
+                          targetHeader: key,
+                          targetRibbonTab: null,
+                          targetPopup: null,
+                        });
+                      }
+                    }}
+                  >
+                    {userHeaderKeys.length > 0 && (
+                      <optgroup label="Headers">
+                        {userHeaderKeys.map((hKey) => (
+                          <option
+                            key={`header:${hKey}`}
+                            value={`header:${hKey}`}
+                          >
+                            Header:{' '}
+                            {getFriendlyComponentName(
+                              hKey,
+                              config.modularHeaders?.[hKey],
+                            )}{' '}
+                            ({hKey})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {ribbonTabs.length > 0 && (
+                      <optgroup label="Ribbon Tabs">
+                        {ribbonTabs.map((rTab) => (
+                          <option
+                            key={`ribbon:${rTab.key}`}
+                            value={`ribbon:${rTab.key}`}
+                          >
+                            Ribbon: {rTab.label} ({rTab.key})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Popups">
+                      {POPUPS_CATALOG.map((p) => (
+                        <option key={`popup:${p.id}`} value={`popup:${p.id}`}>
+                          Popup: {p.name} ({p.id})
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              </>
+            )}
+            <p className="inspector-hint" style={{ marginTop: 4 }}>
+              To nest menus inside another Flyout, use a{' '}
+              <strong>Submenu</strong> component instead.
+            </p>
           </>
         )}
 

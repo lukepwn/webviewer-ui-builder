@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.3 - Console + Scrolling (2026-11-09)
+
+- removed warning container
+- added console warnings instead
+- added outline expand and select
+- sanitized json config
+- guardrail for dividers
+
 ## v0.2.2 - JSON update + workflow clean up (2026-11-09)
 
 - disallow toggle buttons inside flyouts/submenu

@@ -21,6 +21,7 @@ import {
 } from './utils/idUtils';
 import { getFriendlyComponentName } from './utils/labelUtils';
 import {
+  findRibbonTabToolContainer,
   getFlattenedHeaderItems,
   getFlattenedRibbonTabTools,
 } from './utils/headerAndRibbonUtils';
@@ -97,8 +98,6 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   const [autoApply, setAutoApply] = useState(true);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [jsonCopied, setJsonCopied] = useState(false);
-  // Items the SDK guardrails removed/adjusted on the last apply (from prepareConfigForImport)
-  const [importWarnings, setImportWarnings] = useState([]);
 
   const configJsonString = useMemo(
     () => JSON.stringify(config, null, 2),
@@ -123,6 +122,28 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   const defaultConfigRef = useRef(null);
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
+  const lastWarningsRef = useRef(new Set());
+
+  const logNewWarnings = useCallback((warnings = [], isFullReset = false) => {
+    if (isFullReset) {
+      lastWarningsRef.current = new Set();
+    }
+    const currentSet = new Set(warnings || []);
+    const newWarnings = (warnings || []).filter(
+      (w) => !lastWarningsRef.current.has(w),
+    );
+    lastWarningsRef.current = currentSet;
+
+    if (newWarnings.length === 1) {
+      console.warn(`[WebViewer UI Builder] ${newWarnings[0]}`);
+    } else if (newWarnings.length > 1) {
+      console.groupCollapsed(
+        `[WebViewer UI Builder] ${newWarnings.length} compatibility warnings`,
+      );
+      newWarnings.forEach((w) => console.warn(w));
+      console.groupEnd();
+    }
+  }, []);
 
   // 1. Mount / Viewer Ready: Load default modular UI from running viewer
   useEffect(() => {
@@ -171,15 +192,17 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   const applyConfigToViewer = useCallback((cfgToApply) => {
     if (!window.viewerInstance || !window.viewerInstance.UI) return;
     try {
-      const { config: sanitized, warnings } =
-        prepareConfigForImport(cfgToApply);
+      const { config: sanitized, warnings } = prepareConfigForImport(
+        cfgToApply,
+        { forViewer: true },
+      );
       const functionMap = buildFunctionMap(sanitized, window.viewerInstance);
-      setImportWarnings(warnings);
+      logNewWarnings(warnings);
       window.viewerInstance.UI.importModularComponents(sanitized, functionMap);
     } catch (err) {
       console.error('Failed to apply configuration to WebViewer:', err.message);
     }
-  }, []);
+  }, [logNewWarnings]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -917,28 +940,46 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         ribbonTabKey &&
         modularComponents[ribbonTabKey]
       ) {
-        const { toolKeys, primaryGroupKey } = getFlattenedRibbonTabTools(
+        const tabComp = { ...modularComponents[ribbonTabKey] };
+        const toolContainerKey = findRibbonTabToolContainer(
           ribbonTabKey,
           modularComponents,
         );
-        const tabComp = { ...modularComponents[ribbonTabKey] };
-        let groupContainerKey = primaryGroupKey;
 
-        if (!groupContainerKey) {
+        if (toolContainerKey && modularComponents[toolContainerKey]) {
+          const containerComp = { ...modularComponents[toolContainerKey] };
+          const containerItems = Array.isArray(containerComp.items)
+            ? [...containerComp.items]
+            : [];
+          if (!containerItems.includes(compKey)) {
+            containerItems.push(compKey);
+          }
+          modularComponents[toolContainerKey] = {
+            ...containerComp,
+            items: containerItems,
+          };
+          return { ...prev, modularComponents, modularHeaders };
+        }
+
+        // If tab has no existing tool container, create one
+        let primaryGroupKey =
+          Array.isArray(tabComp.groupedItems) && tabComp.groupedItems.length > 0
+            ? tabComp.groupedItems[0]
+            : null;
+
+        if (!primaryGroupKey) {
           const cleanName = ribbonTabKey
             .replace(/RibbonItem$/i, '')
             .replace(/^toolbarGroup-/, '')
             .replace(/^ribbon-/, '');
-          groupContainerKey = `${cleanName.charAt(0).toLowerCase()}${cleanName.slice(1)}GroupedItems`;
+          primaryGroupKey = `${cleanName.charAt(0).toLowerCase()}${cleanName.slice(1)}GroupedItems`;
+          tabComp.groupedItems = [primaryGroupKey];
+          modularComponents[ribbonTabKey] = tabComp;
         }
 
-        tabComp.groupedItems = [groupContainerKey];
-        tabComp.items = [];
-        modularComponents[ribbonTabKey] = tabComp;
-
-        const groupComp = modularComponents[groupContainerKey] || {
+        const groupComp = modularComponents[primaryGroupKey] || {
           type: 'groupedItems',
-          dataElement: groupContainerKey,
+          dataElement: primaryGroupKey,
           items: [],
           gap: 12,
           grow: 0,
@@ -946,9 +987,16 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           alwaysVisible: false,
         };
 
-        modularComponents[groupContainerKey] = {
+        const existingItems = Array.isArray(groupComp.items)
+          ? [...groupComp.items]
+          : [];
+        if (!existingItems.includes(compKey)) {
+          existingItems.push(compKey);
+        }
+
+        modularComponents[primaryGroupKey] = {
           ...groupComp,
-          items: [...toolKeys, compKey],
+          items: existingItems,
         };
 
         if (!modularHeaders['tools-header']) {
@@ -959,15 +1007,15 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
             grow: 0,
             gap: 12,
             position: 'end',
-            items: [groupContainerKey],
+            items: [primaryGroupKey],
           };
         } else {
           const toolsHeader = { ...modularHeaders['tools-header'] };
           const thItems = Array.isArray(toolsHeader.items)
             ? [...toolsHeader.items]
             : [];
-          if (!thItems.includes(groupContainerKey)) {
-            thItems.push(groupContainerKey);
+          if (!thItems.includes(primaryGroupKey)) {
+            thItems.push(primaryGroupKey);
           }
           toolsHeader.items = thItems;
           modularHeaders['tools-header'] = toolsHeader;
@@ -1147,36 +1195,51 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         ribbonKey &&
         modularComponents[ribbonKey]
       ) {
-        const { toolKeys, primaryGroupKey } = getFlattenedRibbonTabTools(
-          ribbonKey,
-          modularComponents,
-        );
-        const nextTools = [...toolKeys];
-        if (
-          typeof index === 'number' &&
-          index >= 0 &&
-          index < nextTools.length
-        ) {
-          nextTools.splice(index, 1);
-        } else {
-          const foundIdx = nextTools.indexOf(itemKey);
-          if (foundIdx >= 0) nextTools.splice(foundIdx, 1);
+        const tabComp = modularComponents[ribbonKey];
+        let removed = false;
+
+        // 1. Check if tool is inside any nested or direct groupedItems of this ribbon tab
+        if (Array.isArray(tabComp.groupedItems)) {
+          for (const gk of tabComp.groupedItems) {
+            const g = modularComponents[gk];
+            if (g && Array.isArray(g.items)) {
+              if (g.items.includes(itemKey)) {
+                modularComponents[gk] = {
+                  ...g,
+                  items: g.items.filter((k) => k !== itemKey),
+                };
+                removed = true;
+                break;
+              }
+              for (const subKey of g.items) {
+                const sub = modularComponents[subKey];
+                if (
+                  sub?.type === 'groupedItems' &&
+                  Array.isArray(sub.items) &&
+                  sub.items.includes(itemKey)
+                ) {
+                  modularComponents[subKey] = {
+                    ...sub,
+                    items: sub.items.filter((k) => k !== itemKey),
+                  };
+                  removed = true;
+                  break;
+                }
+              }
+              if (removed) break;
+            }
+          }
         }
 
-        if (primaryGroupKey && modularComponents[primaryGroupKey]) {
-          modularComponents[primaryGroupKey] = {
-            ...modularComponents[primaryGroupKey],
-            items: nextTools,
-          };
+        // 2. Check tab items directly
+        if (
+          !removed &&
+          Array.isArray(tabComp.items) &&
+          tabComp.items.includes(itemKey)
+        ) {
           modularComponents[ribbonKey] = {
-            ...modularComponents[ribbonKey],
-            groupedItems: [primaryGroupKey],
-            items: [],
-          };
-        } else {
-          modularComponents[ribbonKey] = {
-            ...modularComponents[ribbonKey],
-            items: nextTools,
+            ...tabComp,
+            items: tabComp.items.filter((k) => k !== itemKey),
           };
         }
       } else if (type === 'header' && headerKey && modularHeaders[headerKey]) {
@@ -1318,26 +1381,45 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           ribbonKey &&
           modularComponents[ribbonKey]
         ) {
-          const { toolKeys, primaryGroupKey } = getFlattenedRibbonTabTools(
+          const toolContainerKey = findRibbonTabToolContainer(
             ribbonKey,
             modularComponents,
           );
-          const reorderedTools = reorderArray(toolKeys, fromIndex, toIndex);
-          if (primaryGroupKey && modularComponents[primaryGroupKey]) {
-            modularComponents[primaryGroupKey] = {
-              ...modularComponents[primaryGroupKey],
-              items: reorderedTools,
-            };
-            modularComponents[ribbonKey] = {
-              ...modularComponents[ribbonKey],
-              groupedItems: [primaryGroupKey],
-              items: [],
+          if (
+            toolContainerKey &&
+            modularComponents[toolContainerKey] &&
+            Array.isArray(modularComponents[toolContainerKey].items)
+          ) {
+            modularComponents[toolContainerKey] = {
+              ...modularComponents[toolContainerKey],
+              items: reorderArray(
+                modularComponents[toolContainerKey].items,
+                fromIndex,
+                toIndex,
+              ),
             };
           } else {
-            modularComponents[ribbonKey] = {
-              ...modularComponents[ribbonKey],
-              items: reorderedTools,
-            };
+            const { toolKeys, primaryGroupKey } = getFlattenedRibbonTabTools(
+              ribbonKey,
+              modularComponents,
+            );
+            const reorderedTools = reorderArray(toolKeys, fromIndex, toIndex);
+            if (primaryGroupKey && modularComponents[primaryGroupKey]) {
+              modularComponents[primaryGroupKey] = {
+                ...modularComponents[primaryGroupKey],
+                items: reorderedTools,
+              };
+              modularComponents[ribbonKey] = {
+                ...modularComponents[ribbonKey],
+                groupedItems: [primaryGroupKey],
+                items: [],
+              };
+            } else {
+              modularComponents[ribbonKey] = {
+                ...modularComponents[ribbonKey],
+                items: reorderedTools,
+              };
+            }
           }
         } else if (type === 'flyout' && flyoutKey && nextFlyouts[flyoutKey]) {
           nextFlyouts[flyoutKey] = {
@@ -1667,6 +1749,7 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     targetHeader,
     targetLocationType,
     targetPopup,
+    targetRibbonTab,
     createToggle = true,
   }) => {
     setConfig((prev) => {
@@ -1700,6 +1783,66 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
             : (DEFAULT_POPUPS[targetPopup] || []).map((i) => ({ ...i }));
           popupItems.push(toggleButtonObj);
           nextPopups[targetPopup] = popupItems;
+        } else if (
+          targetLocationType === 'ribbon' &&
+          targetRibbonTab &&
+          nextComponents[targetRibbonTab]
+        ) {
+          const { toolKeys, primaryGroupKey } = getFlattenedRibbonTabTools(
+            targetRibbonTab,
+            nextComponents,
+          );
+          const tabComp = { ...nextComponents[targetRibbonTab] };
+          let groupContainerKey = primaryGroupKey;
+
+          if (!groupContainerKey) {
+            const cleanName = targetRibbonTab
+              .replace(/RibbonItem$/i, '')
+              .replace(/^toolbarGroup-/, '')
+              .replace(/^ribbon-/, '');
+            groupContainerKey = `${cleanName.charAt(0).toLowerCase()}${cleanName.slice(1)}GroupedItems`;
+          }
+
+          tabComp.groupedItems = [groupContainerKey];
+          tabComp.items = [];
+          nextComponents[targetRibbonTab] = tabComp;
+
+          const groupComp = nextComponents[groupContainerKey] || {
+            type: 'groupedItems',
+            dataElement: groupContainerKey,
+            items: [],
+            gap: 12,
+            grow: 0,
+            justifyContent: 'center',
+            alwaysVisible: false,
+          };
+
+          nextComponents[groupContainerKey] = {
+            ...groupComp,
+            items: [...toolKeys, toggleKey],
+          };
+
+          if (!nextHeaders['tools-header']) {
+            nextHeaders['tools-header'] = {
+              dataElement: 'tools-header',
+              placement: 'top',
+              justifyContent: 'center',
+              grow: 0,
+              gap: 12,
+              position: 'end',
+              items: [groupContainerKey],
+            };
+          } else {
+            const toolsHeader = { ...nextHeaders['tools-header'] };
+            const thItems = Array.isArray(toolsHeader.items)
+              ? [...toolsHeader.items]
+              : [];
+            if (!thItems.includes(groupContainerKey)) {
+              thItems.push(groupContainerKey);
+            }
+            toolsHeader.items = thItems;
+            nextHeaders['tools-header'] = toolsHeader;
+          }
         } else {
           const headerToUse = targetHeader || activeHeader;
           if (headerToUse && nextHeaders[headerToUse]) {
@@ -1897,12 +2040,31 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       try {
         const parsed = JSON.parse(ev.target.result);
         const { config: normalized, warnings } = prepareConfigForImport(parsed);
-        setImportWarnings(warnings);
+        logNewWarnings(warnings, true);
         setConfig(normalized);
         const headerKeys = Object.keys(normalized.modularHeaders || {}).filter(
           (k) => k !== 'tools-header',
         );
-        if (headerKeys.length > 0) setActiveHeader(headerKeys[0]);
+        if (headerKeys.length > 0) {
+          const firstH = headerKeys[0];
+          setActiveHeader(firstH);
+          setSelectedNode({
+            type: 'header',
+            id: firstH,
+            label: getFriendlyComponentName(
+              firstH,
+              normalized.modularHeaders[firstH],
+            ),
+          });
+          setActiveTarget({
+            type: 'header',
+            headerKey: firstH,
+            label: `Header: ${getFriendlyComponentName(
+              firstH,
+              normalized.modularHeaders[firstH],
+            )}`,
+          });
+        }
         applyConfigToViewer(normalized);
       } catch (err) {
         alert('Invalid JSON configuration file: ' + err.message);
@@ -2001,31 +2163,6 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           />
         </div>
       </header>
-
-      {/* GUARDRAIL WARNINGS BANNER */}
-      {importWarnings.length > 0 && (
-        <div className="studio-warnings-banner" role="status">
-          <div>
-            <strong>
-              {importWarnings.length} item
-              {importWarnings.length === 1 ? '' : 's'} adjusted for WebViewer
-              compatibility:
-            </strong>
-            <ul>
-              {importWarnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
-          </div>
-          <button
-            type="button"
-            className="studio-btn"
-            onClick={() => setImportWarnings([])}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* 2. 3-PANE STUDIO WORKSPACE */}
       <div className={`studio-workspace ${resizingSide ? 'is-resizing' : ''}`}>

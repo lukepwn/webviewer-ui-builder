@@ -992,6 +992,7 @@ export default function AddComponentModal({
         target,
         targetHeader: selectedHeader,
         targetLocationType: target.targetLocationType,
+        targetRibbonTab: target.ribbonTabKey,
         targetPopup: target.popupKey,
       });
       const destName = describeTarget(target);
