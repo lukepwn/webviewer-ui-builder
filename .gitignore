@@ -4,3 +4,14 @@ dist
 .DS_Store
 public/lib
 workflow.md
+
+# Non-code directories
+presentation/
+scratch/
+training_files/
+
+# Private developer notes & edge cases
+bugs.md
+edgecases.md
+tools/changelog.md
+src/TODO/

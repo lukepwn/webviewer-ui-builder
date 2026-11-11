@@ -25,55 +25,55 @@ flowchart TD
    All user actions in the builder (adding buttons, reordering headers, modifying tabs, binding flyouts) are pure JSON transformations on the `config` state object.
 
 3. **Debounced Auto-Apply (`useEffect`)**:
-   Re-importing the UI into WebViewer tears down and rebuilds header and ribbon component trees. To keep interactions smooth:
+   Re-importing the UI into WebViewer re-renders header and ribbon component trees. To keep interactions smooth:
    - An `isInitialMount` ref guard ensures the app does not immediately re-import the configuration it just extracted.
    - A `useEffect` watching `[config, autoApply]` debounces changes by `150ms` (`setTimeout` / `clearTimeout`). Rapid operations (such as typing labels or dragging items) batch together, executing only when the user pauses.
 
-4. **Sanitization & Guardrails (`prepareConfigForImport`)**:
-   WebViewer validates Modular UI imports strictly and drops entire headers or flyouts if unsupported structures are encountered. Before any configuration is handed to WebViewer, `prepareConfigForImport`:
-   - Enforces container placement limits (e.g. maximum of 2 top headers, 1 left/right header).
-   - Converts illegal flyout items (such as `toolButton` in flyouts) into `customButton` items wired to tool activators.
-   - Expands nested submenu `children` back into inline objects.
-   - Cleans up orphaned or missing toggle targets.
+4. **Schema Normalization & Validation (`prepareConfigForImport`)**:
+   WebViewer validates Modular UI configurations against strict schema definitions. Before importing into WebViewer, `prepareConfigForImport`:
+   - Validates container placements and limits against viewport edge specifications.
+   - Normalizes flyout action items and wires tool activation actions to declarative handlers.
+   - Recursively expands nested submenu `children` into complete declarative definitions.
+   - Cleans up unassigned or missing toggle targets.
 
 5. **Function Map Generation (`buildFunctionMap`)**:
-   Because JSON configs only store serializable strings, actions such as tool activations (`activateTool:<toolName>`), custom button `onClick` handlers, and custom element renderers are resolved dynamically into a live `functionMap` dictionary.
+   Because JSON configurations represent serializable data, interactive actions such as tool activations (`activateTool:<toolName>`), custom button `onClick` handlers, and custom element renderers are dynamically resolved into a companion `functionMap` dictionary.
 
 6. **Live Re-hydration (`importModularComponents`)**:
    The builder dispatches:
    ```javascript
    window.viewerInstance.UI.importModularComponents(sanitized, functionMap);
    ```
-   WebViewer ingests the schema, updates its internal Redux store, re-renders the UI within the viewer iframe, and binds tool activation modes natively.
+   WebViewer ingests the schema, updates its internal store, re-renders the UI within the viewer iframe, and binds tool activation modes natively.
 
 ---
 
-## Master Component Capability & Constraints Matrix
+## Modular UI Component Architecture & Hierarchy
 
-Apryse WebViewer's Modular UI enforces strict validation rules across its container hierarchy (`modularHeaders`, `modularComponents`, `flyouts`, `panels`, and `popups`). The table below outlines what each container natively accepts, what is rejected or causes runtime crashes in WebViewer, and the engineering workarounds implemented in this builder.
+Apryse WebViewer's Modular UI defines a structured hierarchy across its container models (`modularHeaders`, `modularComponents`, `flyouts`, `panels`, and `popups`). The table below outlines supported elements, structural constraints, and recommended layout patterns.
 
-| Container / Parent                                               | Natively Allowed by WebViewer SDK                                                                                                                                                                            | Strictly Disallowed / SDK Rejections & Crashes                                                                                                                                                                                                                                                                                                                                                                                                                                   | Engineering Workarounds & Notes                                                                                                                                                                                                                                                                                         |
-| :--------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Modular Header**<br>`config.modularHeaders[id]`                | • `toolButton`<br>• `presetButton`<br>• `toggleButton`<br>• `customButton`<br>• `ribbonGroup`<br>• `groupedItems`<br>• `viewControls`, `pageControls`, `zoom`<br>• `divider`, `spacer`, `label`              | • Another `modularHeader` (headers cannot nest)<br>• `tabPanel` (sidebars belong in `config.panels`)<br>• Direct `children` drilldowns without a flyout container<br>• **>1 full-length header on `left` or `right`** (SDK drops 2nd header with `Left headers only support one full length header...`).<br>• **>2 full-length headers on `top`** (SDK only mounts first two).                                                                                                   | Headers are viewport edge bars (`top`, `bottom`, `left`, `right`). Supports `gap` (px) and `justifyContent`. When placing ribbons on `left` or `right`, use **Inline (1 Single Bar)** so tools render vertically on the same header without exceeding the 1-header SDK limit.                                           |
-| **Flyout Menu**<br>`config.flyouts[id].items`                    | • `presetButton`<br>• `customButton`<br>• `statefulButton`<br>• `toggleButton` (cannot target another flyout)<br>• Literal string token `'divider'`<br>• **Submenu** (`customButton` with `children: [...]`) | • **`toolButton` IS STRICTLY REJECTED**: WebViewer's SDK validator throws `Invalid flyout found` and drops the flyout.<br>• **`toggleButton` targeting another flyout**: Clicking it crashes `Flyout.js` (TypeError / closes parent instead of nesting).<br>• Component object `{ type: 'divider' }` (crashes validator; only literal string `'divider'` allowed).<br>• `modularHeader`, `ribbonGroup`, `ribbonItem`, `tabPanel`, `viewControls`, `pageControls`, `popupAction`. | • **Tools in Flyouts**: Represented as a `customButton` with `onClick: activateTool:<toolName>` resolved via `functionMap` in `UI.importModularComponents(config, functionMap)`.<br>• **Multi-Level Menus**: Use drill-down **Submenus** (`children`), which Apryse built specifically for nested in-flyout navigation. |
-| **Submenu**<br>`type: 'customButton'` with `children`            | • `presetButton`<br>• `customButton`<br>• Nested `customButton` with `children` (multi-level drill-down)<br>• `statefulButton`<br>• `toggleButton`<br>• Literal string token `'divider'`                     | • **`toolButton` IS STRICTLY REJECTED**: Same validator restriction as flyouts.<br>• `toggleButton` targeting an external flyout.<br>• Structural containers (`modularHeader`, `ribbonGroup`, `tabPanel`).                                                                                                                                                                                                                                                                       | • **Tools in Submenus**: Handled via `customButton` tool actions wired through `functionMap`.<br>• Clicking a submenu swaps the flyout viewport to the child list with an automatic "Back" button at the top.                                                                                                           |
-| **RibbonGroup**<br>`type: 'ribbonGroup'`                         | • `ribbonItem` only (interactive tabs: View, Annotate, Shapes, etc.)                                                                                                                                         | • Loose buttons, tools, or preset buttons directly without a `ribbonItem`.                                                                                                                                                                                                                                                                                                                                                                                                       | Acts purely as a **tab switcher controller** (dispatches active tab state). Does **not** render tool buttons inside itself. Its tool containers (`groupedItems`) must be mounted in a `modularHeader`'s `items`.                                                                                                        |
-| **RibbonItem (Tab)**<br>`type: 'ribbonItem'`                     | • `groupedItems: ["<key>", ...]` (references to container keys)                                                                                                                                              | • Direct buttons without a `groupedItems` container.                                                                                                                                                                                                                                                                                                                                                                                                                             | Defines which tool group (`groupedItems`) should be activated when this tab is selected.                                                                                                                                                                                                                                |
-| **GroupedItems**<br>`type: 'groupedItems'`                       | • `toolButton`<br>• `presetButton`<br>• `toggleButton`<br>• `customButton`<br>• `viewControls`, `pageControls`<br>• Literal string token `'divider'`                                                         | • `modularHeader`, `ribbonGroup`, `ribbonItem`, `tabPanel`<br>• Component object `{ type: 'divider' }` (must use string token `'divider'`)                                                                                                                                                                                                                                                                                                                                       | Represents a cluster of tools on a ribbon tab. Supports `gap` (default `12`) and `grow`.                                                                                                                                                                                                                                |
-| **Tab Panel**<br>`config.panels[id]`, `render: 'tabPanel'`       | • Sub-panel renders in `panelsList: [{ render: '<panelName>' }]` where `<panelName>` is a whitelisted render (`thumbnailsPanel`, `outlinesPanel`, `bookmarksPanel`, etc.)                                    | • Any button, tool, flyout, or header.<br>• Missing/empty `panelsList` (crashes WebViewer render).<br>• Non-whitelisted panel render without a custom function in `functionMap`.                                                                                                                                                                                                                                                                                                 | Dockable sidebar docking multiple panel icons. Toggled using a `toggleButton` (`toggleElement: '<panelId>'`).                                                                                                                                                                                                           |
-| **Popups**<br>`annotationPopup`, `textPopup`, `contextMenuPopup` | • `presetButton`<br>• `customButton`<br>• `toolButton`<br>• `toggleButton`<br>• `popupAction` (copy, delete, style, note, etc.)                                                                              | • `modularHeader`, `ribbonGroup`, `tabPanel`.<br>• Controls (`viewControls`, `pageControls`).<br>• Dividers (`divider`).<br>• Submenus with `children` (drill-downs are not supported in transient floating popups).                                                                                                                                                                                                                                                             | Popup items are declared self-contained inline inside `config.popups[popupKey]` rather than referencing keys in `modularComponents`.                                                                                                                                                                                    |
+| Container / Parent                                               | Supported Children & Elements                                                                                                                                                                   | Structural Constraints                                                                                                                                                                                                                          | Recommended Design Patterns & Notes                                                                                                                                                          |
+| :--------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Modular Header**<br>`config.modularHeaders[id]`                | • `toolButton`<br>• `presetButton`<br>• `toggleButton`<br>• `customButton`<br>• `ribbonGroup`<br>• `groupedItems`<br>• `viewControls`, `pageControls`, `zoom`<br>• `divider`, `spacer`, `label` | • Top-level edge container only (`top`, `bottom`, `left`, `right`)<br>• Cannot nest inside other headers<br>• Sidebars belong in `config.panels`<br>• Up to 2 full-length headers on `top`<br>• Up to 1 full-length header on `left` or `right` | Supports `gap` (px) and `justifyContent`. For vertical ribbons on `left` or `right`, use **Inline (Single Header Bar)** layout so tabs and tool groups render within the single bar.         |
+| **Flyout Menu**<br>`config.flyouts[id].items`                    | • `presetButton`<br>• `customButton`<br>• `statefulButton`<br>• `toggleButton`<br>• Literal string token `'divider'`<br>• **Submenu** (`customButton` with `children: [...]`)                   | • Dropdown/flyout container for menus<br>• Structural containers (`modularHeader`, `ribbonGroup`, `tabPanel`) belong at top level<br>• Dividers must use the string token `'divider'`                                                           | • **Multi-Level Menus**: Use drill-down **Submenus** (`children`), the native pattern for in-flyout navigation.<br>• **Tool Activation**: Wire actions via `customButton` and `functionMap`. |
+| **Submenu**<br>`type: 'customButton'` with `children`            | • `presetButton`<br>• `customButton`<br>• Nested `customButton` with `children`<br>• `statefulButton`<br>• `toggleButton`<br>• Literal string token `'divider'`                                 | • Child list within a flyout menu<br>• Structural containers belong at top level                                                                                                                                                                | Clicking a submenu smoothly navigates to the child list with an automatic "Back" button at the top.                                                                                          |
+| **RibbonGroup**<br>`type: 'ribbonGroup'`                         | • `ribbonItem` only (interactive tabs: View, Annotate, Shapes, etc.)                                                                                                                            | • Dedicated tab-controller component<br>• Tool clusters are defined in companion `groupedItems`                                                                                                                                                 | Acts as a **tab switcher controller** (dispatches active tab state). Tool containers (`groupedItems`) are mounted in the header's `items`.                                                   |
+| **RibbonItem (Tab)**<br>`type: 'ribbonItem'`                     | • `groupedItems: ["<key>", ...]` (references to tool container keys)                                                                                                                            | • Must reference existing `groupedItems` keys                                                                                                                                                                                                   | Defines which tool group (`groupedItems`) activates when this tab is selected.                                                                                                               |
+| **GroupedItems**<br>`type: 'groupedItems'`                       | • `toolButton`<br>• `presetButton`<br>• `toggleButton`<br>• `customButton`<br>• `viewControls`, `pageControls`<br>• Literal string token `'divider'`                                            | • Cluster container for tools on a ribbon tab<br>• Dividers use string token `'divider'`                                                                                                                                                        | Represents a cluster of tools on a ribbon tab. Supports `gap` (default `12`) and `grow`.                                                                                                     |
+| **Tab Panel**<br>`config.panels[id]`, `render: 'tabPanel'`       | • Sub-panel renders in `panelsList: [{ render: '<panelName>' }]` (`thumbnailsPanel`, `outlinesPanel`, `bookmarksPanel`, etc.)                                                                   | • Sidebar panel container<br>• Requires valid `panelsList` array                                                                                                                                                                                | Dockable sidebar docking multiple panel icons. Toggled via a `toggleButton` (`toggleElement: '<panelId>'`).                                                                                  |
+| **Popups**<br>`annotationPopup`, `textPopup`, `contextMenuPopup` | • `presetButton`<br>• `customButton`<br>• `toolButton`<br>• `toggleButton`<br>• `popupAction` (copy, delete, style, note, etc.)                                                                 | • Transient contextual floating popups                                                                                                                                                                                                          | Popups are declared self-contained inline inside `config.popups[popupKey]`.                                                                                                                  |
 
 ---
 
 ## Key Modular UI Concepts
 
-### 1. Standalone Flyouts vs Toggle Buttons
+### 1. Standalone Flyouts & Toggle Buttons
 
 In WebViewer, dropdown menus are defined as independent overlay containers under `config.flyouts`. Any `toggleButton` can trigger an element by setting its `toggleElement` attribute to the target's ID. You can create standalone flyouts and wire toggle buttons to them from headers, ribbons, or popups.
 
 ### 2. Multi-Level Flyout Submenus
 
-Because placing a flyout toggle button inside another flyout causes WebViewer's `Flyout.js` to crash, multi-level menus are implemented via **Submenus**:
+Hierarchical multi-level menus are implemented via **Submenus** using the `children` array on a `customButton`:
 
 ```json
 {
@@ -94,9 +94,9 @@ Because placing a flyout toggle button inside another flyout causes WebViewer's 
 
 WebViewer automatically renders drill-down navigation with a top "Back" button at each nesting depth.
 
-### 3. Activating Tools from Flyouts (`functionMap`)
+### 3. Tool Activation from Flyouts (`functionMap`)
 
-WebViewer rejects `{ type: "toolButton" }` inside flyouts and submenus. To activate tools from within a flyout, use a `customButton` and supply a `functionMap` to `UI.importModularComponents(config, functionMap)`:
+To activate tools from within a flyout or submenu, configure a `customButton` and register the tool activation handler in `functionMap` passed to `UI.importModularComponents(config, functionMap)`:
 
 ```javascript
 const functionMap = {
@@ -112,16 +112,14 @@ instance.UI.importModularComponents(config, functionMap);
 
 ### 4. Ribbon Tabs vs. Tool Rendering (Controller vs. View Architecture)
 
-A common point of confusion is why a `modularHeader` must explicitly declare each tab's `groupedItems` in its `items` array even when `ribbonGroup` already references them via `groupedItems: [...]`.
+In WebViewer Modular UI, ribbon tabs and tool groups follow a clean controller/view separation:
 
-In WebViewer Modular UI:
-
-- **`RibbonGroup` and `RibbonItem` are state controllers, not layout containers for the tools:**
-  A `ribbonGroup` only renders the interactive tab buttons (e.g. `[Annotate] [Shapes]`). Clicking a tab simply dispatches an internal state change (`setActiveGroupedItems(['annotateGroupedItems'])`). It does **not** physically mount or render tool buttons inside itself.
+- **`RibbonGroup` and `RibbonItem` are state controllers:**
+  A `ribbonGroup` renders interactive tab buttons (e.g. `[Annotate] [Shapes]`). Selecting a tab dispatches an active state event (`setActiveGroupedItems(['annotateGroupedItems'])`).
 - **`modularHeader` is the DOM mount container:**
-  WebViewer's header engine iterates through `header.items`. For each item of type `groupedItems`, it only renders the component into the DOM if its ID matches the currently active ribbon tab (otherwise auto-collapsing it). If the `groupedItems` key is missing from the header's `items`, WebViewer never mounts the tool buttons anywhere.
+  WebViewer's header engine iterates through `header.items`. For each item of type `groupedItems`, it renders the component into the DOM when its ID matches the currently active ribbon tab.
 
-#### Layout Options:
+#### Supported Layout Patterns:
 
 1. **Inline (Single Header Bar):**
    Place both the `ribbonGroup` and each tab's `groupedItems` in the **same header**:
@@ -133,22 +131,21 @@ In WebViewer Modular UI:
    }
    ```
 
-   Tabs and active tool buttons render side-by-side on a single header bar (top or bottom). No second header is needed.
+   Tabs and active tool buttons render side-by-side on a single header bar (top or bottom).
 
 2. **Stacked / Multi-Row (Separate Headers):**
-   Place `ribbonGroup` in one header (e.g., `default-top-header` or `bottom-tabs-header`) and the `groupedItems` in a companion header (e.g., `tools-header`):
+   Place `ribbonGroup` in one header and `groupedItems` in a companion header:
    ```json
-   "header-tabs": { "placement": "bottom", "items": ["main-ribbon-group"] },
-   "tools-header": { "placement": "bottom", "items": ["annotateGroupedItems", "shapesGroupedItems"] }
+   "header-tabs": { "placement": "top", "items": ["main-ribbon-group"] },
+   "tools-header": { "placement": "top", "items": ["annotateGroupedItems", "shapesGroupedItems"] }
    ```
-   Creates the traditional Microsoft Office 2-row ribbon layout.
+   Creates the traditional multi-row ribbon layout.
 
-#### Edge Header Limits (SDK Architectural Constraint)
+#### Viewport Placement Guidelines:
 
-- **Top:** Maximum of **2** full-length headers (`default-top-header` + `tools-header`). Any additional top header is dropped.
+- **Top:** Supports up to 2 full-length headers (ideal for stacked tab + tool bars).
 - **Bottom:** Supports multiple stacked headers.
-- **Left & Right:** Maximum of **1** full-length header. The SDK explicitly drops any 2nd full-length vertical header (`Left headers only support one full length header but 2 were added. Only the first one will be rendered.`).
-- **Workaround for Left/Right Ribbons:** Always use **Inline (1 Single Bar)** layout for `left` or `right` headers so both the tab buttons and active tools reside in that single vertical strip. Alternatively, place the ribbon tabs on the `left` and the companion `tools-header` on `top` or `bottom`.
+- **Left & Right:** Supports 1 full-length header. For vertical side layouts, use **Inline (Single Header Bar)** so both tab selectors and active tool groups share the vertical strip.
 
 ---
 
