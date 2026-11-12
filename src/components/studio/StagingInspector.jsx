@@ -71,6 +71,8 @@ export default function StagingInspector({
         return '+ Create Flyout Menu';
       case 'tabPanel':
         return '+ Create Tab Panel';
+      case 'groupedItems':
+        return `+ Add Group to ${currentTarget?.label || 'Container'}`;
       case 'submenu':
         return '+ Add Submenu';
       case 'popupAction':
@@ -131,7 +133,6 @@ export default function StagingInspector({
       <div className="inspector-body">
         {/* Target Container Selector for non-standalone containers */}
         {draft.kind !== 'header' &&
-          draft.kind !== 'ribbonTab' &&
           draft.kind !== 'flyout' &&
           draft.kind !== 'tabPanel' && (
             <div className="inspector-section-card">
@@ -144,7 +145,7 @@ export default function StagingInspector({
                 }}
               >
                 <span className="inspector-section-title" style={{ margin: 0 }}>
-                  Destination
+                  Placement
                 </span>
                 <span
                   style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}
@@ -152,7 +153,31 @@ export default function StagingInspector({
                   TARGET CONTAINER
                 </span>
               </div>
-              {draft.kind === 'popupAction' ? (
+              {draft.kind === 'ribbonTab' ? (
+                <select
+                  className="inspector-select"
+                  value={draft.headerKey || userHeaderKeys[0] || ''}
+                  onChange={(e) => {
+                    const hKey = e.target.value;
+                    update({ headerKey: hKey });
+                    const next = availableTargets.find(
+                      (t) => t.type === 'header' && t.headerKey === hKey,
+                    );
+                    if (next && onChangeTarget) onChangeTarget(next);
+                  }}
+                >
+                  {userHeaderKeys.map((hKey) => (
+                    <option key={hKey} value={hKey}>
+                      Header:{' '}
+                      {getFriendlyComponentName(
+                        hKey,
+                        config.modularHeaders?.[hKey],
+                      )}{' '}
+                      ({hKey})
+                    </option>
+                  ))}
+                </select>
+              ) : draft.kind === 'popupAction' ? (
                 <select
                   className="inspector-select"
                   value={currentTarget?.popupKey || 'annotationPopup'}
@@ -225,18 +250,26 @@ export default function StagingInspector({
                   ))}
                 </select>
               ) : draft.kind === 'toggleButton' ||
+                draft.kind === 'toolGroupToggleButton' ||
+                draft.kind === 'groupedItems' ||
                 (draft.kind === 'panel' && draft.mode !== 'embed') ? (
                 <select
                   className="inspector-select"
                   value={
                     availableTargets
                       .filter(
-                        (t) => t.type !== 'flyout' && t.type !== 'submenu',
+                        (t) =>
+                          t.type !== 'flyout' &&
+                          t.type !== 'submenu' &&
+                          t.type !== 'popup',
                       )
                       .some((t) => t.key === currentTarget?.key)
                       ? currentTarget?.key
                       : availableTargets.find(
-                          (t) => t.type !== 'flyout' && t.type !== 'submenu',
+                          (t) =>
+                            t.type !== 'flyout' &&
+                            t.type !== 'submenu' &&
+                            t.type !== 'popup',
                         )?.key || ''
                   }
                   onChange={(e) => {
@@ -247,7 +280,12 @@ export default function StagingInspector({
                   }}
                 >
                   {availableTargets
-                    .filter((t) => t.type !== 'flyout' && t.type !== 'submenu')
+                    .filter(
+                      (t) =>
+                        t.type !== 'flyout' &&
+                        t.type !== 'submenu' &&
+                        t.type !== 'popup',
+                    )
                     .map((t) => (
                       <option key={t.key} value={t.key}>
                         {t.label}
@@ -683,9 +721,7 @@ export default function StagingInspector({
             </div>
 
             <div className="inspector-section-card">
-              <span className="inspector-section-title">
-                Target Element Wiring
-              </span>
+              <span className="inspector-section-title">Toggle Target</span>
               <div className="inspector-field">
                 <label className="inspector-label">Opens Flyout or Panel</label>
                 <select
@@ -721,6 +757,155 @@ export default function StagingInspector({
                   </optgroup>
                 </select>
               </div>
+            </div>
+          </>
+        )}
+
+        {/* 7B. TOOL GROUP TOGGLE BUTTON DRAFT */}
+        {draft.kind === 'toolGroupToggleButton' && (
+          <>
+            <div className="inspector-field">
+              <label className="inspector-label">
+                Component ID (dataElement)
+              </label>
+              <input
+                className="inspector-input"
+                value={draft.dataElement || ''}
+                onChange={(e) => update({ dataElement: e.target.value })}
+              />
+            </div>
+
+            <div className="inspector-section-card">
+              <span className="inspector-section-title">Toggle Target</span>
+              <div className="inspector-field">
+                <label className="inspector-label">
+                  Toggles Tool Group (groupedItems)
+                </label>
+                <select
+                  className="inspector-select"
+                  value={draft.groupedItems || ''}
+                  onChange={(e) =>
+                    update({
+                      groupedItems: e.target.value,
+                      title: `Toggle ${e.target.value}`,
+                    })
+                  }
+                >
+                  {Object.entries(config?.modularComponents || {})
+                    .filter(([, c]) => c?.type === 'groupedItems')
+                    .map(([gKey, gDef]) => (
+                      <option key={gKey} value={gKey}>
+                        {getFriendlyComponentName(gKey, gDef)} ({gKey})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Label (optional)</label>
+              <input
+                className="inspector-input"
+                value={draft.label || ''}
+                onChange={(e) => update({ label: e.target.value })}
+                placeholder="Optional text label"
+              />
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Tooltip (title)</label>
+              <input
+                className="inspector-input"
+                value={draft.title || ''}
+                onChange={(e) => update({ title: e.target.value })}
+                placeholder="Hover tooltip"
+              />
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Icon (img)</label>
+              <input
+                className="inspector-input"
+                value={draft.img || ''}
+                onChange={(e) => update({ img: e.target.value })}
+                placeholder="e.g. icon-tool-text-manipulation-highlight"
+              />
+            </div>
+          </>
+        )}
+
+        {/* 7C. GROUPED ITEMS CONTAINER DRAFT */}
+        {draft.kind === 'groupedItems' && (
+          <>
+            <div className="inspector-field">
+              <label className="inspector-label">
+                Container ID (dataElement)
+              </label>
+              <input
+                className="inspector-input"
+                value={draft.dataElement || ''}
+                onChange={(e) => update({ dataElement: e.target.value })}
+              />
+            </div>
+
+            <div className="inspector-section-card">
+              <span className="inspector-section-title">
+                Container Layout &amp; Alignment
+              </span>
+
+              <div className="inspector-field">
+                <label className="inspector-label">Gap (px)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="48"
+                  className="inspector-input"
+                  value={draft.gap ?? 12}
+                  onChange={(e) => update({ gap: Number(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div className="inspector-field">
+                <label className="inspector-label">Flex Grow</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  className="inspector-input"
+                  value={draft.grow ?? 0}
+                  onChange={(e) =>
+                    update({ grow: Number(e.target.value) || 0 })
+                  }
+                />
+              </div>
+
+              <div className="inspector-field">
+                <label className="inspector-label">Justify Content</label>
+                <select
+                  className="inspector-select"
+                  value={draft.justifyContent || 'start'}
+                  onChange={(e) => update({ justifyContent: e.target.value })}
+                >
+                  <option value="start">Start</option>
+                  <option value="center">Center</option>
+                  <option value="end">End</option>
+                  <option value="space-between">Space Between</option>
+                  <option value="space-around">Space Around</option>
+                  <option value="space-evenly">Space Evenly</option>
+                </select>
+              </div>
+
+              <label
+                className="inspector-checkbox-row"
+                style={{ marginTop: 6, cursor: 'pointer' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.alwaysVisible)}
+                  onChange={(e) => update({ alwaysVisible: e.target.checked })}
+                />
+                <span>Always Visible (persistent group)</span>
+              </label>
             </div>
           </>
         )}
@@ -840,27 +1025,6 @@ export default function StagingInspector({
               />
             </div>
 
-            {userHeaderKeys.length > 0 && (
-              <div className="inspector-field">
-                <label className="inspector-label">Parent Header</label>
-                <select
-                  className="inspector-select"
-                  value={draft.headerKey || userHeaderKeys[0]}
-                  onChange={(e) => update({ headerKey: e.target.value })}
-                >
-                  {userHeaderKeys.map((hKey) => (
-                    <option key={hKey} value={hKey}>
-                      {getFriendlyComponentName(
-                        hKey,
-                        config.modularHeaders?.[hKey],
-                      )}{' '}
-                      ({hKey})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <div className="inspector-field">
               <label className="inspector-label">Tab Label</label>
               <input
@@ -877,11 +1041,12 @@ export default function StagingInspector({
             </div>
 
             <div className="inspector-field">
-              <label className="inspector-label">Hover Tooltip</label>
+              <label className="inspector-label">Tooltip (title)</label>
               <input
                 className="inspector-input"
                 value={draft.title || ''}
                 onChange={(e) => update({ title: e.target.value })}
+                placeholder="Hover tooltip"
               />
             </div>
 
@@ -946,7 +1111,10 @@ export default function StagingInspector({
             )}
 
             {draft.createToggle !== false && (
-              <>
+              <div className="inspector-section-card">
+                <span className="inspector-section-title">
+                  Toggle Button Placement
+                </span>
                 <div className="inspector-field">
                   <label className="inspector-label">Toggle Icon (img)</label>
                   <input
@@ -958,9 +1126,7 @@ export default function StagingInspector({
                 </div>
 
                 <div className="inspector-field">
-                  <label className="inspector-label">
-                    Toggle Button Destination
-                  </label>
+                  <label className="inspector-label">Placement</label>
                   <select
                     className="inspector-select"
                     value={
@@ -1034,7 +1200,7 @@ export default function StagingInspector({
                     </optgroup>
                   </select>
                 </div>
-              </>
+              </div>
             )}
             <p className="inspector-hint" style={{ marginTop: 4 }}>
               To nest menus inside another Flyout, use a{' '}
@@ -1121,7 +1287,10 @@ export default function StagingInspector({
             </label>
 
             {draft.createToggle !== false && (
-              <>
+              <div className="inspector-section-card">
+                <span className="inspector-section-title">
+                  Toggle Button Placement
+                </span>
                 <div className="inspector-field">
                   <label className="inspector-label">Toggle Button Label</label>
                   <input
@@ -1134,9 +1303,7 @@ export default function StagingInspector({
 
                 {userHeaderKeys.length > 0 && (
                   <div className="inspector-field">
-                    <label className="inspector-label">
-                      Toggle Button Header
-                    </label>
+                    <label className="inspector-label">Placement</label>
                     <select
                       className="inspector-select"
                       value={draft.targetHeader || userHeaderKeys[0]}
@@ -1154,7 +1321,7 @@ export default function StagingInspector({
                     </select>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </>
         )}

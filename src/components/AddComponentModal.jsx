@@ -285,6 +285,39 @@ export default function AddComponentModal({
       },
     });
 
+    items.push({
+      id: 'custom:toolGroupToggleButton',
+      kind: 'control',
+      name: 'Tool Group Toggle Button',
+      sub: 'Toggles visibility of a GroupedItems container',
+      ref: {
+        type: 'toolGroupToggleButton',
+        groupedItems: 'highlightToolGroup',
+      },
+      defaults: {
+        dataElement: 'customToolGroupToggleButton',
+        label: '',
+        title: 'Toggle Tool Group',
+        icon: '',
+        onClick: '',
+      },
+    });
+
+    items.push({
+      id: 'custom:groupedItems',
+      kind: 'layout',
+      name: 'Grouped Items Container',
+      sub: 'Cluster container for grouping buttons and tools (GroupedItems)',
+      ref: { type: 'groupedItems' },
+      defaults: {
+        dataElement: 'customGroupedItems',
+        label: '',
+        title: '',
+        icon: '',
+        onClick: '',
+      },
+    });
+
     return [...items, ...CONTAINER_ITEMS];
   }, [panels]);
 
@@ -1281,9 +1314,15 @@ export default function AddComponentModal({
       componentType = ref.type;
       component = { type: ref.type, dataElement };
       if (ref.type === 'toolGroupToggleButton') {
-        component.groupedItems = ref.groupedItems;
+        component.groupedItems = form.toggleElement || ref.groupedItems;
         component.shouldToggleVisibility =
           form.shouldToggleVisibility !== false;
+      } else if (ref.type === 'groupedItems') {
+        component.items = [];
+        component.gap = 12;
+        component.grow = 0;
+        component.justifyContent = 'start';
+        component.alwaysVisible = target.targetLocationType === 'header';
       } else if (ref.type === 'customElement') {
         let parsedArgs = undefined;
         if (form.renderArguments?.trim()) {
@@ -1783,24 +1822,6 @@ export default function AddComponentModal({
                         </p>
                       </div>
                     )
-                  )}
-
-                  {selectedItem.ref?.type === 'toolGroupToggleButton' && (
-                    <div className="form-group">
-                      <label className="checkbox-field-row">
-                        <input
-                          type="checkbox"
-                          checked={form.shouldToggleVisibility !== false}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              shouldToggleVisibility: e.target.checked,
-                            }))
-                          }
-                        />
-                        <span>Toggle tool group visibility on click</span>
-                      </label>
-                    </div>
                   )}
 
                   {selectedItem.ref?.type === 'customElement' && (

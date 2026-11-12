@@ -282,11 +282,12 @@ export default function PropertiesInspector({
           </div>
 
           <div className="inspector-field">
-            <label className="inspector-label">Hover Tooltip</label>
+            <label className="inspector-label">Tooltip (title)</label>
             <input
               className="inspector-input"
               value={tabComp.title || ''}
               onChange={(e) => onUpdateComponent(id, { title: e.target.value })}
+              placeholder="Hover tooltip"
             />
           </div>
 
@@ -446,11 +447,9 @@ export default function PropertiesInspector({
             />
           </div>
 
-          {/* TARGET ELEMENT WIRING */}
+          {/* TOGGLE TARGET */}
           <div className="inspector-section-card">
-            <span className="inspector-section-title">
-              Target Element Wiring
-            </span>
+            <span className="inspector-section-title">Toggle Target</span>
             <div className="inspector-field">
               <label className="inspector-label">Opens Flyout or Panel</label>
               <select
@@ -716,13 +715,6 @@ export default function PropertiesInspector({
 
   // --- 5. FLYOUT CONTAINER INSPECTOR ---
   if (type === 'flyout') {
-    const flyoutDef = config.flyouts?.[id] || { items: [] };
-    const linkedToggles = Object.entries(config.modularComponents || {}).filter(
-      ([, c]) =>
-        c?.type === 'toggleButton' &&
-        (c.toggleElement === id || c.element === id),
-    );
-
     return (
       <aside className="studio-right-pane" style={paneStyle}>
         <div className="inspector-header">
@@ -734,32 +726,6 @@ export default function PropertiesInspector({
           <div className="inspector-field">
             <label className="inspector-label">Flyout ID (dataElement)</label>
             <input className="inspector-input" value={id} disabled />
-          </div>
-
-          <div className="inspector-section-card">
-            <span className="inspector-section-title">
-              Trigger Toggle Buttons
-            </span>
-            {linkedToggles.length === 0 ? (
-              <div className="inspector-hint">
-                No toggle button currently targets this flyout.
-              </div>
-            ) : (
-              linkedToggles.map(([tKey, tComp]) => (
-                <div
-                  key={tKey}
-                  style={{
-                    fontSize: 12,
-                    padding: '4px 8px',
-                    background: '#fff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 5,
-                  }}
-                >
-                  {getFriendlyComponentName(tKey, tComp)} ({tKey})
-                </div>
-              ))
-            )}
           </div>
 
           <div className="inspector-divider" />
@@ -790,7 +756,7 @@ export default function PropertiesInspector({
 
         <div className="inspector-body">
           <div className="inspector-field">
-            <label className="inspector-label">Submenu ID</label>
+            <label className="inspector-label">Submenu ID (dataElement)</label>
             <input className="inspector-input" value={id} disabled />
           </div>
 
@@ -949,6 +915,165 @@ export default function PropertiesInspector({
     );
   }
 
+  // --- 7B. GROUPED ITEMS CONTAINER INSPECTOR ---
+  if (
+    type === 'groupedItems' ||
+    config.modularComponents?.[id]?.type === 'groupedItems'
+  ) {
+    const groupComp = config.modularComponents?.[id] || {
+      type: 'groupedItems',
+      dataElement: id,
+      items: [],
+    };
+    const childItems = Array.isArray(groupComp.items) ? groupComp.items : [];
+    const featureReq = getItemFeatureRequirement(id, groupComp);
+
+    return (
+      <aside className="studio-right-pane" style={paneStyle}>
+        <div className="inspector-header">
+          <span className="inspector-title">Properties</span>
+          <span className="inspector-type-badge">GroupedItems</span>
+        </div>
+
+        <div className="inspector-body">
+          <div className="inspector-field">
+            <label className="inspector-label">
+              Container ID (dataElement)
+            </label>
+            <input className="inspector-input" value={id} disabled />
+          </div>
+
+          {featureReq && (
+            <div
+              className="inspector-section-card"
+              style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}
+            >
+              <span
+                className="inspector-section-title"
+                style={{ color: '#92400e' }}
+              >
+                Feature Requirement
+              </span>
+              <div className="inspector-hint" style={{ color: '#92400e' }}>
+                {featureReq.tooltip}
+              </div>
+            </div>
+          )}
+
+          <div className="inspector-section-card">
+            <span className="inspector-section-title">
+              Container Layout &amp; Alignment
+            </span>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Gap (px)</label>
+              <input
+                type="number"
+                min="0"
+                max="48"
+                className="inspector-input"
+                value={groupComp.gap ?? 12}
+                onChange={(e) =>
+                  onUpdateComponent(id, {
+                    gap: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+              />
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Flex Grow</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                className="inspector-input"
+                value={groupComp.grow ?? 0}
+                onChange={(e) =>
+                  onUpdateComponent(id, {
+                    grow: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+              />
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Justify Content</label>
+              <select
+                className="inspector-select"
+                value={groupComp.justifyContent || 'start'}
+                onChange={(e) =>
+                  onUpdateComponent(id, { justifyContent: e.target.value })
+                }
+              >
+                <option value="start">Start</option>
+                <option value="center">Center</option>
+                <option value="end">End</option>
+                <option value="space-between">Space Between</option>
+                <option value="space-around">Space Around</option>
+                <option value="space-evenly">Space Evenly</option>
+              </select>
+            </div>
+
+            <div className="inspector-field">
+              <label className="inspector-label">Position Alignment</label>
+              <select
+                className="inspector-select"
+                value={groupComp.position || ''}
+                onChange={(e) =>
+                  onUpdateComponent(id, {
+                    position: e.target.value || undefined,
+                  })
+                }
+              >
+                <option value="">Default</option>
+                <option value="start">Start</option>
+                <option value="center">Center</option>
+                <option value="end">End</option>
+              </select>
+            </div>
+
+            <label
+              className="inspector-checkbox-row"
+              style={{ marginTop: 6, cursor: 'pointer' }}
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(groupComp.alwaysVisible)}
+                onChange={(e) =>
+                  onUpdateComponent(id, { alwaysVisible: e.target.checked })
+                }
+              />
+              <span>Always Visible (persistent group)</span>
+            </label>
+            <div className="inspector-hint">
+              When unchecked, visibility is controlled dynamically by a parent
+              Ribbon Tab or linked ToolGroupToggleButton.
+            </div>
+          </div>
+
+          <div className="inspector-field">
+            <label className="inspector-label">Child Items</label>
+            <div className="inspector-hint">
+              {childItems.length} item(s) in this container. Expand in the
+              Outline to reorder or add items.
+            </div>
+          </div>
+
+          <div className="inspector-divider" />
+
+          <button
+            type="button"
+            className="studio-btn danger"
+            onClick={() => onDeleteTool(id, selectedNode.targetContext || {})}
+          >
+            Delete GroupedItems Container
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
   // --- 8. STANDARD COMPONENT INSPECTOR (TOOL, PRESET, CUSTOM, CONTROL, LAYOUT) ---
   const comp = config.modularComponents?.[id] || {
     type: isDivider(id) ? 'divider' : 'toolButton',
@@ -1084,6 +1209,32 @@ export default function PropertiesInspector({
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+        )}
+
+        {compType === 'toolGroupToggleButton' && (
+          <div className="inspector-section-card">
+            <span className="inspector-section-title">Toggle Target</span>
+            <div className="inspector-field">
+              <label className="inspector-label">
+                Target GroupedItems Container
+              </label>
+              <div
+                className="inspector-readonly-value"
+                style={{
+                  padding: '6px 8px',
+                  background: 'var(--studio-bg-secondary, #f1f3f5)',
+                  border: '1px solid var(--studio-border, #e2e8f0)',
+                  borderRadius: 4,
+                  fontSize: 13,
+                  color: 'var(--studio-text, #1e293b)',
+                }}
+              >
+                {comp.groupedItems
+                  ? `${getFriendlyComponentName(comp.groupedItems, config.modularComponents?.[comp.groupedItems])} (${comp.groupedItems})`
+                  : '(None)'}
+              </div>
             </div>
           </div>
         )}

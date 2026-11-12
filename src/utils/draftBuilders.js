@@ -16,6 +16,28 @@ export function buildAvailableTargets(config) {
     (k) => k !== 'tools-header',
   );
 
+  const seenGroups = new Set();
+  const addNestedGroups = (items, hKey, rKey, contextLabel) => {
+    (items || []).forEach((entry) => {
+      const k = typeof entry === 'string' ? entry : entry?.dataElement;
+      if (!k || seenGroups.has(k)) return;
+      const comp = config.modularComponents?.[k];
+      if (comp?.type === 'groupedItems') {
+        seenGroups.add(k);
+        const gName = getFriendlyComponentName(k, comp);
+        list.push({
+          key: `groupedItems:${k}`,
+          type: 'groupedItems',
+          groupKey: k,
+          headerKey: hKey,
+          ribbonTabKey: rKey,
+          label: `Group: ${gName} (${contextLabel})`,
+        });
+        addNestedGroups(comp.items, hKey, rKey, gName);
+      }
+    });
+  };
+
   userHeaderKeys.forEach((hKey) => {
     const hDef = config.modularHeaders[hKey];
     const hName = getFriendlyComponentName(hKey, hDef);
@@ -44,6 +66,15 @@ export function buildAvailableTargets(config) {
             ribbonTabKey: tKey,
             label: `Tab: ${tName} (${hName})`,
           });
+          if (Array.isArray(tComp?.groupedItems)) {
+            tComp.groupedItems.forEach((gk) => {
+              seenGroups.add(gk);
+              const gComp = config.modularComponents?.[gk];
+              if (gComp?.items) {
+                addNestedGroups(gComp.items, hKey, tKey, tName);
+              }
+            });
+          }
         });
       } else if (comp?.type === 'ribbonItem') {
         const tName = getFriendlyComponentName(k, comp);
@@ -54,6 +85,17 @@ export function buildAvailableTargets(config) {
           ribbonTabKey: k,
           label: `Tab: ${tName} (${hName})`,
         });
+        if (Array.isArray(comp?.groupedItems)) {
+          comp.groupedItems.forEach((gk) => {
+            seenGroups.add(gk);
+            const gComp = config.modularComponents?.[gk];
+            if (gComp?.items) {
+              addNestedGroups(gComp.items, hKey, k, tName);
+            }
+          });
+        }
+      } else if (comp?.type === 'groupedItems' && !seenGroups.has(k)) {
+        addNestedGroups([k], hKey, undefined, hName);
       }
     });
   });
@@ -121,6 +163,8 @@ export function resolveTargetContainer(
     const match = availableTargets.find((t) => {
       if (t.type !== activeTarget.type) return false;
       if (t.type === 'header') return t.headerKey === activeTarget.headerKey;
+      if (t.type === 'groupedItems')
+        return t.groupKey === activeTarget.groupKey;
       if (t.type === 'ribbon') {
         return (
           t.ribbonTabKey === activeTarget.ribbonTabKey &&
@@ -133,6 +177,16 @@ export function resolveTargetContainer(
       return false;
     });
     if (match) return match;
+    if (activeTarget.type === 'groupedItems' && activeTarget.groupKey) {
+      return {
+        key: activeTarget.key || `groupedItems:${activeTarget.groupKey}`,
+        type: 'groupedItems',
+        groupKey: activeTarget.groupKey,
+        headerKey: activeTarget.headerKey || userHeaderKeys[0],
+        ribbonTabKey: activeTarget.ribbonTabKey,
+        label: activeTarget.label || `Group: ${activeTarget.groupKey}`,
+      };
+    }
     if (activeTarget.type === 'flyout' && activeTarget.flyoutKey) {
       return {
         key: activeTarget.key || `flyout:${activeTarget.flyoutKey}`,
@@ -290,6 +344,45 @@ export function defaultDraftFor(itemSpec, config, currentTarget) {
       };
     }
 
+    case 'toolGroupToggleButton': {
+      const baseId = 'customToolGroupToggleButton';
+      const groupKeys = Object.entries(config?.modularComponents || {})
+        .filter(([, c]) => c?.type === 'groupedItems')
+        .map(([k]) => k);
+      const defaultGroupTarget = groupKeys[0] || 'highlightToolGroup';
+      return {
+        kind: 'toolGroupToggleButton',
+        stageKey: 'interactive:toolGroupToggleButton',
+        typeBadge: 'Tool Group Toggle',
+        titleText: 'Tool Group Toggle Button',
+        baseId,
+        dataElement: generateUniqueDataElement(baseId, existingIds),
+        label: '',
+        title: `Toggle ${defaultGroupTarget}`,
+        img: '',
+        groupedItems: defaultGroupTarget,
+        shouldToggleVisibility: true,
+      };
+    }
+
+    case 'groupedItems': {
+      const baseId = 'customGroupedItems';
+      return {
+        kind: 'groupedItems',
+        stageKey: 'container:groupedItems',
+        typeBadge: 'Container',
+        titleText: 'Grouped Items Container',
+        baseId,
+        dataElement: generateUniqueDataElement(baseId, existingIds),
+        gap: 12,
+        grow: 0,
+        justifyContent: 'start',
+        alwaysVisible: currentTarget?.type === 'header',
+        backgroundColor: '',
+        borderRadius: '',
+      };
+    }
+
     case 'submenu': {
       const baseId = 'submenu';
       return {
@@ -415,6 +508,7 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
   const targetPayload = {
     headerKey: defaultHeaderKey,
     targetLocationType: currentTarget?.type || 'header',
+    groupKey: currentTarget?.groupKey,
     ribbonTabKey: currentTarget?.ribbonTabKey,
     flyoutKey: currentTarget?.flyoutKey,
     parentKey: currentTarget?.parentKey,
@@ -425,7 +519,9 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
     const effectiveTargetType =
       extra.targetContext?.targetLocationType || currentTarget?.type;
     let parentId = undefined;
-    if (effectiveTargetType === 'ribbon')
+    if (effectiveTargetType === 'groupedItems')
+      parentId = extra.targetContext?.groupKey || currentTarget?.groupKey;
+    else if (effectiveTargetType === 'ribbon')
       parentId = currentTarget?.ribbonTabKey;
     else if (effectiveTargetType === 'submenu')
       parentId = currentTarget?.parentKey;
@@ -440,18 +536,24 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
     const normalizedType =
       effectiveTargetType === 'popup'
         ? 'popupItem'
-        : type === 'toggleButton' ||
-            type === 'toggleElementButton' ||
-            type === 'toggle' ||
-            Boolean(extra?.component?.toggleElement)
-          ? 'toggle'
-          : 'component';
+        : type === 'groupedItems'
+          ? 'groupedItems'
+          : type === 'toggleButton' ||
+              type === 'toggleElementButton' ||
+              type === 'toggle' ||
+              Boolean(extra?.component?.toggleElement)
+            ? 'toggle'
+            : 'component';
 
     return {
       type: normalizedType,
       id,
       label,
       parentId,
+      groupKey:
+        effectiveTargetType === 'groupedItems'
+          ? extra.targetContext?.groupKey || currentTarget?.groupKey
+          : undefined,
       headerKey: defaultHeaderKey,
       ribbonKey:
         effectiveTargetType === 'ribbon'
@@ -730,6 +832,97 @@ export function buildCommitFromDraft(draft, currentTarget, config) {
           draft.label || 'Toggle',
           { component, targetContext: safeTargetPayload },
         ),
+        nextDataElement: computeNextDraftId(dataElement, draft.baseId),
+      };
+    }
+
+    case 'toolGroupToggleButton': {
+      const dataElement = ensureUniqueId(draft.dataElement, draft.baseId);
+      const targetGroup = draft.groupedItems || 'highlightToolGroup';
+      const component = {
+        type: 'toolGroupToggleButton',
+        dataElement,
+        groupedItems: targetGroup,
+        shouldToggleVisibility: draft.shouldToggleVisibility !== false,
+        ...(draft.label ? { label: draft.label } : {}),
+        ...(draft.title ? { title: draft.title } : {}),
+        ...(draft.img ? { img: draft.img } : {}),
+      };
+      const safeTargetPayload =
+        targetPayload.targetLocationType === 'flyout' ||
+        targetPayload.targetLocationType === 'submenu' ||
+        targetPayload.targetLocationType === 'popup'
+          ? {
+              headerKey: defaultHeaderKey,
+              targetLocationType: 'header',
+            }
+          : targetPayload;
+
+      return {
+        actionType: 'addComponent',
+        payload: {
+          target: safeTargetPayload,
+          componentType: 'toolGroupToggleButton',
+          component,
+        },
+        createdNode: makeItemNode(
+          'toolGroupToggleButton',
+          dataElement,
+          draft.label || getFriendlyComponentName(dataElement, component),
+          { component, targetContext: safeTargetPayload },
+        ),
+        nextDataElement: computeNextDraftId(dataElement, draft.baseId),
+      };
+    }
+
+    case 'groupedItems': {
+      const dataElement = ensureUniqueId(draft.dataElement, draft.baseId);
+      const safeTargetPayload =
+        targetPayload.targetLocationType === 'flyout' ||
+        targetPayload.targetLocationType === 'submenu' ||
+        targetPayload.targetLocationType === 'popup'
+          ? {
+              headerKey: defaultHeaderKey,
+              targetLocationType: 'header',
+            }
+          : targetPayload;
+
+      const isHeaderTarget = safeTargetPayload.targetLocationType === 'header';
+      const alwaysVisible =
+        draft.alwaysVisible !== undefined
+          ? Boolean(draft.alwaysVisible)
+          : isHeaderTarget;
+
+      const component = {
+        type: 'groupedItems',
+        dataElement,
+        items: [],
+        gap: Number(draft.gap) || 12,
+        grow: Number(draft.grow) || 0,
+        justifyContent: draft.justifyContent || 'start',
+        alwaysVisible,
+      };
+
+      const label = getFriendlyComponentName(dataElement, component);
+      return {
+        actionType: 'addComponent',
+        payload: {
+          target: safeTargetPayload,
+          componentType: 'groupedItems',
+          component,
+        },
+        createdNode: makeItemNode('groupedItems', dataElement, label, {
+          component,
+          targetContext: safeTargetPayload,
+        }),
+        nextTarget: {
+          key: `groupedItems:${dataElement}`,
+          type: 'groupedItems',
+          groupKey: dataElement,
+          headerKey: defaultHeaderKey,
+          ribbonTabKey: safeTargetPayload.ribbonTabKey,
+          label: `Group: ${label}`,
+        },
         nextDataElement: computeNextDraftId(dataElement, draft.baseId),
       };
     }

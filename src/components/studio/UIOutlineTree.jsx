@@ -25,7 +25,6 @@ export default function UIOutlineTree({
   onRemovePopupItem,
   onReorderList,
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [collapsedIds, setCollapsedIds] = useState(new Set(['section:popups']));
   // Ribbon tabs default to collapsed unless explicitly expanded so 10 tabs don't dump 100 tools at once
   const [expandedTabIds, setExpandedTabIds] = useState(new Set());
@@ -142,6 +141,16 @@ export default function UIOutlineTree({
         }
       }
 
+      // GroupedItems container uncollapse
+      const groupKey =
+        selectedNode.groupKey ||
+        selectedNode.targetContext?.groupKey ||
+        (selectedNode.type === 'groupedItems' ? selectedNode.id : null);
+      if (groupKey && next.has(`groupedItems:${groupKey}`)) {
+        next.delete(`groupedItems:${groupKey}`);
+        changed = true;
+      }
+
       return changed ? next : prev;
     });
   }, [selectedNode]);
@@ -176,13 +185,61 @@ export default function UIOutlineTree({
 
   const isTabExpanded = (tabKey) => expandedTabIds.has(tabKey);
 
-  const q = searchQuery.trim().toLowerCase();
-  const matchesFilter = (label, key) => {
-    if (!q) return true;
-    return (
-      (label && label.toLowerCase().includes(q)) ||
-      (key && key.toLowerCase().includes(q))
-    );
+  const handleExpandAll = () => {
+    setCollapsedIds(new Set());
+    const allTabKeys = new Set();
+    for (const [key, comp] of Object.entries(config?.modularComponents || {})) {
+      if (comp?.type === 'ribbonTabs' && Array.isArray(comp?.tabs)) {
+        comp.tabs.forEach((t) => {
+          const tKey = typeof t === 'string' ? t : t?.dataElement;
+          if (tKey) allTabKeys.add(tKey);
+        });
+      } else if (comp?.type === 'ribbonItem') {
+        allTabKeys.add(key);
+      }
+    }
+    for (const hDef of Object.values(config?.modularHeaders || {})) {
+      const items = Array.isArray(hDef?.items) ? hDef.items : [];
+      items.forEach((item) => {
+        const iKey = typeof item === 'string' ? item : item?.dataElement;
+        const c = config?.modularComponents?.[iKey];
+        if (c?.type === 'ribbonItem') allTabKeys.add(iKey);
+        if (c?.type === 'ribbonTabs' && Array.isArray(c?.tabs)) {
+          c.tabs.forEach((t) => {
+            const tKey = typeof t === 'string' ? t : t?.dataElement;
+            if (tKey) allTabKeys.add(tKey);
+          });
+        }
+      });
+    }
+    setExpandedTabIds(allTabKeys);
+  };
+
+  const handleCollapseAll = () => {
+    const next = new Set();
+    next.add('section:headers');
+    next.add('section:flyouts');
+    next.add('section:panels');
+    next.add('section:popups');
+
+    Object.keys(config?.modularHeaders || {}).forEach((k) => {
+      next.add(`header:${k}`);
+    });
+    Object.keys(config?.flyouts || {}).forEach((k) => {
+      next.add(`flyout:${k}`);
+    });
+    Object.keys(config?.panels || {}).forEach((k) => {
+      next.add(`panel:${k}`);
+    });
+    Object.keys(config?.popups || {}).forEach((k) => {
+      next.add(`popup:${k}`);
+    });
+    POPUPS_CATALOG.forEach((p) => {
+      next.add(`popup:${p.id}`);
+    });
+
+    setCollapsedIds(next);
+    setExpandedTabIds(new Set());
   };
 
   // --- Drag & Drop Helpers ---
@@ -311,8 +368,6 @@ export default function UIOutlineTree({
         Array.isArray(comp?.children) || Boolean(comp?.isSubmenu);
       const label = getFriendlyComponentName(itemKey, comp);
 
-      if (!matchesFilter(label, itemKey) && !isSubmenu) return null;
-
       const nodeType = isSubmenu
         ? 'submenu'
         : comp?.type === 'flyoutPanel' || Boolean(comp?.render)
@@ -334,7 +389,7 @@ export default function UIOutlineTree({
         <div key={`${itemKey}-${idx}`}>
           <div
             className={`tree-row ${isSel ? 'selected' : ''} ${getDragClass(listId, idx)}`}
-            draggable={!q}
+            draggable
             onDragStart={(e) => handleDragStart(e, listId, idx, contextPayload)}
             onDragOver={(e) => handleDragOver(e, listId, idx)}
             onDrop={(e) => handleDrop(e, listId, idx)}
@@ -428,7 +483,262 @@ export default function UIOutlineTree({
     });
   };
 
-  // Render a single Ribbon Tab row and its unwrapped tools
+  // Render a GroupedItems container row and its collapsible child items (supports nesting)
+  const renderGroupedItemsNode = (
+    groupKey,
+    idx,
+    parentListId,
+    parentContextPayload,
+    { headerKey, ribbonKey, visited = new Set() } = {},
+  ) => {
+    if (!groupKey || visited.has(groupKey)) return null;
+    const groupComp = config.modularComponents?.[groupKey] || {
+      type: 'groupedItems',
+      dataElement: groupKey,
+      items: [],
+    };
+    const groupLabel = getFriendlyComponentName(groupKey, groupComp);
+    const childItems = Array.isArray(groupComp.items) ? groupComp.items : [];
+
+    const collapseId = `groupedItems:${groupKey}`;
+    const isGroupExpanded = !isCollapsed(collapseId);
+    const isGroupSel =
+      selectedNode?.type === 'groupedItems' && selectedNode?.id === groupKey;
+    const groupListId = `group-items:${groupKey}`;
+    const groupFeatReq = getItemFeatureRequirement(groupKey, groupComp);
+    const nextVisited = new Set(visited).add(groupKey);
+
+    return (
+      <div key={`${groupKey}-${idx}`}>
+        <div
+          className={`tree-row ${isGroupSel ? 'selected' : ''} ${getDragClass(parentListId, idx)}`}
+          draggable
+          onDragStart={(e) =>
+            handleDragStart(e, parentListId, idx, parentContextPayload)
+          }
+          onDragOver={(e) => handleDragOver(e, parentListId, idx)}
+          onDrop={(e) => handleDrop(e, parentListId, idx)}
+          onDragEnd={handleDragEnd}
+          onClick={(e) => {
+            handleSelectNode(
+              {
+                type: 'groupedItems',
+                id: groupKey,
+                parentId:
+                  parentContextPayload?.groupKey || ribbonKey || headerKey,
+                groupKey,
+                headerKey,
+                ribbonKey,
+                index: idx,
+                label: groupLabel,
+                targetContext: {
+                  ...parentContextPayload,
+                  index: idx,
+                },
+              },
+              e,
+            );
+          }}
+        >
+          <div className="tree-row-left">
+            <span className="tree-drag-handle" title="Drag to reorder group">
+              ⋮⋮
+            </span>
+            <span
+              className="tree-Caret"
+              onClick={(e) => toggleCollapse(collapseId, e)}
+            >
+              {isGroupExpanded ? '▼' : '▶'}
+            </span>
+            <ComponentBadge component={groupComp} />
+            <span className="tree-row-label" style={{ fontWeight: 600 }}>
+              {groupLabel}
+            </span>
+            <span className="tree-row-meta">({childItems.length})</span>
+            {groupFeatReq && (
+              <span
+                title={groupFeatReq.tooltip}
+                style={{ fontSize: 10, color: '#d97706' }}
+              >
+                !
+              </span>
+            )}
+          </div>
+          <div className="tree-row-actions">
+            <button
+              type="button"
+              className="tree-action-icon"
+              title={`Add item to ${groupLabel}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAddForTarget({
+                  type: 'groupedItems',
+                  groupKey,
+                  headerKey,
+                  ribbonTabKey: ribbonKey,
+                  label: `Group: ${groupLabel}`,
+                });
+              }}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="tree-action-icon delete"
+              title={`Remove group ${groupLabel}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTool(groupKey, {
+                  ...parentContextPayload,
+                  index: idx,
+                });
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {isGroupExpanded && (
+          <div className="tree-children">
+            {childItems.length === 0 ? (
+              <div className="empty-hint" style={{ paddingLeft: 8 }}>
+                Empty group
+              </div>
+            ) : (
+              childItems.map((entry, childIdx) => {
+                const childKey =
+                  typeof entry === 'string' ? entry : entry?.dataElement;
+                if (!childKey) return null;
+
+                const childComp = config.modularComponents?.[childKey] || {
+                  type: isDivider(childKey) ? 'divider' : 'toolButton',
+                  dataElement: childKey,
+                };
+
+                const childContextPayload = {
+                  type: 'groupedItems',
+                  groupKey,
+                  headerKey,
+                  ribbonKey,
+                };
+
+                if (childComp?.type === 'groupedItems') {
+                  return renderGroupedItemsNode(
+                    childKey,
+                    childIdx,
+                    groupListId,
+                    childContextPayload,
+                    { headerKey, ribbonKey, visited: nextVisited },
+                  );
+                }
+
+                const childLabel = getFriendlyComponentName(
+                  childKey,
+                  childComp,
+                );
+
+                const cType = childComp?.type;
+                const cNodeType =
+                  cType === 'toggleButton' ||
+                  cType === 'toggleElementButton' ||
+                  Boolean(childComp?.toggleElement)
+                    ? 'toggle'
+                    : 'component';
+
+                const isChildSel =
+                  selectedNode?.type === cNodeType &&
+                  selectedNode?.id === childKey &&
+                  selectedNode?.parentId === groupKey &&
+                  (selectedNode?.index === undefined ||
+                    selectedNode?.index === childIdx);
+
+                const childFeatReq = getItemFeatureRequirement(
+                  childKey,
+                  childComp,
+                );
+
+                return (
+                  <div
+                    key={`${childKey}-${childIdx}`}
+                    className={`tree-row ${isChildSel ? 'selected' : ''} ${getDragClass(groupListId, childIdx)}`}
+                    draggable
+                    onDragStart={(e) =>
+                      handleDragStart(
+                        e,
+                        groupListId,
+                        childIdx,
+                        childContextPayload,
+                      )
+                    }
+                    onDragOver={(e) => handleDragOver(e, groupListId, childIdx)}
+                    onDrop={(e) => handleDrop(e, groupListId, childIdx)}
+                    onDragEnd={handleDragEnd}
+                    onClick={(e) => {
+                      handleSelectNode(
+                        {
+                          type: cNodeType,
+                          id: childKey,
+                          parentId: groupKey,
+                          groupKey,
+                          headerKey,
+                          ribbonKey,
+                          index: childIdx,
+                          label: childLabel,
+                          targetContext: {
+                            ...childContextPayload,
+                            index: childIdx,
+                          },
+                        },
+                        e,
+                      );
+                    }}
+                  >
+                    <div className="tree-row-left">
+                      <span
+                        className="tree-drag-handle"
+                        title="Drag to reorder item"
+                      >
+                        ⋮⋮
+                      </span>
+                      <ComponentBadge component={childComp} />
+                      <span className="tree-row-label">{childLabel}</span>
+                      {childFeatReq && (
+                        <span
+                          title={childFeatReq.tooltip}
+                          style={{ fontSize: 10, color: '#d97706' }}
+                        >
+                          !
+                        </span>
+                      )}
+                    </div>
+                    <div className="tree-row-actions">
+                      <button
+                        type="button"
+                        className="tree-action-icon delete"
+                        title="Remove from group"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTool(childKey, {
+                            ...childContextPayload,
+                            index: childIdx,
+                          });
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render a single Ribbon Tab row and its tools / nested groups
   const renderRibbonTabNode = (tabKey, tabIdx, headerKey, tabsListId) => {
     const tabComp = config.modularComponents?.[tabKey] || {
       type: 'ribbonItem',
@@ -437,13 +747,7 @@ export default function UIOutlineTree({
     const tabLabel = getFriendlyComponentName(tabKey, tabComp);
     const { tools, groupKey } = getToolsForRibbonTab(tabKey);
 
-    const anyToolMatches =
-      q && tools.some((t) => matchesFilter(t.label, t.key));
-    if (q && !matchesFilter(tabLabel, tabKey) && !anyToolMatches) {
-      return null;
-    }
-
-    const isExpanded = q ? true : isTabExpanded(tabKey);
+    const isExpanded = isTabExpanded(tabKey);
     const isTabSel =
       selectedNode?.type === 'ribbonTab' && selectedNode?.id === tabKey;
     const toolsListId = `tab-tools:${tabKey}`;
@@ -453,7 +757,7 @@ export default function UIOutlineTree({
       <div key={`${tabKey}-${tabIdx}`}>
         <div
           className={`tree-row ${isTabSel ? 'selected' : ''} ${getDragClass(tabsListId, tabIdx)}`}
-          draggable={!q}
+          draggable
           onDragStart={(e) =>
             handleDragStart(e, tabsListId, tabIdx, {
               type: 'ribbonTabs',
@@ -543,10 +847,21 @@ export default function UIOutlineTree({
               </div>
             ) : (
               tools.map((tool, toolIdx) => {
-                if (!matchesFilter(tool.label, tool.key)) {
-                  return null;
-                }
                 const cType = tool.component?.type;
+                if (cType === 'groupedItems') {
+                  return renderGroupedItemsNode(
+                    tool.key,
+                    toolIdx,
+                    toolsListId,
+                    {
+                      type: 'ribbon',
+                      ribbonKey: tabKey,
+                      headerKey,
+                    },
+                    { headerKey, ribbonKey: tabKey },
+                  );
+                }
+
                 const tNodeType =
                   cType === 'toggleButton' ||
                   cType === 'toggleElementButton' ||
@@ -570,7 +885,7 @@ export default function UIOutlineTree({
                   <div
                     key={`${tool.key}-${toolIdx}`}
                     className={`tree-row ${isToolSel ? 'selected' : ''} ${getDragClass(toolsListId, toolIdx)}`}
-                    draggable={!q}
+                    draggable
                     onDragStart={(e) =>
                       handleDragStart(e, toolsListId, toolIdx, {
                         type: 'ribbon',
@@ -658,13 +973,24 @@ export default function UIOutlineTree({
       }}
     >
       <div className="studio-pane-toolbar">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Filter outline..."
-          className="studio-search-input"
-        />
+        <div className="studio-outline-toolbar-row">
+          <button
+            type="button"
+            className="studio-outline-btn"
+            onClick={handleExpandAll}
+            title="Expand all sections, headers, and tabs"
+          >
+            Expand All
+          </button>
+          <button
+            type="button"
+            className="studio-outline-btn"
+            onClick={handleCollapseAll}
+            title="Collapse all sections, headers, and tabs"
+          >
+            Collapse All
+          </button>
+        </div>
       </div>
 
       <div className="studio-tree-scroll">
@@ -809,7 +1135,7 @@ export default function UIOutlineTree({
                                   <div key={`${itemKey}-${idx}`}>
                                     <div
                                       className={`tree-row ${getDragClass(headerListId, idx)}`}
-                                      draggable={!q}
+                                      draggable
                                       onDragStart={(e) =>
                                         handleDragStart(e, headerListId, idx, {
                                           type: 'header',
@@ -910,15 +1236,25 @@ export default function UIOutlineTree({
                                 );
                               }
 
+                              // B2. GROUPED ITEMS CONTAINER IN HEADER (e.g. groupedLeftHeaderButtons)
+                              if (comp?.type === 'groupedItems') {
+                                return renderGroupedItemsNode(
+                                  itemKey,
+                                  idx,
+                                  headerListId,
+                                  {
+                                    type: 'header',
+                                    headerKey,
+                                  },
+                                  { headerKey },
+                                );
+                              }
+
                               // C. STANDARD HEADER ITEM (PAN, ZOOM, MENU, VIEW CONTROLS, SEARCH, ETC.)
                               const label = getFriendlyComponentName(
                                 itemKey,
                                 comp,
                               );
-                              if (!matchesFilter(label, itemKey)) {
-                                return null;
-                              }
-
                               const compType = comp?.type;
                               const nodeType =
                                 compType === 'toggleButton' ||
@@ -943,7 +1279,7 @@ export default function UIOutlineTree({
                                 <div
                                   key={`${itemKey}-${idx}`}
                                   className={`tree-row ${isItemSel ? 'selected' : ''} ${getDragClass(headerListId, idx)}`}
-                                  draggable={!q}
+                                  draggable
                                   onDragStart={(e) =>
                                     handleDragStart(e, headerListId, idx, {
                                       type: 'header',
@@ -1194,7 +1530,6 @@ export default function UIOutlineTree({
                 Object.entries(config.panels || {}).map(
                   ([panelId, panelDef]) => {
                     const pLabel = getFriendlyComponentName(panelId, panelDef);
-                    if (!matchesFilter(pLabel, panelId)) return null;
                     const isPanelSel =
                       selectedNode?.type === 'panel' &&
                       selectedNode?.id === panelId &&
@@ -1403,7 +1738,6 @@ export default function UIOutlineTree({
                               itemKey,
                               comp,
                             );
-                            if (!matchesFilter(pLabel, itemKey)) return null;
 
                             const isPItemSel =
                               selectedNode?.type === 'popupItem' &&
@@ -1417,7 +1751,7 @@ export default function UIOutlineTree({
                               <div
                                 key={`${itemKey}-${pIdx}`}
                                 className={`tree-row ${isPItemSel ? 'selected' : ''} ${getDragClass(popupListId, pIdx)}`}
-                                draggable={!q}
+                                draggable
                                 onDragStart={(e) =>
                                   handleDragStart(e, popupListId, pIdx, {
                                     type: 'popup',

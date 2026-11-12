@@ -189,20 +189,29 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
   }, [viewerReady]);
 
   // 2. Auto-Apply effect: When config changes and autoApply is enabled, sync to WebViewer
-  const applyConfigToViewer = useCallback((cfgToApply) => {
-    if (!window.viewerInstance || !window.viewerInstance.UI) return;
-    try {
-      const { config: sanitized, warnings } = prepareConfigForImport(
-        cfgToApply,
-        { forViewer: true },
-      );
-      const functionMap = buildFunctionMap(sanitized, window.viewerInstance);
-      logNewWarnings(warnings);
-      window.viewerInstance.UI.importModularComponents(sanitized, functionMap);
-    } catch (err) {
-      console.error('Failed to apply configuration to WebViewer:', err.message);
-    }
-  }, [logNewWarnings]);
+  const applyConfigToViewer = useCallback(
+    (cfgToApply) => {
+      if (!window.viewerInstance || !window.viewerInstance.UI) return;
+      try {
+        const { config: sanitized, warnings } = prepareConfigForImport(
+          cfgToApply,
+          { forViewer: true },
+        );
+        const functionMap = buildFunctionMap(sanitized, window.viewerInstance);
+        logNewWarnings(warnings);
+        window.viewerInstance.UI.importModularComponents(
+          sanitized,
+          functionMap,
+        );
+      } catch (err) {
+        console.error(
+          'Failed to apply configuration to WebViewer:',
+          err.message,
+        );
+      }
+    },
+    [logNewWarnings],
+  );
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -331,6 +340,17 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           headerKey: node.id,
           label: `Header: ${node.label || node.id}`,
         });
+      } else if (node.type === 'groupedItems') {
+        if (node.headerKey) setActiveHeader(node.headerKey);
+        if (node.ribbonKey) activateRibbonTabInViewer(node.ribbonKey);
+        setActiveTarget({
+          key: `groupedItems:${node.id}`,
+          type: 'groupedItems',
+          groupKey: node.id,
+          headerKey: node.headerKey || activeHeader,
+          ribbonTabKey: node.ribbonKey,
+          label: `Group: ${node.label || node.id}`,
+        });
       } else if (node.type === 'ribbonTab') {
         if (node.headerKey) setActiveHeader(node.headerKey);
         activateRibbonTabInViewer(node.id);
@@ -369,7 +389,15 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
         });
       } else if (node.targetContext) {
         const ctx = node.targetContext;
-        if (ctx.type === 'ribbon' && ctx.ribbonKey) {
+        if (ctx.type === 'groupedItems' && ctx.groupKey) {
+          setActiveTarget({
+            key: `groupedItems:${ctx.groupKey}`,
+            type: 'groupedItems',
+            groupKey: ctx.groupKey,
+            headerKey: ctx.headerKey || activeHeader,
+            ribbonTabKey: ctx.ribbonKey,
+          });
+        } else if (ctx.type === 'ribbon' && ctx.ribbonKey) {
           const hKey = ctx.headerKey || activeHeader;
           setActiveTarget({
             key: `ribbon:${hKey}:${ctx.ribbonKey}`,
@@ -412,6 +440,8 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
     let key = targetSpec?.key;
     if (!key && targetSpec) {
       if (targetSpec.type === 'header') key = `header:${targetSpec.headerKey}`;
+      else if (targetSpec.type === 'groupedItems')
+        key = `groupedItems:${targetSpec.groupKey}`;
       else if (targetSpec.type === 'ribbon')
         key = `ribbon:${targetSpec.headerKey}:${targetSpec.ribbonTabKey}`;
       else if (targetSpec.type === 'flyout')
@@ -936,6 +966,22 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       }
 
       if (
+        targetLocationType === 'groupedItems' &&
+        target.groupKey &&
+        modularComponents[target.groupKey]
+      ) {
+        const groupComp = { ...modularComponents[target.groupKey] };
+        const groupItems = Array.isArray(groupComp.items)
+          ? [...groupComp.items]
+          : [];
+        if (!groupItems.includes(compKey)) {
+          groupItems.push(compKey);
+        }
+        modularComponents[target.groupKey] = {
+          ...groupComp,
+          items: groupItems,
+        };
+      } else if (
         targetLocationType === 'ribbon' &&
         ribbonTabKey &&
         modularComponents[ribbonTabKey]
@@ -1151,10 +1197,29 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
       const modularHeaders = { ...prev.modularHeaders };
       const nextFlyouts = { ...prev.flyouts };
 
-      const { type, ribbonKey, headerKey, flyoutKey, parentKey, index } =
-        targetContext;
+      const {
+        type,
+        groupKey,
+        ribbonKey,
+        headerKey,
+        flyoutKey,
+        parentKey,
+        index,
+      } = targetContext;
 
-      if (type === 'flyout' && flyoutKey && nextFlyouts[flyoutKey]) {
+      if (type === 'groupedItems' && groupKey && modularComponents[groupKey]) {
+        const gItems = [...(modularComponents[groupKey].items || [])];
+        if (typeof index === 'number' && index >= 0 && index < gItems.length) {
+          gItems.splice(index, 1);
+        } else {
+          const foundIdx = gItems.indexOf(itemKey);
+          if (foundIdx >= 0) gItems.splice(foundIdx, 1);
+        }
+        modularComponents[groupKey] = {
+          ...modularComponents[groupKey],
+          items: gItems,
+        };
+      } else if (type === 'flyout' && flyoutKey && nextFlyouts[flyoutKey]) {
         const fItems = [...(nextFlyouts[flyoutKey].items || [])];
         if (typeof index === 'number' && index >= 0 && index < fItems.length) {
           fItems.splice(index, 1);
@@ -1337,10 +1402,35 @@ export default function ModularUIBuilder({ viewerRef, viewerReady }) {
           return list;
         };
 
-        const { type, headerKey, ribbonKey, flyoutKey, parentKey, popupKey } =
-          contextPayload;
+        const {
+          type,
+          groupKey,
+          headerKey,
+          ribbonKey,
+          flyoutKey,
+          parentKey,
+          popupKey,
+        } = contextPayload;
 
-        if (type === 'header' && headerKey && modularHeaders[headerKey]) {
+        if (
+          type === 'groupedItems' &&
+          groupKey &&
+          modularComponents[groupKey] &&
+          Array.isArray(modularComponents[groupKey].items)
+        ) {
+          modularComponents[groupKey] = {
+            ...modularComponents[groupKey],
+            items: reorderArray(
+              modularComponents[groupKey].items,
+              fromIndex,
+              toIndex,
+            ),
+          };
+        } else if (
+          type === 'header' &&
+          headerKey &&
+          modularHeaders[headerKey]
+        ) {
           const { visibleItems, inlineRibbonGroupedKeys } =
             getFlattenedHeaderItems(
               headerKey,

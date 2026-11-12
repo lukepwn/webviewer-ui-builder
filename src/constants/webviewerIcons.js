@@ -42,6 +42,7 @@ export const CATEGORY_FALLBACK_SVGS = {
   header: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1.5" fill="none"/><line x1="1.5" y1="6.5" x2="14.5" y2="6.5" fill="none"/></svg>`,
   ribbonGroup: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" fill="none"/><path d="M1.5 8h13" fill="none"/><path d="M5 4.5V2.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none"/></svg>`,
   ribbonItem: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5V3.5a1.5 1.5 0 0 1 1.5-1.5h3.1a1.5 1.5 0 0 1 1.06.44l1.34 1.34A1.5 1.5 0 0 0 10.06 4.2H12.5A1.5 1.5 0 0 1 14 5.7v7.8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5z" fill="none"/></svg>`,
+  groupedItems: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="5" height="5" rx="1" fill="none"/><rect x="9.5" y="2.5" width="5" height="5" rx="1" fill="none"/><rect x="1.5" y="9.5" width="5" height="5" rx="1" fill="none"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="none"/></svg>`,
   submenu: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h10" fill="none"/><path d="M3 8h6" fill="none"/><path d="M3 13h10" fill="none"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></svg>`,
   divider: `<svg viewBox="0 0 16 16" fill="currentColor"><rect x="7" y="2" width="2" height="12" rx="1"/></svg>`,
   spacer: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"><rect x="2" y="3" width="12" height="10" rx="2" fill="none"/></svg>`,
@@ -159,7 +160,14 @@ export function getComponentSvg(input) {
     if (type === 'ribbonItem') {
       return CATEGORY_FALLBACK_SVGS.ribbonItem;
     }
-    if (type === 'divider' || id === 'divider' || (typeof id === 'string' && id.startsWith('divider-'))) {
+    if (type === 'groupedItems') {
+      return CATEGORY_FALLBACK_SVGS.groupedItems;
+    }
+    if (
+      type === 'divider' ||
+      id === 'divider' ||
+      (typeof id === 'string' && id.startsWith('divider-'))
+    ) {
       return CATEGORY_FALLBACK_SVGS.divider;
     }
     if (type === 'spacer') {
@@ -168,6 +176,7 @@ export function getComponentSvg(input) {
     if (
       type === 'toggleButton' ||
       type === 'toggleElementButton' ||
+      type === 'toolGroupToggleButton' ||
       Boolean(comp.toggleElement)
     ) {
       return CATEGORY_FALLBACK_SVGS.toggle;

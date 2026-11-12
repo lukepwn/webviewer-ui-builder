@@ -60,6 +60,10 @@ export function getComponentBadgeInfo(component = {}) {
     return { label: 'Preset Button', className: 'badge-preset' };
   }
 
+  if (type === 'toolGroupToggleButton') {
+    return { label: 'Tool Group Toggle', className: 'badge-toggle' };
+  }
+
   if (
     type === 'toggleButton' ||
     type === 'toggleElementButton' ||

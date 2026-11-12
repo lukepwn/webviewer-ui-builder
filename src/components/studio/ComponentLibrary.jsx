@@ -52,7 +52,11 @@ export default function ComponentLibrary({
   useEffect(() => {
     if (!stagedDraft?.kind) return;
     const kind = stagedDraft.kind;
-    if (['header', 'ribbonTab', 'flyout', 'tabPanel'].includes(kind)) {
+    if (
+      ['header', 'ribbonTab', 'flyout', 'tabPanel', 'groupedItems'].includes(
+        kind,
+      )
+    ) {
       if (category !== 'all' && category !== 'container') {
         setCategory('container');
       }
@@ -73,7 +77,9 @@ export default function ComponentLibrary({
     } else if (kind === 'panel' && category !== 'all' && category !== 'panel') {
       setCategory('panel');
     } else if (
-      (kind === 'toggleButton' || kind === 'submenu') &&
+      (kind === 'toggleButton' ||
+        kind === 'toolGroupToggleButton' ||
+        kind === 'submenu') &&
       category !== 'all' &&
       category !== 'interactive'
     ) {
@@ -220,6 +226,60 @@ export default function ComponentLibrary({
                   </div>
                   <div className="library-card-info">
                     <div className="library-card-title">Nested Submenu</div>
+                  </div>
+                </div>
+              )}
+
+            {showCategory('interactive') &&
+              matchesSearch(
+                'Tool Group Toggle Button',
+                'Toggles visibility of a GroupedItems tool cluster',
+              ) && (
+                <div
+                  className={`library-card ${stagedKey === 'interactive:toolGroupToggleButton' ? 'staged' : ''}`}
+                  title="Tool Group Toggle Button • Toggles visibility of a GroupedItems container"
+                  onClick={() => {
+                    handleStage({ kind: 'toolGroupToggleButton' });
+                  }}
+                >
+                  <div className="library-card-icon-col">
+                    <ComponentBadge
+                      component={{
+                        type: 'toolGroupToggleButton',
+                        dataElement: 'customToolGroupToggleButton',
+                      }}
+                    />
+                  </div>
+                  <div className="library-card-info">
+                    <div className="library-card-title">
+                      Tool Group Toggle Button
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            {showCategory('container') &&
+              matchesSearch(
+                'Grouped Items Container',
+                'Cluster container for grouping buttons and tools (GroupedItems)',
+              ) && (
+                <div
+                  className={`library-card ${stagedKey === 'container:groupedItems' ? 'staged' : ''}`}
+                  title="Grouped Items Container (GroupedItems) • Groups tools or buttons with custom gap, grow, and styling"
+                  onClick={() => handleStage({ kind: 'groupedItems' })}
+                >
+                  <div className="library-card-icon-col">
+                    <ComponentBadge
+                      component={{
+                        type: 'groupedItems',
+                        dataElement: 'customGroupedItems',
+                      }}
+                    />
+                  </div>
+                  <div className="library-card-info">
+                    <div className="library-card-title">
+                      Grouped Items (GroupedItems)
+                    </div>
                   </div>
                 </div>
               )}

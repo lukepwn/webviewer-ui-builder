@@ -68,7 +68,9 @@ BUILTIN_POPUP_ITEMS_CATALOG.forEach((item) => {
  */
 export function isDivider(key, comp = {}) {
   const id = typeof key === 'string' ? key : comp?.dataElement || '';
-  return id === 'divider' || id.startsWith('divider-') || comp?.type === 'divider';
+  return (
+    id === 'divider' || id.startsWith('divider-') || comp?.type === 'divider'
+  );
 }
 
 /**
@@ -82,10 +84,11 @@ export function humanizeKey(rawKey = '') {
   const cleaned = rawKey
     .replace(/^toolbarGroup-/i, '')
     .replace(/^ribbon-/i, '')
-    .replace(/ToolGroupButton$/i, '')
-    .replace(/ToolButton$/i, '')
-    .replace(/RibbonItem$/i, '')
-    .replace(/GroupedItems$/i, ' Tools')
+    .replace(/ToolGroupToggleButton(\d*)$/i, ' Group Toggle $1')
+    .replace(/ToolGroupButton(\d*)$/i, ' $1')
+    .replace(/ToolButton(\d*)$/i, ' $1')
+    .replace(/RibbonItem(\d*)$/i, ' $1')
+    .replace(/([a-zA-Z])(\d+)/g, '$1 $2')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[-_]+/g, ' ')
     .trim();

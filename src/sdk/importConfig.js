@@ -137,6 +137,7 @@ function normalizeComponents(rawConfig, warnings) {
     if (
       (compCopy.type === 'customButton' ||
         compCopy.type === 'toggleButton' ||
+        compCopy.type === 'toolGroupToggleButton' ||
         compCopy.type === 'presetButton' ||
         compCopy.type === 'toolButton') &&
       compCopy.icon &&
@@ -191,6 +192,12 @@ function normalizeComponents(rawConfig, warnings) {
       compCopy.items = [];
     }
 
+    if (compCopy.type === 'toolGroupToggleButton') {
+      if (Array.isArray(compCopy.groupedItems)) {
+        compCopy.groupedItems = compCopy.groupedItems[0] || '';
+      }
+    }
+
     sanitizedComponents[key] = compCopy;
   }
 
@@ -201,7 +208,17 @@ function normalizeComponents(rawConfig, warnings) {
         return itemKey === 'divider' || !!sanitizedComponents[itemKey];
       });
     }
-    if (Array.isArray(comp.groupedItems)) {
+    if (comp.type === 'toolGroupToggleButton') {
+      if (
+        typeof comp.groupedItems === 'string' &&
+        comp.groupedItems &&
+        !sanitizedComponents[comp.groupedItems]
+      ) {
+        warnings.push(
+          `ToolGroupToggleButton '${comp.dataElement}' targets groupedItems '${comp.groupedItems}', which is not defined in modularComponents.`,
+        );
+      }
+    } else if (Array.isArray(comp.groupedItems)) {
       comp.groupedItems = comp.groupedItems.filter((itemKey) => {
         return !!sanitizedComponents[itemKey];
       });
