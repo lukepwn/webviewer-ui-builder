@@ -9,6 +9,94 @@ import {
 import { getItemFeatureRequirement } from '../../constants/featureRegistry';
 import { getFriendlyComponentName } from '../../utils/labelUtils';
 
+function renderCategorizedTargetOptions(targets) {
+  const headers = targets.filter((t) => t.type === 'header');
+  const ribbons = targets.filter((t) => t.type === 'ribbon');
+  const groups = targets.filter((t) => t.type === 'groupedItems');
+  const flyouts = targets.filter((t) => t.type === 'flyout');
+  const submenus = targets.filter((t) => t.type === 'submenu');
+  const popups = targets.filter((t) => t.type === 'popup');
+  const others = targets.filter(
+    (t) =>
+      ![
+        'header',
+        'ribbon',
+        'groupedItems',
+        'flyout',
+        'submenu',
+        'popup',
+      ].includes(t.type),
+  );
+
+  return (
+    <>
+      {headers.length > 0 && (
+        <optgroup label="Headers">
+          {headers.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {ribbons.length > 0 && (
+        <optgroup label="Ribbon Tabs">
+          {ribbons.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {groups.length > 0 && (
+        <optgroup label="Grouped Items / Tool Groups">
+          {groups.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {flyouts.length > 0 && (
+        <optgroup label="Flyout Menus">
+          {flyouts.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {submenus.length > 0 && (
+        <optgroup label="Submenus (Drilldown)">
+          {submenus.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {popups.length > 0 && (
+        <optgroup label="Popups">
+          {popups.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {others.length > 0 && (
+        <optgroup label="Other Containers">
+          {others.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </>
+  );
+}
+
 export default function StagingInspector({
   width,
   config,
@@ -279,18 +367,14 @@ export default function StagingInspector({
                     if (next && onChangeTarget) onChangeTarget(next);
                   }}
                 >
-                  {availableTargets
-                    .filter(
+                  {renderCategorizedTargetOptions(
+                    availableTargets.filter(
                       (t) =>
                         t.type !== 'flyout' &&
                         t.type !== 'submenu' &&
                         t.type !== 'popup',
-                    )
-                    .map((t) => (
-                      <option key={t.key} value={t.key}>
-                        {t.label}
-                      </option>
-                    ))}
+                    ),
+                  )}
                 </select>
               ) : (
                 <select
@@ -311,11 +395,7 @@ export default function StagingInspector({
                         {currentTarget.label}
                       </option>
                     )}
-                  {availableTargets.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label}
-                    </option>
-                  ))}
+                  {renderCategorizedTargetOptions(availableTargets)}
                 </select>
               )}
             </div>
@@ -360,7 +440,7 @@ export default function StagingInspector({
                 onChange={(e) =>
                   update({
                     label: e.target.value,
-                    title: draft.title || e.target.value,
+                    title: e.target.value,
                   })
                 }
                 placeholder="Button label"
@@ -420,7 +500,7 @@ export default function StagingInspector({
                 onChange={(e) =>
                   update({
                     label: e.target.value,
-                    title: draft.title || e.target.value,
+                    title: e.target.value,
                   })
                 }
               />
@@ -586,7 +666,7 @@ export default function StagingInspector({
                     onChange={(e) =>
                       update({
                         label: e.target.value,
-                        title: draft.title || e.target.value,
+                        title: e.target.value,
                       })
                     }
                   />
@@ -695,7 +775,12 @@ export default function StagingInspector({
               <input
                 className="inspector-input"
                 value={draft.label || ''}
-                onChange={(e) => update({ label: e.target.value })}
+                onChange={(e) =>
+                  update({
+                    label: e.target.value,
+                    title: e.target.value,
+                  })
+                }
                 placeholder="Toggle Label"
               />
             </div>

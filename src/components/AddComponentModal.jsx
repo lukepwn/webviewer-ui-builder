@@ -704,11 +704,10 @@ export default function AddComponentModal({
         selectedItem.ref?.defaultLocation ||
         panels[selectedItem.ref?.id]?.location ||
         'left';
-      const isTextLabel = selectedItem.ref?.type === 'label';
       setForm({
         dataElement: uniqueDataElement,
-        label: isTextLabel ? (selectedItem.defaults?.label ?? '') : '',
-        title: selectedItem.defaults?.title ?? '',
+        label: '',
+        title: '',
         icon: selectedItem.defaults?.icon ?? '',
         onClick: selectedItem.defaults?.onClick ?? '',
         toggleElement: defaultToggle,
@@ -880,8 +879,14 @@ export default function AddComponentModal({
 
   if (!isOpen) return null;
 
-  const setField = (key) => (e) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setField = (key) => (e) => {
+    const val = e.target.value;
+    if (key === 'label') {
+      setForm((f) => ({ ...f, label: val, title: val }));
+    } else {
+      setForm((f) => ({ ...f, [key]: val }));
+    }
+  };
 
   const moveSelection = (dir) => {
     const enabled = filteredItems.filter((i) => !isItemBlocked(i));
@@ -1433,27 +1438,6 @@ export default function AddComponentModal({
               onChange={(e) => setTargetValue(e.target.value)}
               className="form-select"
             >
-              {selectedItem?.containerType !== 'flyout' &&
-                allSubmenus.length > 0 && (
-                  <optgroup label="Submenus (Drilldown)">
-                    {allSubmenus.map((s) => (
-                      <option key={s.key} value={`submenu:${s.key}`}>
-                        {`${'— '.repeat(s.depth - 1)}Submenu: ${s.key}${s.flyoutId ? ` [${s.flyoutId}]` : ''}`}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              {selectedItem?.containerType !== 'flyout' &&
-                isSubmenuTarget &&
-                !allSubmenus.some(
-                  (s) => `submenu:${s.key}` === targetValue,
-                ) && (
-                  <optgroup label="Current Submenu">
-                    <option value={targetValue}>
-                      Submenu: {targetValue.slice('submenu:'.length)}
-                    </option>
-                  </optgroup>
-                )}
               <optgroup label="Header">
                 <option value="header">
                   {headerOptions.length === 0
@@ -1479,6 +1463,27 @@ export default function AddComponentModal({
                   ))}
                 </optgroup>
               )}
+              {selectedItem?.containerType !== 'flyout' &&
+                allSubmenus.length > 0 && (
+                  <optgroup label="Submenus (Drilldown)">
+                    {allSubmenus.map((s) => (
+                      <option key={s.key} value={`submenu:${s.key}`}>
+                        {`${'— '.repeat(s.depth - 1)}Submenu: ${s.key}${s.flyoutId ? ` [${s.flyoutId}]` : ''}`}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              {selectedItem?.containerType !== 'flyout' &&
+                isSubmenuTarget &&
+                !allSubmenus.some(
+                  (s) => `submenu:${s.key}` === targetValue,
+                ) && (
+                  <optgroup label="Current Submenu">
+                    <option value={targetValue}>
+                      Submenu: {targetValue.slice('submenu:'.length)}
+                    </option>
+                  </optgroup>
+                )}
               <optgroup label="Popups">
                 {POPUPS_CATALOG.map((p) => {
                   const count = (

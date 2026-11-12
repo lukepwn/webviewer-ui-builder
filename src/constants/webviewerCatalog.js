@@ -890,7 +890,7 @@ export const LAYOUT_ELEMENTS_CATALOG = [
     type: 'pageControls',
     name: 'Page Controls',
     description: 'Page number input and next/previous page buttons',
-    defaultId: 'pageControls',
+    defaultId: 'page-controls-container',
   },
   {
     type: 'zoom',
